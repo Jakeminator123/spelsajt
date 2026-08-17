@@ -6,6 +6,8 @@ export interface FairnessInput {
   rulesetHash: string;
 }
 
+export const fairnessAlgorithmId = "pf-v1" as const;
+
 const HEX_32_BYTES = /^[a-f0-9]{64}$/;
 const encoder = new TextEncoder();
 
@@ -36,7 +38,7 @@ export function encodeInput(
   }
 
   const fields = [
-    "pf-v1",
+    fairnessAlgorithmId,
     input.game,
     input.roundId,
     input.clientSeed,

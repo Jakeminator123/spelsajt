@@ -1,0 +1,49 @@
+{
+  "$schema": "../schemas/ruleset.schema.json",
+  "schemaVersion": 1,
+  "id": "mvp-v1",
+  "mode": "play-money",
+  "currency": {
+    "code": "PLAY",
+    "fractionDigits": 0,
+    "startingBalance": "10000"
+  },
+  "blackjack": {
+    "decks": 6,
+    "dealerHitsSoft17": false,
+    "blackjackPayout": {
+      "numerator": 3,
+      "denominator": 2
+    },
+    "actions": ["hit", "stand", "double", "split"],
+    "maxSplits": 1,
+    "insurance": false,
+    "surrender": false,
+    "resplit": false
+  },
+  "roulette": {
+    "pockets": 37,
+    "minimumPocket": 0,
+    "maximumPocket": 36,
+    "zeroes": 1,
+    "betTypes": [
+      "straight",
+      "split",
+      "street",
+      "corner",
+      "six-line",
+      "column",
+      "dozen",
+      "red-black",
+      "odd-even",
+      "low-high"
+    ]
+  },
+  "fairness": {
+    "algorithmId": "pf-v1",
+    "commitment": "sha256",
+    "stream": "hmac-sha256",
+    "boundedInteger": "rejection-sampling",
+    "blackjackShuffle": "fisher-yates"
+  }
+}

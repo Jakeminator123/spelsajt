@@ -1,0 +1,16 @@
+{
+  "eventId": "22222222-2222-4222-8222-222222222222",
+  "occurredAt": "2026-08-18T12:00:02.000Z",
+  "roundId": "33333333-3333-4333-8333-333333333333",
+  "schemaVersion": 1,
+  "sequence": 8,
+  "tableId": "blackjack-demo",
+  "type": "round.settled",
+  "payload": {
+    "balance": "10150",
+    "game": "blackjack",
+    "outcome": "win",
+    "payout": "250",
+    "revealedServerSeed": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

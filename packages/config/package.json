@@ -1,5 +1,29 @@
 {
   "name": "@spelsajt/config",
   "version": "0.1.0",
-  "private": true
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./rulesets/mvp-v1.json": "./rulesets/mvp-v1.json",
+    "./schemas/ruleset.schema.json": "./schemas/ruleset.schema.json"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "rulesets:check": "vitest run scripts/ruleset-lock.test.ts",
+    "rulesets:lock": "vitest run scripts/ruleset-lock.test.ts",
+    "schemas:check": "vitest run scripts/schema-artifacts.test.ts",
+    "schemas:generate": "vitest run scripts/schema-artifacts.test.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "typescript": "6.0.3",
+    "vitest": "4.1.10"
+  }
 }

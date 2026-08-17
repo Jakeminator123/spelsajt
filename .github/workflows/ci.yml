@@ -69,5 +69,8 @@ jobs:
       - name: Apply migrations and seed
         run: pnpm supabase db reset --local
 
+      - name: Test database contracts
+        run: pnpm supabase test db --local
+
       - name: Lint database
         run: pnpm supabase db lint --local --level error --fail-on error

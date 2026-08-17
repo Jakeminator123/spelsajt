@@ -11,6 +11,8 @@ coverage/
 # local tooling
 .vercel/
 .supabase/
+.codex-log/
+.pnpm-store/
 tmp/
 
 # environment and secrets

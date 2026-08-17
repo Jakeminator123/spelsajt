@@ -9,13 +9,16 @@
   "scripts": {
     "build": "tsc --noEmit",
     "lint": "tsc --noEmit",
+    "schemas:check": "vitest run scripts/schema-artifacts.test.ts",
+    "schemas:generate": "vitest run scripts/schema-artifacts.test.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run"
   },
   "dependencies": {
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@types/node": "24.13.3",
     "typescript": "6.0.3",
     "vitest": "4.1.10"
   }

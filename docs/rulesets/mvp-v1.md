@@ -1,6 +1,6 @@
 # Ruleset MVP v1
 
-Detta dokument fryser de regler som påverkar resultat, verifiering och animationer. Ändringar kräver en ny ruleset-version och nya golden test vectors.
+Detta är den mänskligt läsbara förklaringen av reglerna som påverkar resultat, verifiering och animationer. Den maskinläsbara källan är `packages/config/rulesets/mvp-v1.json`, validerad av JSON Schema och låst med en semantisk hash. Ändringar kräver en ny ruleset-version och nya golden test vectors.
 
 ## Gemensamt
 

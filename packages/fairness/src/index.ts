@@ -2,7 +2,7 @@ import { createHash, createHmac, randomBytes } from "node:crypto";
 
 import { encodeInput, requireServerSeed, type FairnessInput } from "./shared";
 
-export type { FairnessInput } from "./shared";
+export { fairnessAlgorithmId, type FairnessInput } from "./shared";
 
 export function createServerSeed(): string {
   return randomBytes(32).toString("hex");

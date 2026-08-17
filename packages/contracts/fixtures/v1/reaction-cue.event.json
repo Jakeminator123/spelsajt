@@ -1,0 +1,14 @@
+{
+  "eventId": "44444444-4444-4444-8444-444444444444",
+  "occurredAt": "2026-08-18T12:00:02.100Z",
+  "roundId": "33333333-3333-4333-8333-333333333333",
+  "schemaVersion": 1,
+  "sequence": 9,
+  "tableId": "blackjack-demo",
+  "type": "reaction.cue",
+  "payload": {
+    "actor": "dealer",
+    "intensity": 0.7,
+    "mood": "celebratory"
+  }
+}
