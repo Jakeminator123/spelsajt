@@ -10,10 +10,16 @@
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
+    "db:lint": "supabase db lint --local --level error --fail-on error",
+    "db:test": "supabase test db --local",
+    "db:verify": "supabase db reset --local && pnpm db:test && pnpm db:lint",
     "lint": "turbo run lint",
+    "rulesets:check": "pnpm --filter @spelsajt/config rulesets:check",
+    "schemas:check": "pnpm --filter @spelsajt/config schemas:check && pnpm --filter @spelsajt/contracts schemas:check",
+    "schemas:generate": "pnpm --filter @spelsajt/config schemas:generate && pnpm --filter @spelsajt/contracts schemas:generate",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "check": "pnpm schemas:check && pnpm rulesets:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {
     "@types/node": "24.13.3",

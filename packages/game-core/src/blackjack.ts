@@ -1,12 +1,15 @@
+import { mvpRuleset, mvpRulesetHash } from "@spelsajt/config";
+
 export const blackjackRuleset = {
-  blackjackPayout: "3:2",
-  dealerHitsSoft17: false,
-  decks: 6,
-  insurance: false,
-  maxSplits: 1,
-  resplit: false,
-  rulesetId: "mvp-v1",
-  surrender: false,
+  blackjackPayout: `${mvpRuleset.blackjack.blackjackPayout.numerator}:${mvpRuleset.blackjack.blackjackPayout.denominator}`,
+  dealerHitsSoft17: mvpRuleset.blackjack.dealerHitsSoft17,
+  decks: mvpRuleset.blackjack.decks,
+  insurance: mvpRuleset.blackjack.insurance,
+  maxSplits: mvpRuleset.blackjack.maxSplits,
+  resplit: mvpRuleset.blackjack.resplit,
+  rulesetHash: mvpRulesetHash,
+  rulesetId: mvpRuleset.id,
+  surrender: mvpRuleset.blackjack.surrender,
 } as const;
 
 export type CardRank =

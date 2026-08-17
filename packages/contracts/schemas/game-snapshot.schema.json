@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "balance": {
+      "type": "string",
+      "pattern": "^\\d+$"
+    },
+    "lastSequence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "openRoundId": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "tableId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    }
+  },
+  "required": [
+    "balance",
+    "lastSequence",
+    "openRoundId",
+    "schemaVersion",
+    "tableId"
+  ],
+  "additionalProperties": false,
+  "$id": "https://schemas.spelsajt.local/v1/game-snapshot.schema.json",
+  "title": "Spelsajt game snapshot v1"
+}

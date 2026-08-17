@@ -41,12 +41,20 @@ Webbappen startar normalt på `http://localhost:3000` och spelservern på `http:
 pnpm check
 ```
 
-Kommandot kör lint, TypeScript, tester och produktionsbyggen för hela repot.
+Kommandot kontrollerar genererade JSON Schema-filer och kör lint, TypeScript, tester samt produktionsbyggen för hela repot.
+
+När lokal Supabase är startad körs databasens migrationer, pgTAP-regressioner och lint med:
+
+```powershell
+pnpm db:verify
+```
 
 ## Dokument
 
 - [MVP-plan](docs/MVP_PLAN.md)
 - [MVP-regler](docs/rulesets/mvp-v1.md)
+- [Engineeringavtal och source of truth](docs/ENGINEERING.md)
+- [Spelmotor, 3D-avatarer och AI](docs/PRESENTATION_AI.md)
 - Den delbara PDF-versionen genereras i `output/pdf/`.
 
 ## Deploy

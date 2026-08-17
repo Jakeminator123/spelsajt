@@ -1,4 +1,4 @@
--- Play-money-only MVP schema.
+-- Play-money-only MVP schema for the dedicated Supabase project.
 -- Public data is deliberately minimal. Authoritative game state, fairness data,
 -- balances and the append-only ledger live outside the Data API schemas.
 
@@ -121,6 +121,10 @@ create table game_private.ledger_transactions (
 
 create index ledger_transactions_user_created_idx
   on game_private.ledger_transactions (user_id, created_at desc);
+
+create index ledger_transactions_round_idx
+  on game_private.ledger_transactions (round_id)
+  where round_id is not null;
 
 create table game_private.ledger_entries (
   id bigint generated always as identity primary key,
