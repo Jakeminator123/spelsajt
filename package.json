@@ -1,0 +1,25 @@
+{
+  "name": "spelsajt",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A high-quality play-money blackjack and roulette platform.",
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": ">=22.13.0 <25"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "supabase": "2.114.0",
+    "turbo": "2.10.10",
+    "typescript": "6.0.3",
+    "vitest": "4.1.10"
+  }
+}

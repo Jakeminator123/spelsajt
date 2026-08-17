@@ -1,0 +1,2 @@
+-- Intentionally empty. Test users and play-money grants are created through
+-- authenticated backend commands so that the ledger stays auditable.
