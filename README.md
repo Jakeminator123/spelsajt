@@ -2,6 +2,8 @@
 
 Modern play-money-plattform för blackjack och europeisk roulette. Projektet är ett pnpm/Turborepo-monorepo där webb, spelserver och deterministiska domänpaket kan utvecklas och testas tillsammans men deployas separat.
 
+Live scaffold: [spelsajt-web.vercel.app](https://spelsajt-web.vercel.app)
+
 ## Struktur
 
 ```text
