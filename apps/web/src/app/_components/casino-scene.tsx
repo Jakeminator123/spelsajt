@@ -2,14 +2,70 @@
 
 import { ContactShadows, Environment, Lightformer, RoundedBox } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useState } from "react";
-import { Vector3 } from "three";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Group, Vector3 } from "three";
 
+import { clamp01, easeOutCubic, lerp } from "./scene/animation";
 import { Croupier } from "./scene/croupier";
 import { PlayingCard } from "./scene/playing-card";
+import { PHASE_LABELS, type TablePhase, useTableState } from "./scene/presentation";
 import { RouletteWheel } from "./scene/roulette-wheel";
+import { TableDirector, TableStateProvider } from "./scene/table-director";
 
 const FELT_TOP = 0.1;
+
+// Where the croupier's hands sit — cards fly out from here during dealing.
+const DEALER_ORIGIN: [number, number, number] = [1.8, FELT_TOP + 0.48, -1.0];
+
+type Suit = "spade" | "heart" | "diamond" | "club";
+
+interface DealtCardConfig {
+  rank: string;
+  suit: Suit;
+  target: [number, number, number];
+  rotationY: number;
+  faceUp: boolean;
+}
+
+// A card that flies from the dealer's hands to its spot during the semantic
+// "betting" phase, then stays put for the rest of the round. Uses the shared
+// table state — the same event-driven approach that will drive future rigs.
+function DealtCard({ config, index, reduceMotion }: { config: DealtCardConfig; index: number; reduceMotion: boolean }) {
+  const group = useRef<Group>(null);
+  const tableState = useTableState();
+
+  useFrame(() => {
+    if (!group.current) {
+      return;
+    }
+    const [tx, ty, tz] = config.target;
+
+    if (reduceMotion) {
+      group.current.position.set(tx, ty, tz);
+      group.current.rotation.set(0, config.rotationY, 0);
+      return;
+    }
+
+    const { phase, phaseTime } = tableState.current;
+    const dealStart = 0.6 + index * 0.7;
+    const dealDuration = 0.9;
+    const progress = phase === "betting" ? clamp01((phaseTime - dealStart) / dealDuration) : 1;
+    const eased = easeOutCubic(progress);
+
+    group.current.position.set(
+      lerp(DEALER_ORIGIN[0], tx, eased),
+      lerp(DEALER_ORIGIN[1], ty, eased) + Math.sin(progress * Math.PI) * 0.4,
+      lerp(DEALER_ORIGIN[2], tz, eased),
+    );
+    group.current.rotation.y = lerp(0, config.rotationY, eased);
+  });
+
+  return (
+    <group ref={group}>
+      <PlayingCard rank={config.rank} suit={config.suit} faceUp={config.faceUp} />
+    </group>
+  );
+}
 
 function ChipStack({ position }: { position: [number, number, number] }) {
   const colors = ["#7c5cff", "#c6f24e", "#f4f5f8", "#7c5cff", "#c6f24e"];
@@ -63,9 +119,22 @@ function CameraRig({ reduceMotion }: { reduceMotion: boolean }) {
   return null;
 }
 
-function Scene({ reduceMotion }: { reduceMotion: boolean }) {
+const CARD_CONFIGS: DealtCardConfig[] = [
+  { rank: "A", suit: "spade", target: [0.05, FELT_TOP + 0.24, 1.05], rotationY: 0.24, faceUp: true },
+  { rank: "K", suit: "heart", target: [0.7, FELT_TOP + 0.18, 0.9], rotationY: 0.04, faceUp: true },
+  { rank: "Q", suit: "club", target: [1.35, FELT_TOP + 0.12, 0.72], rotationY: -0.16, faceUp: false },
+];
+
+function Scene({
+  reduceMotion,
+  onPhaseChange,
+}: {
+  reduceMotion: boolean;
+  onPhaseChange: (phase: TablePhase) => void;
+}) {
   return (
-    <>
+    <TableStateProvider>
+      <TableDirector onPhaseChange={onPhaseChange} />
       <CameraRig reduceMotion={reduceMotion} />
 
       <ambientLight intensity={0.5} />
@@ -76,9 +145,9 @@ function Scene({ reduceMotion }: { reduceMotion: boolean }) {
       <Table />
       <RouletteWheel reduceMotion={reduceMotion} position={[-2.2, FELT_TOP, 0.05]} />
 
-      <PlayingCard rank="A" suit="spade" position={[0.05, FELT_TOP + 0.24, 1.05]} rotationY={0.24} />
-      <PlayingCard rank="K" suit="heart" position={[0.7, FELT_TOP + 0.18, 0.9]} rotationY={0.04} />
-      <PlayingCard rank="Q" suit="club" position={[1.35, FELT_TOP + 0.12, 0.72]} rotationY={-0.16} faceUp={false} />
+      {CARD_CONFIGS.map((config, index) => (
+        <DealtCard key={`${config.rank}-${config.suit}`} config={config} index={index} reduceMotion={reduceMotion} />
+      ))}
 
       <ChipStack position={[1.95, FELT_TOP + 0.03, 0.9]} />
 
@@ -91,12 +160,13 @@ function Scene({ reduceMotion }: { reduceMotion: boolean }) {
         <Lightformer form="rect" intensity={1.6} position={[5, 2, 3]} scale={[3, 4, 1]} color="#c6f24e" />
         <Lightformer form="rect" intensity={1.4} position={[-5, 2, 2]} scale={[3, 4, 1]} color="#7c5cff" />
       </Environment>
-    </>
+    </TableStateProvider>
   );
 }
 
 export function CasinoScene() {
   const [reduceMotion, setReduceMotion] = useState(false);
+  const [phase, setPhase] = useState<TablePhase>("betting");
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -107,15 +177,24 @@ export function CasinoScene() {
   }, []);
 
   return (
-    <Canvas
-      camera={{ fov: 32, position: [0.6, 4.5, 6.9] }}
-      dpr={[1, 1.75]}
-      frameloop={reduceMotion ? "demand" : "always"}
-      gl={{ antialias: true, powerPreference: "high-performance" }}
-    >
-      <color attach="background" args={["#0a0b10"]} />
-      <fog attach="fog" args={["#0a0b10", 9, 18]} />
-      <Scene reduceMotion={reduceMotion} />
-    </Canvas>
+    <div className="scene-stage">
+      <Canvas
+        camera={{ fov: 32, position: [0.6, 4.5, 6.9] }}
+        dpr={[1, 1.75]}
+        frameloop={reduceMotion ? "demand" : "always"}
+        gl={{ antialias: true, powerPreference: "high-performance" }}
+      >
+        <color attach="background" args={["#0a0b10"]} />
+        <fog attach="fog" args={["#0a0b10", 9, 18]} />
+        <Scene reduceMotion={reduceMotion} onPhaseChange={setPhase} />
+      </Canvas>
+
+      {!reduceMotion ? (
+        <div className="scene-phase" aria-live="polite">
+          <span className="scene-phase-dot" data-phase={phase} />
+          <span className="scene-phase-label">{PHASE_LABELS[phase]}</span>
+        </div>
+      ) : null}
+    </div>
   );
 }

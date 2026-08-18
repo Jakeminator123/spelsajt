@@ -130,13 +130,13 @@ function makeBackTexture(): CanvasTexture {
 export function PlayingCard({
   rank,
   suit,
-  position,
+  position = [0, 0, 0],
   rotationY = 0,
   faceUp = true,
 }: {
   rank: string;
   suit: Suit;
-  position: [number, number, number];
+  position?: [number, number, number];
   rotationY?: number;
   faceUp?: boolean;
 }) {

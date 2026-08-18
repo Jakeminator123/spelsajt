@@ -10,7 +10,8 @@ import {
   SRGBColorSpace,
 } from "three";
 
-import { clamp01, easeInOutSine, easeOutCubic, TAU } from "./animation";
+import { clamp01, easeOutCubic, TAU } from "./animation";
+import { useTableState } from "./presentation";
 
 // Official single-zero European wheel order, clockwise from 0.
 const WHEEL_SEQUENCE = [
@@ -189,8 +190,7 @@ function Rotor({ reduceMotion }: { reduceMotion: boolean }) {
 
 function Ball({ reduceMotion }: { reduceMotion: boolean }) {
   const ball = useRef<Mesh>(null);
-  // Cosmetic spin/settle loop (no backend outcome is implied here).
-  const CYCLE = 9;
+  const tableState = useTableState();
 
   useFrame((state) => {
     if (!ball.current) {
@@ -202,31 +202,33 @@ function Ball({ reduceMotion }: { reduceMotion: boolean }) {
       return;
     }
 
-    const t = state.clock.elapsedTime % CYCLE;
-    const spinPhase = 5.5;
-    const dropPhase = 7.5;
+    // The ball only launches during the semantic "ball_in_motion" phase; it
+    // rests in a pocket for every other phase. It never reports a winning
+    // number — that stays authoritative on the backend.
+    const { phase, phaseTime } = tableState.current;
+    const SPIN_DURATION = 3.5;
+    const SETTLE_DURATION = 2;
 
     let radius: number;
     let y: number;
     let angularSpeed: number;
 
-    if (t < spinPhase) {
+    if (phase === "ball_in_motion" && phaseTime < SPIN_DURATION) {
       // Fast orbit on the ball track.
       radius = 1.5;
       y = 0.08;
       angularSpeed = 5.4;
-    } else if (t < dropPhase) {
+    } else if (phase === "ball_in_motion") {
       // Spiral inward and slow down into a pocket.
-      const k = easeOutCubic(clamp01((t - spinPhase) / (dropPhase - spinPhase)));
+      const k = easeOutCubic(clamp01((phaseTime - SPIN_DURATION) / SETTLE_DURATION));
       radius = 1.5 - k * 0.36;
       y = 0.08 - k * 0.1;
       angularSpeed = 5.4 - k * 3.9;
     } else {
-      // Rest, then lift back to the track for the next loop.
-      const k = clamp01((t - dropPhase) / (CYCLE - dropPhase));
-      radius = 1.14 + easeInOutSine(k) * 0.36;
-      y = -0.02 + easeInOutSine(k) * 0.1;
-      angularSpeed = 1.5 + k * 3.9;
+      // Resting in a pocket while the rotor drifts slowly.
+      radius = 1.14;
+      y = -0.02;
+      angularSpeed = 1.2;
     }
 
     const angle = state.clock.elapsedTime * angularSpeed;

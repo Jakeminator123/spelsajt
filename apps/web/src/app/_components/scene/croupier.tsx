@@ -6,6 +6,7 @@ import { useMemo, useRef } from "react";
 import type { Group } from "three";
 
 import { lerp, type Pose, PoseMixer } from "./animation";
+import { useTableState } from "./presentation";
 
 // Named poses the croupier cross-fades between. The same channel-based pose
 // approach is intended to later drive a rigged GLB dealer (idle / deal /
@@ -20,10 +21,11 @@ const SKIN = "#caa088";
 const SLEEVE = "#1a1c25";
 const CUFF = "#e9e8e2";
 
-function DealerArm({ side, phase }: { side: number; phase: number }) {
+function DealerArm({ side, phaseOffset }: { side: number; phaseOffset: number }) {
   const hand = useRef<Group>(null);
   const fingers = useRef<Group>(null);
   const mixer = useMemo(() => new PoseMixer(POSES, "rest"), []);
+  const tableState = useTableState();
   const baseZ = 0.12;
 
   useFrame((state, delta) => {
@@ -31,14 +33,16 @@ function DealerArm({ side, phase }: { side: number; phase: number }) {
       return;
     }
 
-    // Timeline director: pick a target pose, PoseMixer handles the cross-fade.
-    const cycle = (state.clock.elapsedTime + phase) % 12;
-    const target = cycle > 3 && cycle < 5 ? "present" : cycle > 7.5 && cycle < 9 ? "deal" : "rest";
-    mixer.play(target, 0.8);
+    // Map the SEMANTIC table phase to an approved presentation pose; the
+    // PoseMixer handles the cross-fade. This is the reusable director pattern
+    // meant to later drive rigged croupier/player avatars.
+    const phase = tableState.current.phase;
+    const target = phase === "betting" ? "deal" : phase === "no_more_bets" ? "present" : "rest";
+    mixer.play(target, 0.7);
 
     const pose = mixer.update(delta);
     // Additive idle breathing layered on top of the base pose.
-    const breath = Math.sin(state.clock.elapsedTime * 1.1 + phase) * 0.012;
+    const breath = Math.sin(state.clock.elapsedTime * 1.1 + phaseOffset) * 0.012;
 
     hand.current.position.y = (pose.lift ?? 0) + breath;
     hand.current.position.z = baseZ + (pose.reach ?? 0);
@@ -114,8 +118,8 @@ export function Croupier({
 
   return (
     <group position={position}>
-      <DealerArm side={-1} phase={0} />
-      <DealerArm side={1} phase={2.4} />
+      <DealerArm side={-1} phaseOffset={0} />
+      <DealerArm side={1} phaseOffset={2.4} />
     </group>
   );
 }

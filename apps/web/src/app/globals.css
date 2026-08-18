@@ -497,6 +497,72 @@ h1 span {
   font-weight: 600;
 }
 
+.scene-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.scene-phase {
+  align-items: center;
+  backdrop-filter: blur(10px);
+  background: rgba(10, 11, 16, 0.66);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  bottom: 30px;
+  display: inline-flex;
+  gap: 9px;
+  padding: 7px 14px 7px 11px;
+  pointer-events: none;
+  position: absolute;
+  right: 24px;
+  z-index: 4;
+}
+
+.scene-phase-dot {
+  border-radius: 50%;
+  height: 8px;
+  width: 8px;
+  background: var(--lime);
+  box-shadow: 0 0 10px rgba(198, 242, 78, 0.9);
+}
+
+.scene-phase-dot[data-phase="no_more_bets"] {
+  background: #ffb020;
+  box-shadow: 0 0 10px rgba(255, 176, 32, 0.9);
+}
+
+.scene-phase-dot[data-phase="ball_in_motion"] {
+  background: var(--violet-soft);
+  box-shadow: 0 0 10px rgba(155, 130, 255, 0.9);
+  animation: phase-pulse 0.9s ease-in-out infinite;
+}
+
+.scene-phase-label {
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+@keyframes phase-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.7);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene-phase-dot {
+    animation: none;
+  }
+}
+
 .jackpot-card {
   position: absolute;
   top: 24px;
