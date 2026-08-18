@@ -5,6 +5,34 @@ import { PostgresGameRepository } from "./postgres-repository";
 import type { GameRepository } from "./repository";
 
 export const defaultSocketAuthRevalidationIntervalMs = 60_000;
+export const defaultPostgresConnectionTimeoutMs = 5_000;
+export const defaultPostgresStatementTimeoutMs = 10_000;
+
+export interface PostgresRuntimeTimeouts {
+  readonly connectionTimeoutMillis: number;
+  readonly statementTimeoutMillis: number;
+}
+
+export function postgresRuntimeTimeouts(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): PostgresRuntimeTimeouts {
+  return {
+    connectionTimeoutMillis: configuredMilliseconds(
+      env,
+      "GAME_SERVER_POSTGRES_CONNECTION_TIMEOUT_MS",
+      defaultPostgresConnectionTimeoutMs,
+      100,
+      300_000,
+    ),
+    statementTimeoutMillis: configuredMilliseconds(
+      env,
+      "GAME_SERVER_POSTGRES_STATEMENT_TIMEOUT_MS",
+      defaultPostgresStatementTimeoutMs,
+      100,
+      300_000,
+    ),
+  };
+}
 
 export function socketAuthRevalidationInterval(
   env: Readonly<Record<string, string | undefined>> = process.env,
@@ -48,9 +76,39 @@ export function runtimeDependencies(
       "SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY (or SUPABASE_SECRET_KEY), and SUPABASE_DATABASE_URL must be configured together.",
     );
   }
+  const timeouts = postgresRuntimeTimeouts(env);
+  const postgresOptions = {
+    connectionString: databaseUrl,
+    connectionTimeoutMillis: timeouts.connectionTimeoutMillis,
+    query_timeout: timeouts.statementTimeoutMillis,
+    statement_timeout: timeouts.statementTimeoutMillis,
+  };
   return {
     authVerifier: new SupabaseAuthVerifier(url, key),
-    eventBus: new PostgresGameEventBus({ connectionString: databaseUrl }),
-    repository: new PostgresGameRepository({ connectionString: databaseUrl }),
+    eventBus: new PostgresGameEventBus(postgresOptions),
+    repository: new PostgresGameRepository(postgresOptions),
   };
+}
+
+function configuredMilliseconds(
+  env: Readonly<Record<string, string | undefined>>,
+  name: string,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+): number {
+  const configured = env[name];
+  if (configured === undefined) return fallback;
+  if (!/^\d+$/.test(configured)) {
+    throw new Error(`${name} must be a positive integer.`);
+  }
+  const milliseconds = Number(configured);
+  if (
+    !Number.isSafeInteger(milliseconds)
+    || milliseconds < minimum
+    || milliseconds > maximum
+  ) {
+    throw new Error(`${name} must be a safe integer between ${minimum} and ${maximum}.`);
+  }
+  return milliseconds;
 }

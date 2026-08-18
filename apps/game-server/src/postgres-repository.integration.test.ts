@@ -66,6 +66,45 @@ databaseDescribe("Postgres game repository", () => {
     await repository.close();
   });
 
+  it("cancels a blocked transaction at the configured statement timeout and remains usable", async () => {
+    if (!admin || !databaseUrl) throw new Error("Database pool is unavailable.");
+    const tableId = `db-timeout-${randomUUID()}`;
+    const repository = new PostgresGameRepository({
+      connectionString: databaseUrl,
+      connectionTimeoutMillis: 500,
+      query_timeout: 500,
+      statement_timeout: 100,
+    });
+    const blocker = await admin.connect();
+    try {
+      await blocker.query("begin");
+      await blocker.query(
+        "select pg_advisory_xact_lock(hashtextextended($1, 0))",
+        [`table:${tableId}`],
+      );
+      const startedAt = Date.now();
+
+      await expect(repository.transact(
+        randomUUID(),
+        tableId,
+        randomUUID(),
+        () => {
+          throw new Error("The mutation must not run while the table lock is held.");
+        },
+      )).rejects.toMatchObject({ code: "57014" });
+      const elapsedMs = Date.now() - startedAt;
+      expect(elapsedMs).toBeGreaterThanOrEqual(50);
+      expect(elapsedMs).toBeLessThan(2_000);
+
+      await blocker.query("rollback");
+      await expect(repository.ping()).resolves.toBeUndefined();
+    } finally {
+      await blocker.query("rollback").catch(() => undefined);
+      blocker.release();
+      await repository.close();
+    }
+  });
+
   it("persists an idempotent blackjack command, state, fairness, events and ledger atomically", async () => {
     if (!admin) throw new Error("Database pool is unavailable.");
     const userId = randomUUID();
