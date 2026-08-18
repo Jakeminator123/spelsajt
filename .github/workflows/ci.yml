@@ -14,6 +14,54 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Build game-server image
+        run: docker build --file apps/game-server/Dockerfile --tag spelsajt-game-server:ci .
+
+      - name: Reject ephemeral production configuration
+        run: |
+          if docker run --rm spelsajt-game-server:ci; then
+            echo "Production server started without durable Supabase configuration."
+            exit 1
+          fi
+
+      - name: Start configured game-server image
+        run: |
+          docker run --detach \
+            --name spelsajt-game-server-smoke \
+            --env SUPABASE_URL=http://127.0.0.1:54321 \
+            --env SUPABASE_PUBLISHABLE_KEY=container-smoke-key \
+            --env SUPABASE_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres \
+            spelsajt-game-server:ci
+
+      - name: Verify game-server health
+        run: |
+          for attempt in {1..30}; do
+            health="$(docker inspect --format='{{.State.Health.Status}}' spelsajt-game-server-smoke)"
+            state="$(docker inspect --format='{{.State.Status}}' spelsajt-game-server-smoke)"
+            if [ "$health" = "healthy" ]; then
+              exit 0
+            fi
+            if [ "$state" = "exited" ]; then
+              docker logs spelsajt-game-server-smoke
+              exit 1
+            fi
+            sleep 1
+          done
+          docker logs spelsajt-game-server-smoke
+          exit 1
+
+      - name: Clean up game-server container
+        if: always()
+        run: docker rm --force spelsajt-game-server-smoke || true
+
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15

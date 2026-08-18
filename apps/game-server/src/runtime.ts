@@ -13,7 +13,14 @@ export function runtimeDependencies(
   const url = env.SUPABASE_URL;
   const key = env.SUPABASE_PUBLISHABLE_KEY || env.SUPABASE_SECRET_KEY;
   const databaseUrl = env.SUPABASE_DATABASE_URL;
-  if (!url && !key && !databaseUrl) return {};
+  if (!url && !key && !databaseUrl) {
+    if (env.NODE_ENV === "production") {
+      throw new Error(
+        "Supabase configuration is required when NODE_ENV is production.",
+      );
+    }
+    return {};
+  }
   if (!url || !key || !databaseUrl) {
     throw new Error(
       "SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY (or SUPABASE_SECRET_KEY), and SUPABASE_DATABASE_URL must be configured together.",
