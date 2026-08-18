@@ -74,3 +74,5 @@ docker run --rm --publish 4000:4000 --env-file apps/game-server/.env.local --env
 ```
 
 Imagen kör som en icke-privilegierad användare, lyssnar på `0.0.0.0:4000` och har `/health` för processhälsa samt `/ready` för Postgres- och eventreläberedskap. `NODE_ENV=production` är satt i imagen, så komplett `SUPABASE_URL`, publishable/secret key och `SUPABASE_DATABASE_URL` krävs; produktionsservern startar inte med den tillfälliga minnesadaptern. CI bygger och startprovar imagen mot en isolerad Postgres, men publicerar eller deployar den inte.
+
+Socket.IO-sessioner omverifieras server-side var 60:e sekund. `GAME_SERVER_SOCKET_AUTH_REVALIDATION_MS` kan justera intervallet till ett positivt heltal på minst `10000`; ogiltig konfiguration stoppar serverstarten.
