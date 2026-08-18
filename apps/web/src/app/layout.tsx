@@ -31,7 +31,11 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="sv" className={`${interTight.variable} ${bricolage.variable}`}>
+    <html
+      className={`${interTight.variable} ${bricolage.variable}`}
+      data-scroll-behavior="smooth"
+      lang="sv"
+    >
       <body>{children}</body>
     </html>
   );

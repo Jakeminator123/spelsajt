@@ -16,14 +16,16 @@ const games = [
     title: "Blackjack",
     tag: "MVP-spel",
     image: "/images/game-blackjack.webp",
-    state: "Demobord under utveckling",
+    href: "/blackjack",
+    state: "Livebord",
     description: "Klassiska beslut, sex lekar och S17 — med hit, stand, double och split i den testade motorn.",
   },
   {
     title: "Europeisk roulette",
     tag: "MVP-spel",
     image: "/images/game-roulette.webp",
-    state: "Demobord under utveckling",
+    href: "/roulette",
+    state: "Livebord",
     description: "Europeiskt single-zero-bord med alla 37 nummerfält och tio klassiska sätt att placera marker.",
   },
 ];
@@ -40,9 +42,9 @@ const implementationStages = [
     copy: "3D-bordet spelar upp ett inspelat, validerat eventflöde utan att skapa egna utfall.",
   },
   {
-    eyebrow: "NÄSTA STEG",
+    eyebrow: "LIVEKOPPLAT",
     title: "Spelbara bord",
-    copy: "Inloggning, PLAY-saldo och liveleverans kopplas in innan spelkontrollerna öppnas.",
+    copy: "Gästsession, PLAY-saldo, commands, snapshots och liveevents binds till separata spelbord.",
   },
 ];
 
@@ -141,7 +143,7 @@ export default function HomePage() {
             <p className="kicker">TVÅ SPEL · FULLT FOKUS</p>
             <h2>Två klassiker. Byggda rätt.</h2>
           </div>
-          <p>Utforska stilen och spelvärlden redan nu. Bordens spelkontroller öppnas när hela serverflödet är inkopplat.</p>
+          <p>Öppna ett privat play-money-bord. Spelkontrollerna skickar v2-commands och visar endast serverns auktoritativa svar.</p>
         </Reveal>
 
         <div className="game-grid">
@@ -168,7 +170,7 @@ export default function HomePage() {
                 <p>{game.description}</p>
                 <div className="game-foot">
                   <span className="game-state"><i /> {game.state}</span>
-                  <a className="play-pill" href="#architecture">Läs mer</a>
+                  <Link className="play-pill" href={game.href}>Spela</Link>
                 </div>
               </div>
             </Reveal>

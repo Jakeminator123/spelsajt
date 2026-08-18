@@ -11,7 +11,10 @@ const CasinoScene = dynamic(
   },
 );
 
-export function SceneLoader() {
+export function SceneLoader({ game, source = "recorded-demo" }: {
+  game?: "blackjack" | "roulette";
+  source?: "live" | "recorded-demo";
+}) {
   const shellRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -44,17 +47,19 @@ export function SceneLoader() {
 
   return (
     <div
-      aria-label="Inspelad demonstration av den eventstyrda casinopresentationen"
+      aria-label={source === "live"
+        ? "Livepresentation av serverns spelhändelser"
+        : "Inspelad demonstration av den eventstyrda casinopresentationen"}
       className="scene-shell"
       ref={shellRef}
       role="region"
     >
       <span aria-hidden="true" className="scene-glow scene-glow-a" />
       <span aria-hidden="true" className="scene-glow scene-glow-b" />
-      <CasinoScene />
+      <CasinoScene game={game} source={source} />
       <div className="scene-caption">
-        <span><i /> INSPELAD DEMO</span>
-        <strong>V2-events · inspelat resultat</strong>
+        <span><i /> {source === "live" ? "LIVEBORD" : "INSPELAD DEMO"}</span>
+        <strong>{source === "live" ? "Auktoritativa v2-events" : "V2-events · inspelat resultat"}</strong>
       </div>
     </div>
   );

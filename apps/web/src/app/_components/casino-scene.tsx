@@ -29,7 +29,7 @@ const STAGE_LABELS: Record<PresentationStage, string> = {
   "roulette-betting": "Insatserna är öppna",
   "roulette-locked": "Inga fler insatser",
   "roulette-spinning": "Bollen rullar",
-  "roulette-result": "Det inspelade resultatet visas",
+  "roulette-result": "Resultatet visas",
   settling: "Insatserna avgörs",
   settled: "Rundan är klar",
 };
@@ -164,6 +164,7 @@ function Scene({
   rouletteTransitionKey,
   showChips,
   showDummyCards,
+  showRouletteWheel,
 }: {
   cards: readonly PresentationCard[];
   croupierVisualPose: CroupierVisualPose;
@@ -172,6 +173,7 @@ function Scene({
   rouletteTransitionKey: string;
   showChips: boolean;
   showDummyCards: boolean;
+  showRouletteWheel: boolean;
 }) {
   return (
     <>
@@ -181,13 +183,15 @@ function Scene({
       <pointLight color="#c6f24e" distance={14} intensity={14} position={[3.5, 3, 2]} />
       <pointLight color="#7c5cff" distance={14} intensity={13} position={[-4.5, 2.5, 3]} />
       <Table />
-      <RouletteWheel
-        position={[-2.2, FELT_TOP, 0.05]}
-        reduceMotion={false}
-        resultPocket={resultPocket}
-        transitionKey={rouletteTransitionKey}
-        visualPhase={roulettePhase}
-      />
+      {showRouletteWheel ? (
+        <RouletteWheel
+          position={[-2.2, FELT_TOP, 0.05]}
+          reduceMotion={false}
+          resultPocket={resultPocket}
+          transitionKey={rouletteTransitionKey}
+          visualPhase={roulettePhase}
+        />
+      ) : null}
       {cards.map((card, index) => (
         <DealtCard card={card} cards={cards} index={index} key={card.visualId} reduceMotion={false} />
       ))}
@@ -217,7 +221,10 @@ function stageDataPhase(stage: PresentationStage): string {
   return stage;
 }
 
-export function CasinoScene() {
+export function CasinoScene({ game, source = "recorded-demo" }: {
+  game?: "blackjack" | "roulette";
+  source?: "live" | "recorded-demo";
+}) {
   const [reduceMotion, setReduceMotion] = useState<boolean | null>(null);
   const presentation = usePresentationState();
 
@@ -234,6 +241,9 @@ export function CasinoScene() {
       return;
     }
     presentationStore.reset();
+    if (source === "live") {
+      return () => presentationStore.reset();
+    }
     if (reduceMotion) {
       for (const event of recordedRouletteDemo.events) {
         presentationStore.dispatch(event);
@@ -262,7 +272,7 @@ export function CasinoScene() {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [reduceMotion]);
+  }, [reduceMotion, source]);
 
   const result = presentation.rouletteResult;
   const roulettePhase: RouletteVisualPhase = result
@@ -277,7 +287,8 @@ export function CasinoScene() {
     ? `${STAGE_LABELS[presentation.stage]} · ${result.pocket} ${ROULETTE_COLOUR_LABELS[result.colour]}`
     : STAGE_LABELS[presentation.stage];
   const fallback = presentation.activeCue?.reducedMotionText ?? status;
-  const showDummyCards = presentation.cards.length === 0;
+  const showDummyCards = source === "recorded-demo" && presentation.cards.length === 0;
+  const activeGame = presentation.game ?? game ?? null;
 
   if (reduceMotion === null) {
     return <div className="scene-loading">Läser rörelseinställning...</div>;
@@ -287,7 +298,7 @@ export function CasinoScene() {
     return (
       <div className="scene-stage">
         <div aria-live="polite" className="scene-loading" role="status">
-          Inspelad demo · {fallback}{result ? ` Vinnande nummer: ${result.pocket}.` : ""}
+          {source === "live" ? "Livebord" : "Inspelad demo"} · {fallback}{result ? ` Vinnande nummer: ${result.pocket}.` : ""}
         </div>
       </div>
     );
@@ -309,8 +320,9 @@ export function CasinoScene() {
           resultPocket={result?.pocket ?? null}
           roulettePhase={roulettePhase}
           rouletteTransitionKey={rouletteTransitionKey}
-          showChips={presentation.rouletteBets.length > 0}
+          showChips={activeGame === "roulette" && presentation.rouletteBets.length > 0}
           showDummyCards={showDummyCards}
+          showRouletteWheel={activeGame !== "blackjack"}
         />
       </Canvas>
       {showDummyCards ? (
