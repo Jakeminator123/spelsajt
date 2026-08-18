@@ -19,6 +19,20 @@ export function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
+/** Dampen toward a target and snap to its exact resting value near the end. */
+export function dampToTarget(
+  current: number,
+  target: number,
+  step: number,
+  epsilon = 0.001,
+): number {
+  const remaining = target - current;
+  if (Math.abs(remaining) <= epsilon) {
+    return target;
+  }
+  return current + remaining * clamp01(step);
+}
+
 /** Keep an angle in the positive 0..TAU interval. */
 export function normalizeAngle(angle: number): number {
   return ((angle % TAU) + TAU) % TAU;

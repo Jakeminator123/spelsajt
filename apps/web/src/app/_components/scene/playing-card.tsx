@@ -5,6 +5,8 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CanvasTexture, type Group, SRGBColorSpace } from "three";
 
+import { dampToTarget } from "./animation";
+
 type Suit = CardV2["suit"];
 export type PlayingCardFace = Pick<CardV2, "rank" | "suit">;
 
@@ -176,11 +178,10 @@ export function PlayingCard(props: PlayingCardProps) {
       return;
     }
     const target = faceUp ? 0 : Math.PI;
-    if (reduceMotion) {
-      flip.current = target;
-    } else {
-      flip.current += (target - flip.current) * Math.min(1, delta * 8);
+    if (flip.current === target) {
+      return;
     }
+    flip.current = reduceMotion ? target : dampToTarget(flip.current, target, delta * 8);
     group.current.rotation.z = flip.current;
   });
 
