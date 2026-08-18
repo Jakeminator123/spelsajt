@@ -121,14 +121,14 @@
       "label": "Fairness-verifierare",
       "lane": "web",
       "owner": "shared",
-      "source": "packages/fairness/src/browser.ts",
+      "source": "apps/web/src/app/_components/live-game/fairness-verifier.ts",
       "maturity": {
         "runtime": "implemented",
         "contract": "none",
         "verification": "direct",
         "lifecycle": "active"
       },
-      "summary": "Web Crypto reproducerar commitment, slutlig roulettepocket och slutlig blackjackkortordning exakt som Node; ett spelar-UI återstår."
+      "summary": "Web Crypto-verifieraren i spelvyn kontrollerar commitment efter settlement och återskapar roulettepocket och faktiskt utdelad blackjackkortordning utan att påverka serverstate eller saldo."
     }
   ],
   "connections": [

@@ -31,6 +31,7 @@ import {
   initialLiveGameState,
   reduceLiveGameState,
 } from "./live-game-state";
+import { FairnessPanel } from "./fairness-panel";
 import styles from "./live-game.module.css";
 
 type GameName = "blackjack" | "roulette";
@@ -400,6 +401,13 @@ export function LiveGameTable({ game }: { game: GameName }) {
       </div>
 
       <EventRail events={state.recentEvents} />
+      {snapshot?.round?.phase === "settled" ? (
+        <FairnessPanel
+          events={state.roundEvents}
+          key={snapshot.round.roundId}
+          snapshot={snapshot}
+        />
+      ) : null}
     </main>
   );
 }

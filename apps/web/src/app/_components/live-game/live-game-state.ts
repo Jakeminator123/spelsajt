@@ -16,6 +16,7 @@ export interface LiveGameState {
   readonly loading: boolean;
   readonly pendingCommand: boolean;
   readonly recentEvents: readonly GameEventV2[];
+  readonly roundEvents: readonly GameEventV2[];
   readonly snapshot: GameSnapshotV2 | null;
 }
 
@@ -36,6 +37,7 @@ export const initialLiveGameState: LiveGameState = {
   loading: true,
   pendingCommand: false,
   recentEvents: [],
+  roundEvents: [],
   snapshot: null,
 };
 
@@ -47,30 +49,60 @@ export function reduceLiveGameState(
     case "load.failed":
       return { ...state, issue: action.issue, loading: false };
     case "load.succeeded":
-      return { ...state, issue: null, loading: false, snapshot: action.snapshot };
+      return {
+        ...state,
+        issue: null,
+        loading: false,
+        roundEvents: [],
+        snapshot: action.snapshot,
+      };
     case "command.started":
       return { ...state, issue: null, pendingCommand: true };
     case "command.failed":
       return { ...state, issue: action.issue, pendingCommand: false };
     case "command.finished":
-      return {
-        ...state,
-        issue: null,
-        pendingCommand: false,
-        snapshot: newerSnapshot(state.snapshot, action.snapshot),
-      };
+      {
+        const snapshot = newerSnapshot(state.snapshot, action.snapshot);
+        return {
+          ...state,
+          issue: null,
+          pendingCommand: false,
+          roundEvents: roundEventsForSnapshot(state, snapshot),
+          snapshot,
+        };
+      }
     case "connection.changed":
       return { ...state, connection: action.connection };
     case "snapshot.received":
-      return { ...state, snapshot: newerSnapshot(state.snapshot, action.snapshot) };
-    case "event.received":
       return {
         ...state,
-        recentEvents: [...state.recentEvents, action.event].slice(-8),
+        roundEvents: [],
+        snapshot: newerSnapshot(state.snapshot, action.snapshot),
       };
+    case "event.received":
+      {
+        const continuesCurrentRound = state.roundEvents.at(-1)?.roundId === action.event.roundId
+          || state.snapshot?.round?.roundId === action.event.roundId;
+        const roundEvents = continuesCurrentRound ? state.roundEvents : [];
+        return {
+          ...state,
+          recentEvents: [...state.recentEvents, action.event].slice(-8),
+          roundEvents: [...roundEvents, action.event].slice(-64),
+        };
+      }
     case "issue.cleared":
       return { ...state, issue: null };
   }
+}
+
+function roundEventsForSnapshot(
+  state: LiveGameState,
+  snapshot: GameSnapshotV2,
+): readonly GameEventV2[] {
+  const roundId = snapshot.round?.roundId;
+  if (!roundId) return [];
+  if (state.roundEvents.at(-1)?.roundId === roundId) return state.roundEvents;
+  return state.snapshot?.round?.roundId === roundId ? state.roundEvents : [];
 }
 
 function newerSnapshot(

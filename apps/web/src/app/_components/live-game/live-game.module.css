@@ -489,6 +489,117 @@
 .eventRail li b { color: var(--lime); }
 .eventRail li span { color: var(--ink-dim); }
 
+.fairnessPanel {
+  background: linear-gradient(145deg, rgba(18, 28, 24, 0.96), rgba(12, 14, 18, 0.96));
+  border: 1px solid rgba(198, 242, 78, 0.24);
+  border-radius: 22px;
+  box-shadow: 0 24px 90px rgba(0, 0, 0, 0.2);
+  margin-top: 24px;
+  padding: clamp(22px, 3vw, 32px);
+}
+
+.fairnessHeading {
+  align-items: center;
+  display: flex;
+  gap: 28px;
+  justify-content: space-between;
+}
+
+.fairnessHeading span {
+  color: var(--lime);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.18em;
+}
+
+.fairnessHeading h2 {
+  font-size: clamp(24px, 3vw, 34px);
+  letter-spacing: -0.045em;
+  margin: 7px 0;
+}
+
+.fairnessHeading p,
+.fairnessResult p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 0;
+  max-width: 740px;
+}
+
+.fairnessHeading button {
+  background: var(--lime);
+  border: 1px solid var(--lime);
+  border-radius: 12px;
+  color: #0a0b0e;
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 850;
+  min-height: 46px;
+  padding: 11px 18px;
+}
+
+.fairnessHeading button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.fairnessResult {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+  padding: 16px;
+}
+
+.fairnessResult[data-status="verified"] {
+  border-color: rgba(198, 242, 78, 0.4);
+}
+
+.fairnessResult[data-status="failed"] {
+  border-color: rgba(255, 77, 94, 0.48);
+}
+
+.fairnessResult strong {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.fairnessResult details {
+  color: var(--ink-dim);
+  font-size: 12px;
+}
+
+.fairnessResult summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.fairnessResult dl {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+}
+
+.fairnessResult dl div {
+  display: grid;
+  gap: 3px;
+  grid-template-columns: 150px minmax(0, 1fr);
+}
+
+.fairnessResult dt {
+  color: var(--muted);
+}
+
+.fairnessResult dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -512,6 +623,9 @@
   .scenePanel > div { min-height: 390px; }
   .fieldRow { flex-direction: column; }
   .eventRail { grid-template-columns: 1fr; }
+  .fairnessHeading { align-items: stretch; flex-direction: column; }
+  .fairnessHeading button { width: 100%; }
+  .fairnessResult dl div { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {
