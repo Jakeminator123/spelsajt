@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  defaultPostgresConnectionTimeoutMs,
+  defaultPostgresStatementTimeoutMs,
   defaultSocketAuthRevalidationIntervalMs,
+  postgresRuntimeTimeouts,
   runtimeDependencies,
   socketAuthRevalidationInterval,
 } from "./runtime";
@@ -35,6 +38,29 @@ describe("runtime dependencies", () => {
     })).toThrow("at least 10000");
     expect(() => socketAuthRevalidationInterval({
       GAME_SERVER_SOCKET_AUTH_REVALIDATION_MS: "soon",
+    })).toThrow("positive integer");
+  });
+
+  it("bounds and validates Postgres connection and statement timeouts", () => {
+    expect(postgresRuntimeTimeouts({})).toEqual({
+      connectionTimeoutMillis: defaultPostgresConnectionTimeoutMs,
+      statementTimeoutMillis: defaultPostgresStatementTimeoutMs,
+    });
+    expect(postgresRuntimeTimeouts({
+      GAME_SERVER_POSTGRES_CONNECTION_TIMEOUT_MS: "2500",
+      GAME_SERVER_POSTGRES_STATEMENT_TIMEOUT_MS: "15000",
+    })).toEqual({
+      connectionTimeoutMillis: 2_500,
+      statementTimeoutMillis: 15_000,
+    });
+    expect(() => postgresRuntimeTimeouts({
+      GAME_SERVER_POSTGRES_CONNECTION_TIMEOUT_MS: "99",
+    })).toThrow("between 100 and 300000");
+    expect(() => postgresRuntimeTimeouts({
+      GAME_SERVER_POSTGRES_STATEMENT_TIMEOUT_MS: "300001",
+    })).toThrow("between 100 and 300000");
+    expect(() => postgresRuntimeTimeouts({
+      GAME_SERVER_POSTGRES_STATEMENT_TIMEOUT_MS: "eventually",
     })).toThrow("positive integer");
   });
 });
