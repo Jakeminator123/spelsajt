@@ -125,6 +125,7 @@ export interface PresentationState {
   allowedActions: readonly BlackjackActionV2[];
   cards: readonly PresentationCard[];
   game: "blackjack" | "roulette" | null;
+  hasBlackjackWager: boolean;
   lastPlan: PresentationIntent | null;
   lastSequence: number;
   revision: number;
@@ -143,6 +144,7 @@ export function createInitialPresentationState(): PresentationState {
     allowedActions: [],
     cards: [],
     game: null,
+    hasBlackjackWager: false,
     lastPlan: null,
     lastSequence: 0,
     revision: 0,
@@ -214,6 +216,7 @@ export function projectGameSnapshot(
       activeHandId: round.phase === "player" ? round.activeHandId : null,
       allowedActions: activeHand?.allowedActions ?? [],
       cards: [...dealerCards, ...playerCards],
+      hasBlackjackWager: round.phase !== "settled" && round.hands.some((hand) => hand.wager !== "0"),
       roundId: round.roundId,
       stage: round.phase === "prepared"
         ? "prepared"
@@ -326,6 +329,7 @@ function resetRoundState(state: PresentationState): PresentationState {
     allowedActions: [],
     cards: [],
     game: null,
+    hasBlackjackWager: false,
     lastPlan: null,
     rouletteBets: [],
     rouletteResult: null,
@@ -400,7 +404,7 @@ export function projectGameEvent(current: PresentationState, event: GameEventV2)
       next = { ...next, game: event.payload.game, stage: "active" };
       break;
     case "blackjack.bet.accepted":
-      next = { ...next, game: "blackjack", stage: "active" };
+      next = { ...next, game: "blackjack", hasBlackjackWager: true, stage: "active" };
       break;
     case "blackjack.card.dealt":
       next = {
@@ -447,9 +451,25 @@ export function projectGameEvent(current: PresentationState, event: GameEventV2)
       break;
     }
     case "blackjack.action.accepted":
-    case "blackjack.hand.split":
       next = { ...next, game: "blackjack", stage: "active" };
       break;
+    case "blackjack.hand.split": {
+      let sourceCardIndex = 0;
+      next = {
+        ...next,
+        cards: next.cards.map((card) => {
+          if (card.recipient !== "player" || card.handId !== event.payload.sourceHandId) {
+            return card;
+          }
+          const handId = event.payload.splitHandIds[sourceCardIndex] ?? card.handId;
+          sourceCardIndex += 1;
+          return { ...card, handId };
+        }),
+        game: "blackjack",
+        stage: "active",
+      };
+      break;
+    }
     case "blackjack.turn.changed":
       next = {
         ...next,

@@ -529,9 +529,90 @@ h1 span {
 }
 
 .scene-stage {
+  --scene-accent: #8d91a0;
   position: absolute;
   inset: 0;
   z-index: 1;
+}
+
+.scene-stage[data-accent="amber"] { --scene-accent: #ffb020; }
+.scene-stage[data-accent="lime"] { --scene-accent: #c6f24e; }
+.scene-stage[data-accent="red"] { --scene-accent: #ef6172; }
+.scene-stage[data-accent="violet"] { --scene-accent: #9b82ff; }
+
+.scene-cue {
+  align-items: center;
+  animation: scene-cue-arrive 320ms ease-out both;
+  backdrop-filter: blur(12px);
+  background: rgba(10, 11, 16, 0.72);
+  border: 1px solid color-mix(in srgb, var(--scene-accent) 46%, transparent);
+  border-left: 3px solid var(--scene-accent);
+  border-radius: 6px 12px 12px 6px;
+  display: flex;
+  gap: 10px;
+  left: 24px;
+  padding: 9px 13px 9px 11px;
+  pointer-events: none;
+  position: absolute;
+  top: 24px;
+  z-index: 4;
+}
+
+.scene-cue[data-accent="amber"] { --scene-accent: #ffb020; }
+.scene-cue[data-accent="lime"] { --scene-accent: #c6f24e; }
+.scene-cue[data-accent="neutral"] { --scene-accent: #8d91a0; }
+.scene-cue[data-accent="red"] { --scene-accent: #ef6172; }
+.scene-cue[data-accent="violet"] { --scene-accent: #9b82ff; }
+
+.scene-cue span {
+  color: var(--scene-accent);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.scene-cue strong {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.scene-stage-reduced {
+  align-items: center;
+  background:
+    radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--scene-accent) 14%, transparent), transparent 46%),
+    #0a0b10;
+  display: flex;
+  justify-content: center;
+}
+
+.scene-reduced {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 520px;
+  padding: 32px;
+  text-align: center;
+}
+
+.scene-reduced span {
+  color: var(--scene-accent);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.scene-reduced strong {
+  color: var(--ink);
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(18px, 2.4vw, 28px);
+  line-height: 1.15;
+}
+
+.scene-reduced small {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .scene-phase {
@@ -588,8 +669,23 @@ h1 span {
   }
 }
 
+@keyframes scene-cue-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .scene-phase-dot {
+    animation: none;
+  }
+
+  .scene-cue {
     animation: none;
   }
 }

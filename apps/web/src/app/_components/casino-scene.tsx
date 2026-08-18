@@ -3,21 +3,28 @@
 import { ContactShadows, Environment, Lightformer, RoundedBox } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { Group } from "three";
+import type { Group, MeshStandardMaterial } from "three";
 
 import { clamp01, easeOutCubic, lerp } from "./scene/animation";
-import { Croupier, type CroupierVisualPose } from "./scene/croupier";
+import { Croupier } from "./scene/croupier";
 import { DummyHeroCards } from "./scene/dummy-card-decoration";
 import { PlayingCard } from "./scene/playing-card";
 import {
   type PresentationCard,
-  type PresentationCueId,
   type PresentationStage,
   presentationStore,
   recordedRouletteDemo,
   usePresentationState,
 } from "./scene/presentation";
 import { RouletteWheel, type RouletteVisualPhase } from "./scene/roulette-wheel";
+import {
+  cardTarget,
+  chipMotionTransform,
+  SCENE_ACCENT_COLOURS,
+  type SceneFocus,
+  type SceneVisualIntent,
+  sceneVisualIntent,
+} from "./scene/visual-intents";
 
 const FELT_TOP = 0.1;
 const DEALER_ORIGIN: [number, number, number] = [1.8, FELT_TOP + 0.48, -1];
@@ -41,25 +48,6 @@ const ROULETTE_COLOUR_LABELS = {
   green: "grön",
   red: "röd",
 } as const;
-
-function cardTarget(cards: readonly PresentationCard[], index: number): {
-  position: [number, number, number];
-  rotationY: number;
-} {
-  const card = cards[index];
-  const recipient = card?.recipient ?? "player";
-  const laneIndex = cards.slice(0, index).filter((candidate) => candidate.recipient === recipient).length;
-  if (recipient === "dealer") {
-    return {
-      position: [0.15 + laneIndex * 0.62, FELT_TOP + 0.14, -0.35 + laneIndex * 0.08],
-      rotationY: 0.12 - laneIndex * 0.08,
-    };
-  }
-  return {
-    position: [0.05 + laneIndex * 0.65, FELT_TOP + 0.16, 1.05 - laneIndex * 0.1],
-    rotationY: 0.24 - laneIndex * 0.18,
-  };
-}
 
 function DealtCard({
   card,
@@ -102,10 +90,27 @@ function DealtCard({
   );
 }
 
-function ChipStack({ position }: { position: [number, number, number] }) {
+function ChipStack({
+  motion,
+  position,
+}: {
+  motion: SceneVisualIntent["chipMotion"];
+  position: [number, number, number];
+}) {
+  const group = useRef<Group>(null);
+  const elapsed = useRef(0);
   const colors = ["#7c5cff", "#c6f24e", "#f4f5f8", "#7c5cff", "#c6f24e"];
+
+  useFrame((_state, delta) => {
+    if (!group.current) return;
+    elapsed.current += delta;
+    const visual = chipMotionTransform(motion, easeOutCubic(clamp01(elapsed.current / 0.75)));
+    group.current.position.set(position[0] + visual.x, position[1], position[2] + visual.z);
+    group.current.scale.setScalar(Math.max(0.001, visual.scale));
+  });
+
   return (
-    <group position={position}>
+    <group position={position} ref={group}>
       {colors.map((color, index) => (
         <mesh key={`${color}-${index}`} castShadow position={[0, index * 0.05, 0]}>
           <cylinderGeometry args={[0.19, 0.19, 0.05, 32]} />
@@ -116,7 +121,7 @@ function ChipStack({ position }: { position: [number, number, number] }) {
   );
 }
 
-function Table() {
+function Table({ accent }: { accent: string }) {
   return (
     <group>
       <RoundedBox args={[8.4, 0.5, 4.8]} position={[0, -0.15, 0]} radius={0.28} receiveShadow smoothness={4}>
@@ -127,7 +132,45 @@ function Table() {
       </RoundedBox>
       <mesh position={[0, 0.101, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[3.55, 3.62, 96]} />
-        <meshStandardMaterial color="#7c5cff" emissive="#5a3ff0" emissiveIntensity={0.4} metalness={0.3} roughness={0.4} />
+        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.5} metalness={0.3} roughness={0.4} />
+      </mesh>
+    </group>
+  );
+}
+
+const CUE_FOCUS_POSITIONS: Record<SceneFocus, [number, number, number]> = {
+  dealer: [0.55, FELT_TOP + 0.012, -0.45],
+  player: [0.35, FELT_TOP + 0.012, 1.05],
+  result: [1.75, FELT_TOP + 0.012, 0.65],
+  table: [0, FELT_TOP + 0.012, 0.2],
+  wheel: [-2.2, FELT_TOP + 0.012, 0.05],
+};
+
+function CuePulse({ accent, focus }: { accent: string; focus: SceneFocus }) {
+  const group = useRef<Group>(null);
+  const material = useRef<MeshStandardMaterial>(null);
+  const elapsed = useRef(0);
+
+  useFrame((_state, delta) => {
+    if (!group.current || !material.current) return;
+    elapsed.current += delta;
+    const progress = easeOutCubic(clamp01(elapsed.current / 1.15));
+    group.current.scale.setScalar(0.72 + progress * 0.65);
+    material.current.opacity = (1 - progress) * 0.78;
+  });
+
+  return (
+    <group position={CUE_FOCUS_POSITIONS[focus]} ref={group} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh>
+        <ringGeometry args={[0.28, 0.36, 64]} />
+        <meshStandardMaterial
+          color={accent}
+          emissive={accent}
+          emissiveIntensity={1.2}
+          opacity={0.78}
+          ref={material}
+          transparent
+        />
       </mesh>
     </group>
   );
@@ -145,40 +188,30 @@ function CameraRig() {
   return null;
 }
 
-function croupierPose(cueId: PresentationCueId | null): CroupierVisualPose {
-  switch (cueId) {
-    case "blackjack.deal-card": return "deal";
-    case "blackjack.reveal-card": return "reveal";
-    case "roulette.bets-locked":
-    case "roulette.spin-started":
-    case "roulette.bet-settled": return "present";
-    case "blackjack.settled-win":
-    case "roulette.settled-win": return "celebrate";
-    case "blackjack.settled-loss":
-    case "roulette.settled-loss": return "sympathetic";
-    default: return "rest";
-  }
-}
-
 function Scene({
   cards,
-  croupierVisualPose,
+  chipPosition,
   resultPocket,
   roulettePhase,
   rouletteTransitionKey,
   showChips,
   showDummyCards,
   showRouletteWheel,
+  transitionId,
+  visualIntent,
 }: {
   cards: readonly PresentationCard[];
-  croupierVisualPose: CroupierVisualPose;
+  chipPosition: [number, number, number];
   resultPocket: number | null;
   roulettePhase: RouletteVisualPhase;
   rouletteTransitionKey: string;
   showChips: boolean;
   showDummyCards: boolean;
   showRouletteWheel: boolean;
+  transitionId: number;
+  visualIntent: SceneVisualIntent;
 }) {
+  const accent = SCENE_ACCENT_COLOURS[visualIntent.accent];
   return (
     <>
       <CameraRig />
@@ -186,7 +219,8 @@ function Scene({
       <directionalLight color="#fbf7ff" intensity={2.4} position={[-4, 7, 5]} />
       <pointLight color="#c6f24e" distance={14} intensity={14} position={[3.5, 3, 2]} />
       <pointLight color="#7c5cff" distance={14} intensity={13} position={[-4.5, 2.5, 3]} />
-      <Table />
+      <Table accent={accent} />
+      <CuePulse accent={accent} focus={visualIntent.focus} key={`pulse-${transitionId}`} />
       {showRouletteWheel ? (
         <RouletteWheel
           position={[-2.2, FELT_TOP, 0.05]}
@@ -200,8 +234,14 @@ function Scene({
         <DealtCard card={card} cards={cards} index={index} key={card.visualId} reduceMotion={false} />
       ))}
       {showDummyCards ? <DummyHeroCards /> : null}
-      {showChips ? <ChipStack position={[1.95, FELT_TOP + 0.03, 0.9]} /> : null}
-      <Croupier pose={croupierVisualPose} position={[1.8, FELT_TOP, -1.15]} reduceMotion={false} />
+      {showChips ? (
+        <ChipStack
+          key={`chips-${transitionId}-${visualIntent.chipMotion}`}
+          motion={visualIntent.chipMotion}
+          position={chipPosition}
+        />
+      ) : null}
+      <Croupier pose={visualIntent.pose} position={[1.8, FELT_TOP, -1.15]} reduceMotion={false} />
       <ContactShadows blur={2.8} color="#04060a" far={2.2} opacity={0.5} position={[0, FELT_TOP + 0.001, 0]} resolution={512} scale={12} />
       <Environment resolution={256}>
         <Lightformer color="#ffffff" form="rect" intensity={2} position={[0, 5, -4]} scale={[8, 4, 1]} />
@@ -293,6 +333,16 @@ export function CasinoScene({ game, source = "recorded-demo" }: {
   const fallback = presentation.activeCue?.reducedMotionText ?? status;
   const showDummyCards = source === "recorded-demo" && presentation.cards.length === 0;
   const activeGame = presentation.game ?? game ?? null;
+  const cueId = presentation.activeCue?.cueId ?? null;
+  const visualIntent = sceneVisualIntent(cueId);
+  const showChips = activeGame === "blackjack"
+    ? presentation.hasBlackjackWager
+    : activeGame === "roulette"
+      && presentation.rouletteBets.length > 0
+      && (presentation.stage !== "settled" || presentation.activeCue !== null);
+  const chipPosition: [number, number, number] = activeGame === "blackjack"
+    ? [0.55, FELT_TOP + 0.03, 1.55]
+    : [1.95, FELT_TOP + 0.03, 0.9];
 
   if (reduceMotion === null) {
     return <div className="scene-loading">Läser rörelseinställning...</div>;
@@ -300,16 +350,18 @@ export function CasinoScene({ game, source = "recorded-demo" }: {
 
   if (reduceMotion) {
     return (
-      <div className="scene-stage">
-        <div aria-live="polite" className="scene-loading" role="status">
-          {source === "live" ? "Livebord" : "Inspelad demo"} · {fallback}{result ? ` Vinnande nummer: ${result.pocket}.` : ""}
+      <div className="scene-stage scene-stage-reduced" data-accent={visualIntent.accent} data-cue={cueId ?? "idle"}>
+        <div aria-live="polite" className="scene-reduced" role="status">
+          <span>{source === "live" ? "LIVEBORD · REDUCERAD RÖRELSE" : "INSPELAD DEMO · REDUCERAD RÖRELSE"}</span>
+          <strong>{fallback}</strong>
+          {result ? <small>Vinnande nummer: {result.pocket} {ROULETTE_COLOUR_LABELS[result.colour]}.</small> : null}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="scene-stage">
+    <div className="scene-stage" data-accent={visualIntent.accent} data-cue={cueId ?? "idle"}>
       <Canvas
         aria-hidden="true"
         camera={{ fov: 32, position: CAMERA_POSITION }}
@@ -320,15 +372,23 @@ export function CasinoScene({ game, source = "recorded-demo" }: {
         <fog attach="fog" args={["#0a0b10", 9, 18]} />
         <Scene
           cards={presentation.cards}
-          croupierVisualPose={croupierPose(presentation.activeCue?.cueId ?? null)}
+          chipPosition={chipPosition}
           resultPocket={result?.pocket ?? null}
           roulettePhase={roulettePhase}
           rouletteTransitionKey={rouletteTransitionKey}
-          showChips={activeGame === "roulette" && presentation.rouletteBets.length > 0}
+          showChips={showChips}
           showDummyCards={showDummyCards}
           showRouletteWheel={activeGame !== "blackjack"}
+          transitionId={presentation.transitionId}
+          visualIntent={visualIntent}
         />
       </Canvas>
+      {presentation.activeCue ? (
+        <div aria-live="polite" className="scene-cue" data-accent={visualIntent.accent} key={presentation.activeCue.sourceEventId}>
+          <span>{visualIntent.actorLabel}</span>
+          <strong>{visualIntent.label}</strong>
+        </div>
+      ) : null}
       {showDummyCards ? (
         <div className="scene-dummy-label" role="note">
           <span>DUMMYKORT</span>
