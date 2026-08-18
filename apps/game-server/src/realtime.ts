@@ -80,14 +80,55 @@ export function attachRealtime(app: FastifyInstance): GameRealtimeServer {
       unsubscribe = null;
       const { lastSequence, tableId } = parsed.data;
       const buffered: GameEventV2[] = [];
+      let active = true;
+      let deliveredSequence = 0;
+      let delivery = Promise.resolve();
       let live = false;
-      const stop = eventBus.subscribe(tableId, (events) => {
+      const emitThrough = async (targetSequence: number): Promise<void> => {
+        if (!active || targetSequence <= deliveredSequence) return;
+        const events = await application.getEvents(
+          socket.data.userId,
+          tableId,
+          deliveredSequence + 1,
+          targetSequence,
+        );
+        for (const candidate of events.toSorted((left, right) => left.sequence - right.sequence)) {
+          if (!active || !socket.connected) return;
+          const event = gameEventV2Schema.parse(candidate);
+          if (event.sequence <= deliveredSequence) continue;
+          if (event.sequence !== deliveredSequence + 1) {
+            throw new Error(
+              `Authoritative event sequence jumped from ${deliveredSequence} to ${event.sequence}.`,
+            );
+          }
+          socket.emit("game.event", event);
+          deliveredSequence = event.sequence;
+        }
+        if (active && deliveredSequence < targetSequence) {
+          throw new Error(
+            `Authoritative events stop at ${deliveredSequence}; expected ${targetSequence}.`,
+          );
+        }
+      };
+      const detach = eventBus.subscribe(tableId, (events) => {
         if (!live) {
           buffered.push(...events);
           return;
         }
-        for (const event of events) socket.emit("game.event", gameEventV2Schema.parse(event));
+        const targetSequence = events.reduce(
+          (highest, event) => Math.max(highest, event.sequence),
+          deliveredSequence,
+        );
+        delivery = delivery
+          .then(() => emitThrough(targetSequence))
+          .catch((error: unknown) => {
+            app.log.error({ err: error, tableId }, "Realtime event gap repair failed");
+          });
       });
+      const stop = () => {
+        active = false;
+        detach();
+      };
       unsubscribe = stop;
 
       try {
@@ -114,10 +155,14 @@ export function attachRealtime(app: FastifyInstance): GameRealtimeServer {
 
         const validatedSnapshot = gameSnapshotV2Schema.parse(snapshot);
         socket.emit("table.snapshot", validatedSnapshot);
-        for (const event of buffered
-          .filter((candidate) => candidate.sequence > validatedSnapshot.lastSequence)
-          .toSorted((left, right) => left.sequence - right.sequence)) {
-          socket.emit("game.event", gameEventV2Schema.parse(event));
+        deliveredSequence = validatedSnapshot.lastSequence;
+        while (buffered.length > 0) {
+          const pending = buffered.splice(0);
+          const targetSequence = pending.reduce(
+            (highest, event) => Math.max(highest, event.sequence),
+            deliveredSequence,
+          );
+          await emitThrough(targetSequence);
         }
         live = true;
         acknowledge(tableSubscriptionAckV2Schema.parse({

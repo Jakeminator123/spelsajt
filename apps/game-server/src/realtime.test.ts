@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { FairnessSource } from "./application";
 import { buildApp } from "./app";
 import type { AuthVerifier } from "./auth";
+import { GameEventBus, type GameEventListener } from "./event-bus";
 import { attachRealtime, type GameRealtimeServer } from "./realtime";
 
 const issuedAt = "2026-08-18T10:00:00.000Z";
@@ -103,6 +104,29 @@ function subscribe(socket: Socket, input: TableSubscriptionV2): Promise<TableSub
   });
 }
 
+class ReorderingEventBus extends GameEventBus {
+  readonly batches: GameEventV2[][] = [];
+  readonly #listeners = new Map<string, Set<GameEventListener>>();
+
+  override publish(events: readonly GameEventV2[]): void {
+    this.batches.push([...events]);
+  }
+
+  override subscribe(tableId: string, listener: GameEventListener): () => void {
+    const listeners = this.#listeners.get(tableId) ?? new Set<GameEventListener>();
+    listeners.add(listener);
+    this.#listeners.set(tableId, listeners);
+    return () => listeners.delete(listener);
+  }
+
+  release(batchIndex: number): void {
+    const events = this.batches[batchIndex] ?? [];
+    const tableId = events[0]?.tableId;
+    if (!tableId) throw new Error(`Event batch ${batchIndex} does not exist.`);
+    for (const listener of this.#listeners.get(tableId) ?? []) listener(events);
+  }
+}
+
 afterEach(async () => {
   for (const socket of openSockets) socket.close();
   openSockets.clear();
@@ -113,6 +137,96 @@ afterEach(async () => {
 });
 
 describe("game realtime", () => {
+  it("repairs a sequence gap when committed publish batches arrive out of order", async () => {
+    const eventBus = new ReorderingEventBus();
+    const app = buildApp({
+      authVerifier,
+      clock: () => issuedAt,
+      eventBus,
+      fairness: deterministicFairness,
+      idGenerator: sequentialIds(),
+    });
+    openApps.add(app);
+    const io = attachRealtime(app);
+    openRealtime.add(io);
+    const address = await app.listen({ host: "127.0.0.1", port: 0 });
+    const tableId = "reordered-realtime-blackjack";
+
+    const prepare = await app.inject({
+      headers: authHeaders,
+      method: "POST",
+      url: `/v2/tables/${tableId}/commands`,
+      payload: {
+        ...commandBase(701, tableId, 0),
+        type: "PREPARE_ROUND",
+        payload: { game: "blackjack" },
+      },
+    });
+    const roundId = prepare.json().snapshot.round.roundId as string;
+    const socket = await connect(address, "owner-token");
+    const snapshotPromise = snapshotOnce(socket);
+    const ack = await subscribe(socket, { lastSequence: 0, schemaVersion: 2, tableId });
+    const snapshot = await snapshotPromise;
+    expect(ack.status).toBe("accepted");
+
+    const received: GameEventV2[] = [];
+    socket.on("game.event", (payload: unknown) => {
+      received.push(gameEventV2Schema.parse(payload));
+    });
+    const bet = await app.inject({
+      headers: authHeaders,
+      method: "POST",
+      url: `/v2/tables/${tableId}/commands`,
+      payload: {
+        ...commandBase(702, tableId, 1),
+        type: "BLACKJACK_PLACE_BET",
+        payload: {
+          amount: "100",
+          clientSeed: "reordered-publish-seed",
+          currency: "PLAY",
+          roundId,
+        },
+      },
+    });
+    const hit = await app.inject({
+      headers: authHeaders,
+      method: "POST",
+      url: `/v2/tables/${tableId}/commands`,
+      payload: {
+        ...commandBase(703, tableId, 2),
+        type: "BLACKJACK_ACTION",
+        payload: { action: "hit", handId: "hand-1", roundId },
+      },
+    });
+    expect(bet.statusCode).toBe(200);
+    expect(hit.statusCode).toBe(200);
+
+    const expected = [...(eventBus.batches[1] ?? []), ...(eventBus.batches[2] ?? [])]
+      .toSorted((left, right) => left.sequence - right.sequence);
+    const finalSequence = expected.at(-1)?.sequence;
+    if (!finalSequence) throw new Error("Commands did not produce realtime events.");
+    const repaired = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("Timed out waiting for repaired events.")), 5_000);
+      socket.on("game.event", (payload: unknown) => {
+        if (gameEventV2Schema.parse(payload).sequence === finalSequence) {
+          clearTimeout(timer);
+          resolve();
+        }
+      });
+    });
+
+    eventBus.release(2);
+    await repaired;
+    expect(received.map((event) => event.sequence)).toEqual(
+      expected.map((event) => event.sequence),
+    );
+    expect(received[0]?.sequence).toBe(snapshot.lastSequence + 1);
+
+    eventBus.release(1);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(received).toHaveLength(expected.length);
+  });
+
   it("anchors with a snapshot, streams committed events and reconnects without leaking hidden cards", async () => {
     const app = buildApp({
       authVerifier,
