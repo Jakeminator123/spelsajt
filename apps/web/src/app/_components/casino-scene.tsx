@@ -23,6 +23,8 @@ const FELT_TOP = 0.1;
 const DEALER_ORIGIN: [number, number, number] = [1.8, FELT_TOP + 0.48, -1];
 const CAMERA_POSITION: [number, number, number] = [0.1, 8.6, 12.2];
 const CAMERA_TARGET: [number, number, number] = [-0.2, -0.1, 0];
+const DEALER_ZONE_Z = -0.7;
+const PLAYER_ZONE_Z = 1.05;
 
 const STAGE_LABELS: Record<PresentationStage, string> = {
   idle: "Väntar på V2-event",
@@ -48,16 +50,22 @@ function cardTarget(cards: readonly PresentationCard[], index: number): {
 } {
   const card = cards[index];
   const recipient = card?.recipient ?? "player";
-  const laneIndex = cards.slice(0, index).filter((candidate) => candidate.recipient === recipient).length;
-  if (recipient === "dealer") {
-    return {
-      position: [0.15 + laneIndex * 0.62, FELT_TOP + 0.14, -0.35 + laneIndex * 0.08],
-      rotationY: 0.12 - laneIndex * 0.08,
-    };
-  }
+  const laneIndex = cards
+    .slice(0, index)
+    .filter((candidate) => (candidate.recipient ?? "player") === recipient).length;
+  const total = Math.max(
+    cards.filter((candidate) => (candidate.recipient ?? "player") === recipient).length,
+    1,
+  );
+  // Lay each hand out as a centered, slightly overlapping horizontal row so the
+  // table reads like a real blackjack layout instead of a fanned spread.
+  const spacing = 0.7;
+  const offsetX = (laneIndex - (total - 1) / 2) * spacing;
+  const lift = laneIndex * 0.012;
+  const z = recipient === "dealer" ? DEALER_ZONE_Z : PLAYER_ZONE_Z;
   return {
-    position: [0.05 + laneIndex * 0.65, FELT_TOP + 0.16, 1.05 - laneIndex * 0.1],
-    rotationY: 0.24 - laneIndex * 0.18,
+    position: [offsetX, FELT_TOP + 0.14 + lift, z],
+    rotationY: 0,
   };
 }
 
@@ -129,6 +137,34 @@ function Table() {
   );
 }
 
+// A flat outlined rectangle painted onto the felt marking where a hand is dealt.
+function HandZone({ position }: { position: [number, number, number] }) {
+  const width = 2.5;
+  const depth = 1.4;
+  const border = 0.05;
+  return (
+    <group position={position}>
+      {/* Accent frame */}
+      <RoundedBox args={[width, 0.008, depth]} position={[0, 0.006, 0]} radius={0.08} smoothness={4}>
+        <meshStandardMaterial color="#7c5cff" emissive="#5a3ff0" emissiveIntensity={0.35} metalness={0.2} roughness={0.5} />
+      </RoundedBox>
+      {/* Felt-colored interior sits above the frame so only the rim shows */}
+      <RoundedBox args={[width - border * 2, 0.008, depth - border * 2]} position={[0, 0.02, 0]} radius={0.06} smoothness={4}>
+        <meshStandardMaterial color="#18291f" metalness={0} roughness={0.98} />
+      </RoundedBox>
+    </group>
+  );
+}
+
+function HandZones() {
+  return (
+    <>
+      <HandZone position={[0, FELT_TOP, DEALER_ZONE_Z]} />
+      <HandZone position={[0, FELT_TOP, PLAYER_ZONE_Z]} />
+    </>
+  );
+}
+
 function CameraRig() {
   const camera = useThree((state) => state.camera);
 
@@ -191,7 +227,9 @@ function Scene({
           transitionKey={rouletteTransitionKey}
           visualPhase={roulettePhase}
         />
-      ) : null}
+      ) : (
+        <HandZones />
+      )}
       {cards.map((card, index) => (
         <DealtCard card={card} cards={cards} index={index} key={card.visualId} reduceMotion={false} />
       ))}

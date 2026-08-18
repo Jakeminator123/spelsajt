@@ -355,16 +355,6 @@ export function RouletteWheel({
         <cylinderGeometry args={[1.62, 1.9, 0.24, 72, 1, true]} />
         <meshStandardMaterial color="#23262f" metalness={0.85} roughness={0.3} side={2} />
       </mesh>
-      {/* Polished chrome rim */}
-      <mesh position={[0, 0.24, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[1.9, 0.07, 20, 96]} />
-        <meshStandardMaterial color="#c9cdd9" metalness={0.95} roughness={0.16} />
-      </mesh>
-      {/* Violet accent ring sunk into the rim to tie into the brand palette */}
-      <mesh position={[0, 0.2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[1.72, 0.028, 16, 96]} />
-        <meshStandardMaterial color="#7c5cff" emissive="#5a3ff0" emissiveIntensity={0.9} metalness={0.4} roughness={0.3} />
-      </mesh>
 
       {/* Rotor + ball raised so the numbered face reads as the top surface */}
       <group position={[0, 0.2, 0]}>
