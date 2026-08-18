@@ -2,7 +2,7 @@ services:
   - type: web
     name: spelsajt-game-server
     runtime: docker
-    plan: free
+    plan: starter
     region: frankfurt
     branch: main
     dockerfilePath: ./apps/game-server/Dockerfile
