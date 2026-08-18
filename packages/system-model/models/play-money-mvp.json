@@ -72,7 +72,7 @@
         "verification": "direct",
         "lifecycle": "active"
       },
-      "summary": "Motorernas PLAY-intents, wallet-saldo, fairness, state, events och command receipt committas atomiskt i privat Postgres med RLS och utan browser-grants. Validerade anslutnings- och statement/query-timeouts avbryter blockerade operationer; riktig Postgres-integration verifierar timeout och fortsatt repositoryanvändning."
+      "summary": "Motorernas PLAY-intents, wallet-saldo, fairness, state, events och command receipt committas atomiskt i privat Postgres med RLS och utan browser-grants. Command- och snapshotvägar hydraterar endast aktuell state, medan idempotens laddar den aktuella command-receipten via command-id. Validerade anslutnings- och statement/query-timeouts avbryter blockerade operationer; riktig Postgres-integration verifierar timeout och fortsatt repositoryanvändning."
     },
     {
       "id": "node.event-stream",
@@ -86,7 +86,7 @@
         "verification": "direct",
         "lifecycle": "active"
       },
-      "summary": "Application service lagrar validerade v2-events med stigande tabellsekvens i Postgres; transaktionell NOTIFY och återläsning av den committade raden levererar dem över flera serverinstanser. Relayfel kopplar ned sockets utan tyst lucka, och samma process återupprättar en ny LISTEN-session innan den blir redo igen."
+      "summary": "Application service lagrar validerade v2-events med stigande tabellsekvens i Postgres; eventintervall återläses som indexerade sekvenssidor om högst 128 rader. Transaktionell NOTIFY och återläsning av den committade raden levererar events över flera serverinstanser. Relayfel kopplar ned sockets utan tyst lucka, och samma process återupprättar en ny LISTEN-session innan den blir redo igen."
     },
     {
       "id": "node.presentation",

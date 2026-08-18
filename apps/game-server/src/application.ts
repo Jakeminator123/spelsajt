@@ -51,6 +51,7 @@ import { CommandIdConflictError } from "./repository";
 
 const nilUuid = "00000000-0000-0000-0000-000000000000";
 const startingBalance = Number(mvpRuleset.currency.startingBalance);
+const eventReadPageSize = 128;
 
 interface FairnessContext extends FairnessInput {
   readonly serverSeed: string;
@@ -134,7 +135,7 @@ export class GameApplication {
   async execute(userId: string, pathTableId: string, input: unknown): Promise<CommandAckV2> {
     const parsed = gameCommandV2Schema.safeParse(input);
     if (!parsed.success) {
-      const current = await this.#repository.read(userId, pathTableId);
+      const current = await this.#repository.readCurrent(userId, pathTableId);
       return rejectedAck(
         extractCommandId(input),
         current,
@@ -145,7 +146,7 @@ export class GameApplication {
 
     const command = parsed.data;
     if (command.tableId !== pathTableId) {
-      const current = await this.#repository.read(userId, pathTableId);
+      const current = await this.#repository.readCurrent(userId, pathTableId);
       return rejectedAck(
         command.commandId,
         current,
@@ -234,7 +235,7 @@ export class GameApplication {
   }
 
   async getSnapshot(userId: string, tableId: string): Promise<GameSnapshotV2 | null> {
-    const table = await this.#repository.read(userId, tableId);
+    const table = await this.#repository.readCurrent(userId, tableId);
     if (!table || table.game === null) {
       return null;
     }
@@ -247,10 +248,12 @@ export class GameApplication {
     firstSequence: number,
     lastSequence: number,
   ): Promise<readonly GameEventV2[]> {
-    const table = await this.#repository.read(userId, tableId);
-    if (!table) return [];
-    return table.events.filter(
-      (event) => event.sequence >= firstSequence && event.sequence <= lastSequence,
+    return this.#repository.readEvents(
+      userId,
+      tableId,
+      firstSequence,
+      lastSequence,
+      eventReadPageSize,
     );
   }
 

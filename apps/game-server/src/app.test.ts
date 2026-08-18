@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { FairnessSource } from "./application";
 import { buildApp } from "./app";
 import type { AuthVerifier } from "./auth";
+import { GameEventBus } from "./event-bus";
 import { InMemoryGameRepository } from "./in-memory-repository";
 
 const openApps: ReturnType<typeof buildApp>[] = [];
@@ -36,6 +37,37 @@ const deterministicFairness: FairnessSource = {
     { cardId: "test:dealer-hit", rank: "K", suit: "hearts" },
   ],
 };
+
+class TinyEventPageRepository extends InMemoryGameRepository {
+  readonly pageSizes: number[] = [];
+
+  override async readEvents(
+    userId: string,
+    tableId: string,
+    firstSequence: number,
+    lastSequence: number,
+    limit: number,
+  ) {
+    const events = await super.readEvents(
+      userId,
+      tableId,
+      firstSequence,
+      lastSequence,
+      Math.min(limit, 2),
+    );
+    this.pageSizes.push(events.length);
+    return events;
+  }
+}
+
+class RecordingEventBus extends GameEventBus {
+  readonly batches: number[][] = [];
+
+  override publish(events: Parameters<GameEventBus["publish"]>[0]): void {
+    this.batches.push(events.map((event) => event.sequence));
+    super.publish(events);
+  }
+}
 
 function commandBase(commandId: number, tableId: string, expectedRevision: number) {
   return {
@@ -106,6 +138,55 @@ describe("game server", () => {
       },
       mode: "play-money",
     });
+  });
+
+  it("publishes committed command events through bounded sequence pages", async () => {
+    const repository = new TinyEventPageRepository();
+    const eventBus = new RecordingEventBus();
+    const app = buildApp({
+      authVerifier: authenticatedAs(userOne),
+      clock: () => issuedAt,
+      eventBus,
+      fairness: deterministicFairness,
+      idGenerator: sequentialIds(),
+      repository,
+    });
+    openApps.push(app);
+    const tableId = "paged-blackjack";
+
+    const prepare = await app.inject({
+      headers: authHeaders,
+      method: "POST",
+      url: `/v2/tables/${tableId}/commands`,
+      payload: {
+        ...commandBase(901, tableId, 0),
+        type: "PREPARE_ROUND",
+        payload: { game: "blackjack" },
+      },
+    });
+    const roundId = prepare.json().snapshot.round.roundId as string;
+    const bet = await app.inject({
+      headers: authHeaders,
+      method: "POST",
+      url: `/v2/tables/${tableId}/commands`,
+      payload: {
+        ...commandBase(902, tableId, 1),
+        type: "BLACKJACK_PLACE_BET",
+        payload: {
+          amount: "100",
+          clientSeed: "paged-event-read",
+          currency: "PLAY",
+          roundId,
+        },
+      },
+    });
+
+    expect(prepare.statusCode).toBe(200);
+    expect(bet.statusCode).toBe(200);
+    expect(repository.pageSizes).toEqual([1, 2, 2, 2, 1]);
+    expect(eventBus.batches.flat()).toEqual(
+      Array.from({ length: bet.json().lastSequence as number }, (_, index) => index + 1),
+    );
   });
 
   it("plays blackjack through prepare, bet, hit, stand, replay and reconnect", async () => {

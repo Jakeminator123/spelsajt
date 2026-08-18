@@ -41,6 +41,19 @@ interface WalletRow {
   readonly id: string;
 }
 
+interface CommandReceiptRow {
+  readonly ack: unknown;
+  readonly command_id: string;
+  readonly fingerprint: string;
+  readonly table_id: string;
+}
+
+interface HydrateTableOptions {
+  readonly includeHistory?: boolean;
+  readonly lockWallet?: boolean;
+  readonly receipt?: CommandReceiptRow | null;
+}
+
 export interface PostgresGameRepositoryOptions extends PoolConfig {
   readonly connectionString: string;
 }
@@ -133,6 +146,52 @@ export class PostgresGameRepository implements GameRepository {
   }
 
   async read(userId: string, tableId: string): Promise<StoredTable | null> {
+    return this.#readTable(userId, tableId, true);
+  }
+
+  async readCurrent(userId: string, tableId: string): Promise<StoredTable | null> {
+    return this.#readTable(userId, tableId, false);
+  }
+
+  async readEvents(
+    userId: string,
+    tableId: string,
+    firstSequence: number,
+    lastSequence: number,
+    limit: number,
+  ): Promise<readonly GameEventV2[]> {
+    assertEventPage(firstSequence, lastSequence, limit);
+    const client = await this.#pool.connect();
+    try {
+      await client.query("begin isolation level repeatable read read only");
+      const table = await selectTable(client, tableId);
+      if (!table) {
+        await client.query("commit");
+        return [];
+      }
+      assertOwner(table, userId);
+      const events = await selectEventPage(
+        client,
+        tableId,
+        firstSequence,
+        lastSequence,
+        limit,
+      );
+      await client.query("commit");
+      return events;
+    } catch (error) {
+      await rollback(client);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async #readTable(
+    userId: string,
+    tableId: string,
+    includeHistory: boolean,
+  ): Promise<StoredTable | null> {
     const client = await this.#pool.connect();
     try {
       await client.query("begin isolation level repeatable read read only");
@@ -142,7 +201,7 @@ export class PostgresGameRepository implements GameRepository {
         return null;
       }
       assertOwner(table, userId);
-      const stored = await hydrateTable(client, table);
+      const stored = await hydrateTable(client, table, { includeHistory });
       await client.query("commit");
       return stored;
     } catch (error) {
@@ -171,17 +230,23 @@ export class PostgresGameRepository implements GameRepository {
 
       const table = await selectTable(client, tableId);
       if (table) assertOwner(table, userId);
-      const current = table ? await hydrateTable(client, table, true) : null;
-      const currentBalance = current?.balance
-        ?? safeInteger((await ensureWallet(client, userId, false))?.balance ?? startingBalance, "wallet balance");
-
-      const usedCommand = await client.query<{ readonly table_id: string }>(
-        `select table_id
+      const usedCommand = await client.query<CommandReceiptRow>(
+        `select command_id, table_id, fingerprint, ack
            from game_private.game_commands
           where command_id = $1`,
         [commandId],
       );
-      const usedTableId = usedCommand.rows[0]?.table_id;
+      const receipt = usedCommand.rows[0] ?? null;
+      const current = table
+        ? await hydrateTable(client, table, {
+            lockWallet: true,
+            receipt: receipt?.table_id === tableId ? receipt : null,
+          })
+        : null;
+      const currentBalance = current?.balance
+        ?? safeInteger((await ensureWallet(client, userId, false))?.balance ?? startingBalance, "wallet balance");
+
+      const usedTableId = receipt?.table_id;
       if (usedTableId && usedTableId !== tableId) {
         throw new CommandIdConflictError(commandId, current);
       }
@@ -229,8 +294,9 @@ function assertOwner(table: TableRow, userId: string): void {
 async function hydrateTable(
   client: PoolClient,
   table: TableRow,
-  lockWallet = false,
+  options: HydrateTableOptions = {},
 ): Promise<StoredTable> {
+  const { includeHistory = false, lockWallet = false, receipt = null } = options;
   const wallet = await client.query<WalletRow>(
     `select id, balance
        from game_private.wallet_accounts
@@ -238,27 +304,21 @@ async function hydrateTable(
       ${lockWallet ? "for update" : ""}`,
     [table.user_id],
   );
-  const events = await client.query<{ readonly event: unknown }>(
-    `select event
-       from game_private.game_events
-      where table_id = $1
-      order by sequence`,
-    [table.table_id],
-  );
-  const commands = await client.query<{
-    readonly ack: unknown;
-    readonly command_id: string;
-    readonly fingerprint: string;
-  }>(
-    `select command_id, fingerprint, ack
-       from game_private.game_commands
-      where table_id = $1
-      order by created_at, command_id`,
-    [table.table_id],
-  );
+  const events = includeHistory
+    ? await selectEventPage(client, table.table_id, 1, table.last_sequence, table.last_sequence || 1)
+    : [];
+  const commands = includeHistory
+    ? (await client.query<CommandReceiptRow>(
+        `select command_id, table_id, fingerprint, ack
+           from game_private.game_commands
+          where table_id = $1
+          order by created_at, command_id`,
+        [table.table_id],
+      )).rows
+    : receipt ? [receipt] : [];
 
   const receipts: Record<string, StoredCommandReceipt> = {};
-  for (const row of commands.rows) {
+  for (const row of commands) {
     receipts[row.command_id] = {
       ack: commandAckV2Schema.parse(row.ack),
       fingerprint: row.fingerprint,
@@ -267,7 +327,7 @@ async function hydrateTable(
 
   return {
     balance: safeInteger(wallet.rows[0]?.balance ?? startingBalance, "wallet balance"),
-    events: events.rows.map((row) => gameEventV2Schema.parse(row.event)),
+    events,
     game: table.game,
     lastSequence: table.last_sequence,
     nextNonce: safeInteger(table.next_nonce, "fairness nonce"),
@@ -276,6 +336,39 @@ async function hydrateTable(
     round: table.round_state,
     tableId: table.table_id,
   };
+}
+
+async function selectEventPage(
+  client: PoolClient,
+  tableId: string,
+  firstSequence: number,
+  lastSequence: number,
+  limit: number,
+): Promise<readonly GameEventV2[]> {
+  const events = await client.query<{ readonly event: unknown }>(
+    `select event
+       from game_private.game_events
+      where table_id = $1
+        and sequence >= $2
+        and sequence <= $3
+      order by sequence
+      limit $4`,
+    [tableId, firstSequence, lastSequence, limit],
+  );
+  return events.rows.map((row) => gameEventV2Schema.parse(row.event));
+}
+
+function assertEventPage(firstSequence: number, lastSequence: number, limit: number): void {
+  if (
+    !Number.isSafeInteger(firstSequence)
+    || firstSequence < 1
+    || !Number.isSafeInteger(lastSequence)
+    || lastSequence < firstSequence
+    || !Number.isSafeInteger(limit)
+    || limit < 1
+  ) {
+    throw new Error("Event page bounds must be positive safe integers in ascending order.");
+  }
 }
 
 function assertMutation(tableId: string, current: StoredTable | null, next: StoredTable): void {

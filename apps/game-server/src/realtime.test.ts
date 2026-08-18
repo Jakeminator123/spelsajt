@@ -19,6 +19,7 @@ import {
   type GameEventListener,
   type GameEventBusReadinessListener,
 } from "./event-bus";
+import { InMemoryGameRepository } from "./in-memory-repository";
 import { attachRealtime, type GameRealtimeServer } from "./realtime";
 
 const issuedAt = "2026-08-18T10:00:00.000Z";
@@ -168,6 +169,24 @@ class ReorderingEventBus extends GameEventBus {
   }
 }
 
+class TinyEventPageRepository extends InMemoryGameRepository {
+  override async readEvents(
+    userId: string,
+    tableId: string,
+    firstSequence: number,
+    lastSequence: number,
+    limit: number,
+  ) {
+    return super.readEvents(
+      userId,
+      tableId,
+      firstSequence,
+      lastSequence,
+      Math.min(limit, 2),
+    );
+  }
+}
+
 afterEach(async () => {
   for (const socket of openSockets) socket.close();
   openSockets.clear();
@@ -180,12 +199,14 @@ afterEach(async () => {
 describe("game realtime", () => {
   it("repairs a sequence gap when committed publish batches arrive out of order", async () => {
     const eventBus = new ReorderingEventBus();
+    const repository = new TinyEventPageRepository();
     const app = buildApp({
       authVerifier,
       clock: () => issuedAt,
       eventBus,
       fairness: deterministicFairness,
       idGenerator: sequentialIds(),
+      repository,
     });
     openApps.add(app);
     const io = attachRealtime(app);
@@ -242,10 +263,11 @@ describe("game realtime", () => {
     expect(bet.statusCode).toBe(200);
     expect(hit.statusCode).toBe(200);
 
-    const expected = [...(eventBus.batches[1] ?? []), ...(eventBus.batches[2] ?? [])]
+    const expected = eventBus.batches.slice(1).flat()
       .toSorted((left, right) => left.sequence - right.sequence);
     const finalSequence = expected.at(-1)?.sequence;
     if (!finalSequence) throw new Error("Commands did not produce realtime events.");
+    const finalBatchIndex = eventBus.batches.length - 1;
     const repaired = new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error("Timed out waiting for repaired events.")), 5_000);
       socket.on("game.event", (payload: unknown) => {
@@ -256,14 +278,16 @@ describe("game realtime", () => {
       });
     });
 
-    eventBus.release(2);
+    eventBus.release(finalBatchIndex);
     await repaired;
     expect(received.map((event) => event.sequence)).toEqual(
       expected.map((event) => event.sequence),
     );
     expect(received[0]?.sequence).toBe(snapshot.lastSequence + 1);
 
-    eventBus.release(1);
+    for (let index = 1; index < finalBatchIndex; index += 1) {
+      eventBus.release(index);
+    }
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(received).toHaveLength(expected.length);
   });
