@@ -21,8 +21,8 @@ import { RouletteWheel, type RouletteVisualPhase } from "./scene/roulette-wheel"
 
 const FELT_TOP = 0.1;
 const DEALER_ORIGIN: [number, number, number] = [1.8, FELT_TOP + 0.48, -1];
-const CAMERA_POSITION: [number, number, number] = [0.1, 7.2, 10.4];
-const CAMERA_TARGET: [number, number, number] = [-0.2, 0.05, -0.05];
+const CAMERA_POSITION: [number, number, number] = [0.1, 8.6, 12.2];
+const CAMERA_TARGET: [number, number, number] = [-0.2, -0.1, 0];
 
 const STAGE_LABELS: Record<PresentationStage, string> = {
   idle: "Väntar på V2-event",
@@ -308,7 +308,7 @@ export function CasinoScene({ game, source = "recorded-demo" }: {
     <div className="scene-stage">
       <Canvas
         aria-hidden="true"
-        camera={{ fov: 38, position: CAMERA_POSITION }}
+        camera={{ fov: 44, position: CAMERA_POSITION }}
         dpr={[1, 1.75]}
         gl={{ antialias: true, powerPreference: "high-performance" }}
       >
