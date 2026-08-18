@@ -76,3 +76,5 @@ docker run --rm --publish 4000:4000 --env-file apps/game-server/.env.local --env
 Imagen kör som en icke-privilegierad användare, lyssnar på `0.0.0.0:4000` och har `/health` för processhälsa samt `/ready` för migrerat Postgres-schema och eventreläberedskap. `NODE_ENV=production` är satt i imagen, så komplett `SUPABASE_URL`, publishable/secret key och `SUPABASE_DATABASE_URL` krävs; produktionsservern startar inte med den tillfälliga minnesadaptern. CI bygger och health-startprovar imagen mot en isolerad tom Postgres och verifierar att `/ready` svarar 503 där; databasjobbet verifierar 200 och relayåterhämtning mot det migrerade schemat. Imagen publiceras eller deployas inte.
 
 Om Postgres `LISTEN`-sessionen bryts blir instansen oreado och kopplar ned sockets. Servern försöker därefter upprätta en ny anslutning varje sekund med fem sekunders anslutningstak och blir inte redo förrän en ny `LISTEN` har lyckats; klienten återankrar då via snapshot.
+
+Socket.IO-sessioner omverifieras server-side var 60:e sekund. `GAME_SERVER_SOCKET_AUTH_REVALIDATION_MS` kan justera intervallet till ett positivt heltal på minst `10000`; ogiltig konfiguration stoppar serverstarten.
