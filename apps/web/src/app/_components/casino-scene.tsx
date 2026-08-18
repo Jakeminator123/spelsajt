@@ -1,9 +1,9 @@
 "use client";
 
 import { ContactShadows, Environment, Lightformer, RoundedBox } from "@react-three/drei";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { type Group, Vector3 } from "three";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { Group } from "three";
 
 import { clamp01, easeOutCubic, lerp } from "./scene/animation";
 import { Croupier, type CroupierVisualPose } from "./scene/croupier";
@@ -21,6 +21,8 @@ import { RouletteWheel, type RouletteVisualPhase } from "./scene/roulette-wheel"
 
 const FELT_TOP = 0.1;
 const DEALER_ORIGIN: [number, number, number] = [1.8, FELT_TOP + 0.48, -1];
+const CAMERA_POSITION: [number, number, number] = [0.2, 5.3, 6.7];
+const CAMERA_TARGET: [number, number, number] = [-0.3, 0.15, -0.1];
 
 const STAGE_LABELS: Record<PresentationStage, string> = {
   idle: "Väntar på V2-event",
@@ -132,12 +134,14 @@ function Table() {
 }
 
 function CameraRig() {
-  const target = useMemo(() => new Vector3(-0.3, 0.15, -0.1), []);
-  useFrame((state) => {
-    const time = state.clock.elapsedTime;
-    state.camera.position.set(0.2 + Math.sin(time * 0.16) * 0.4, 5.3 + Math.sin(time * 0.22) * 0.14, 6.7);
-    state.camera.lookAt(target);
-  });
+  const camera = useThree((state) => state.camera);
+
+  useLayoutEffect(() => {
+    camera.position.set(...CAMERA_POSITION);
+    camera.lookAt(...CAMERA_TARGET);
+    camera.updateMatrixWorld();
+  }, [camera]);
+
   return null;
 }
 
@@ -308,7 +312,7 @@ export function CasinoScene({ game, source = "recorded-demo" }: {
     <div className="scene-stage">
       <Canvas
         aria-hidden="true"
-        camera={{ fov: 32, position: [0.6, 4.5, 6.9] }}
+        camera={{ fov: 32, position: CAMERA_POSITION }}
         dpr={[1, 1.75]}
         gl={{ antialias: true, powerPreference: "high-performance" }}
       >
