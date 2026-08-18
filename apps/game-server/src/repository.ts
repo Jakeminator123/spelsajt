@@ -82,6 +82,7 @@ export class CommandIdConflictError extends Error {
  */
 export interface GameRepository {
   close?(): Promise<void>;
+  ping?(): Promise<void>;
   read(userId: string, tableId: string): Promise<StoredTable | null>;
   transact<T>(
     userId: string,

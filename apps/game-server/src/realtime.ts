@@ -80,13 +80,18 @@ export function attachRealtime(app: FastifyInstance): GameRealtimeServer {
       unsubscribe = null;
       const { lastSequence, tableId } = parsed.data;
       const buffered: GameEventV2[] = [];
+      let deliveredSequence = 0;
       let live = false;
       const stop = eventBus.subscribe(tableId, (events) => {
         if (!live) {
           buffered.push(...events);
           return;
         }
-        for (const event of events) socket.emit("game.event", gameEventV2Schema.parse(event));
+        for (const event of events.toSorted((left, right) => left.sequence - right.sequence)) {
+          if (event.sequence <= deliveredSequence) continue;
+          socket.emit("game.event", gameEventV2Schema.parse(event));
+          deliveredSequence = event.sequence;
+        }
       });
       unsubscribe = stop;
 
@@ -114,10 +119,12 @@ export function attachRealtime(app: FastifyInstance): GameRealtimeServer {
 
         const validatedSnapshot = gameSnapshotV2Schema.parse(snapshot);
         socket.emit("table.snapshot", validatedSnapshot);
+        deliveredSequence = validatedSnapshot.lastSequence;
         for (const event of buffered
           .filter((candidate) => candidate.sequence > validatedSnapshot.lastSequence)
           .toSorted((left, right) => left.sequence - right.sequence)) {
           socket.emit("game.event", gameEventV2Schema.parse(event));
+          deliveredSequence = event.sequence;
         }
         live = true;
         acknowledge(tableSubscriptionAckV2Schema.parse({

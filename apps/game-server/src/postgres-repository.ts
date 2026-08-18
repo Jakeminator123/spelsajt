@@ -17,6 +17,10 @@ import {
   type StoredRound,
   type StoredTable,
 } from "./repository";
+import {
+  encodePostgresGameEventNotification,
+  postgresGameEventChannel,
+} from "./postgres-event-notification";
 
 const startingBalance = Number(mvpRuleset.currency.startingBalance);
 
@@ -49,6 +53,10 @@ export class PostgresGameRepository implements GameRepository {
 
   async close(): Promise<void> {
     await this.#pool.end();
+  }
+
+  async ping(): Promise<void> {
+    await this.#pool.query("select 1");
   }
 
   async read(userId: string, tableId: string): Promise<StoredTable | null> {
@@ -385,6 +393,14 @@ async function insertEvent(client: PoolClient, event: GameEventV2): Promise<void
       json(event),
     ],
   );
+  await client.query("select pg_notify($1, $2)", [
+    postgresGameEventChannel,
+    encodePostgresGameEventNotification({
+      schemaVersion: 1,
+      sequence: event.sequence,
+      tableId: event.tableId,
+    }),
+  ]);
 }
 
 async function persistLedger(
