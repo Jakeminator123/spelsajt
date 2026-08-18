@@ -223,7 +223,8 @@
                 "enum": [
                   "GameEvent",
                   "GameSnapshot",
-                  "ServerReady"
+                  "ServerReady",
+                  "TableSubscriptionV2"
                 ]
               },
               "eventTypes": {

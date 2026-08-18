@@ -79,6 +79,34 @@ const clientSeedSchema = z.string().min(1).max(128);
 const hashSchema = z.string().regex(/^[a-f0-9]{64}$/);
 const emptyPayloadSchema = z.strictObject({});
 
+export const socketAuthV2Schema = z.strictObject({
+  accessToken: z.string().min(1).max(4096),
+  schemaVersion: z.literal(contractV2SchemaVersion),
+});
+
+export const tableSubscriptionV2Schema = z.strictObject({
+  lastSequence: z.int().nonnegative(),
+  schemaVersion: z.literal(contractV2SchemaVersion),
+  tableId: identifierSchema,
+});
+
+export const tableSubscriptionAckV2Schema = z.discriminatedUnion("status", [
+  z.strictObject({
+    lastSequence: z.int().nonnegative(),
+    schemaVersion: z.literal(contractV2SchemaVersion),
+    status: z.literal("accepted"),
+    tableId: identifierSchema,
+  }),
+  z.strictObject({
+    error: z.strictObject({
+      code: z.enum(["VALIDATION_ERROR", "TABLE_NOT_FOUND", "INTERNAL_ERROR"]),
+      detail: z.string().max(256).optional(),
+    }),
+    schemaVersion: z.literal(contractV2SchemaVersion),
+    status: z.literal("rejected"),
+  }),
+]);
+
 export const cardV2Schema = z.strictObject({
   cardId: identifierSchema,
   rank: z.enum(["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]),
@@ -538,3 +566,6 @@ export type GameEventV2 = z.infer<typeof gameEventV2Schema>;
 export type RoundSnapshotV2 = z.infer<typeof roundSnapshotV2Schema>;
 export type GameSnapshotV2 = z.infer<typeof gameSnapshotV2Schema>;
 export type CommandAckV2 = z.infer<typeof commandAckV2Schema>;
+export type SocketAuthV2 = z.infer<typeof socketAuthV2Schema>;
+export type TableSubscriptionV2 = z.infer<typeof tableSubscriptionV2Schema>;
+export type TableSubscriptionAckV2 = z.infer<typeof tableSubscriptionAckV2Schema>;

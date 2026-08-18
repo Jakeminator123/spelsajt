@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "accessToken": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "schemaVersion": {
+      "type": "number",
+      "const": 2
+    }
+  },
+  "required": [
+    "accessToken",
+    "schemaVersion"
+  ],
+  "additionalProperties": false,
+  "$id": "https://schemas.spelsajt.local/v2/socket-auth.schema.json",
+  "title": "Spelsajt Socket.IO auth v2"
+}

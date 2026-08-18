@@ -81,12 +81,12 @@
       "owner": "shared",
       "source": "packages/contracts/src/v2.ts",
       "maturity": {
-        "runtime": "partial",
+        "runtime": "implemented",
         "contract": "zod-v2",
         "verification": "direct",
         "lifecycle": "active"
       },
-      "summary": "Application service producerar och lagrar validerade v2-events med stigande tabellsekvens i Postgres; Socket.IO-leverans återstår."
+      "summary": "Application service lagrar validerade v2-events med stigande tabellsekvens i Postgres och publicerar dem efter commit till autentiserade Socket.IO-prenumeranter."
     },
     {
       "id": "node.presentation",
@@ -229,17 +229,32 @@
       "eventTypes": []
     },
     {
+      "id": "realtime.table-subscribe",
+      "kind": "realtime",
+      "event": "table.subscribe",
+      "source": "apps/game-server/src/realtime.ts",
+      "maturity": {
+        "runtime": "implemented",
+        "contract": "zod-v2",
+        "verification": "direct",
+        "lifecycle": "active"
+      },
+      "summary": "Autentiserad och ägarisolerad prenumeration med klientens senaste sekvens och ett validerat subscription-ack.",
+      "payload": "TableSubscriptionV2",
+      "eventTypes": []
+    },
+    {
       "id": "realtime.game-event",
       "kind": "realtime",
       "event": "game.event",
-      "source": "docs/SYSTEM_CANVAS.md",
+      "source": "apps/game-server/src/realtime.ts",
       "maturity": {
-        "runtime": "absent",
+        "runtime": "implemented",
         "contract": "zod-v2",
-        "verification": "fixture-only",
-        "lifecycle": "planned"
+        "verification": "direct",
+        "lifecycle": "active"
       },
-      "summary": "Planerad enda kanal för sekvensnumrerade v2-domänevents; presentation intents härleds i frontend.",
+      "summary": "Enda livekanalen för committade sekvensnumrerade v2-domänevents; presentation intents härleds i frontend.",
       "payload": "GameEvent",
       "eventTypes": [
         "round.prepared",
@@ -264,14 +279,14 @@
       "id": "realtime.table-snapshot",
       "kind": "realtime",
       "event": "table.snapshot",
-      "source": "docs/SYSTEM_CANVAS.md",
+      "source": "apps/game-server/src/realtime.ts",
       "maturity": {
-        "runtime": "absent",
+        "runtime": "implemented",
         "contract": "zod-v2",
-        "verification": "fixture-only",
-        "lifecycle": "planned"
+        "verification": "direct",
+        "lifecycle": "active"
       },
-      "summary": "Planerat v2-snapshot efter anslutning eller sekvensgap.",
+      "summary": "Validerat v2-snapshot som sekvensankare efter autentiserad anslutning eller reconnect.",
       "payload": "GameSnapshot",
       "eventTypes": []
     }

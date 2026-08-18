@@ -11,6 +11,9 @@ import {
   gameSnapshotV2Schema,
   rouletteBetTypesV2,
   rouletteSelectionV2Schema,
+  socketAuthV2Schema,
+  tableSubscriptionAckV2Schema,
+  tableSubscriptionV2Schema,
 } from "./v2";
 
 function readJson(relativePath: string): unknown {
@@ -68,6 +71,24 @@ describe("v2 network contracts", () => {
     "../fixtures/v2/rejected.command-ack.json",
   ] as const)("accepts command acknowledgement fixture %s", (path) => {
     expect(commandAckV2Schema.safeParse(readJson(path)).success).toBe(true);
+  });
+
+  it("accepts table subscription fixtures", () => {
+    expect(socketAuthV2Schema.safeParse(
+      readJson("../fixtures/v2/socket-auth.json"),
+    ).success).toBe(true);
+    expect(tableSubscriptionV2Schema.safeParse(
+      readJson("../fixtures/v2/table-subscription.json"),
+    ).success).toBe(true);
+    expect(tableSubscriptionAckV2Schema.safeParse(
+      readJson("../fixtures/v2/table-subscription-ack.json"),
+    ).success).toBe(true);
+  });
+
+  it("rejects unknown table subscription fields", () => {
+    const subscription = readJson("../fixtures/v2/table-subscription.json") as object;
+    expect(tableSubscriptionV2Schema.safeParse({ ...subscription, accessToken: "secret" }).success)
+      .toBe(false);
   });
 
   it("keeps command and event fixture coverage exhaustive", () => {
