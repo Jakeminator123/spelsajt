@@ -1,0 +1,707 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "minLength": 1
+    },
+    "connections": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "to": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+          }
+        },
+        "required": [
+          "from",
+          "label",
+          "to"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "interfaces": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+              },
+              "kind": {
+                "type": "string",
+                "const": "http"
+              },
+              "method": {
+                "type": "string",
+                "enum": [
+                  "GET",
+                  "POST"
+                ]
+              },
+              "path": {
+                "type": "string",
+                "pattern": "^\\/.*"
+              },
+              "source": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-zA-Z0-9._/-]+$"
+              },
+              "maturity": {
+                "type": "object",
+                "properties": {
+                  "contract": {
+                    "type": "string",
+                    "enum": [
+                      "zod-v1",
+                      "ad-hoc",
+                      "none"
+                    ]
+                  },
+                  "lifecycle": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "planned",
+                      "deprecated"
+                    ]
+                  },
+                  "runtime": {
+                    "type": "string",
+                    "enum": [
+                      "implemented",
+                      "partial",
+                      "absent"
+                    ]
+                  },
+                  "verification": {
+                    "type": "string",
+                    "enum": [
+                      "direct",
+                      "partial",
+                      "fixture-only",
+                      "none"
+                    ]
+                  }
+                },
+                "required": [
+                  "contract",
+                  "lifecycle",
+                  "runtime",
+                  "verification"
+                ],
+                "additionalProperties": false
+              },
+              "summary": {
+                "type": "string",
+                "minLength": 1
+              },
+              "accepts": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "PLACE_BET",
+                    "BLACKJACK_ACTION",
+                    "ROULETTE_SPIN"
+                  ]
+                }
+              },
+              "returns": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "method",
+              "path",
+              "source",
+              "maturity",
+              "summary",
+              "accepts",
+              "returns"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+              },
+              "kind": {
+                "type": "string",
+                "const": "realtime"
+              },
+              "event": {
+                "type": "string",
+                "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+              },
+              "source": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-zA-Z0-9._/-]+$"
+              },
+              "maturity": {
+                "type": "object",
+                "properties": {
+                  "contract": {
+                    "type": "string",
+                    "enum": [
+                      "zod-v1",
+                      "ad-hoc",
+                      "none"
+                    ]
+                  },
+                  "lifecycle": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "planned",
+                      "deprecated"
+                    ]
+                  },
+                  "runtime": {
+                    "type": "string",
+                    "enum": [
+                      "implemented",
+                      "partial",
+                      "absent"
+                    ]
+                  },
+                  "verification": {
+                    "type": "string",
+                    "enum": [
+                      "direct",
+                      "partial",
+                      "fixture-only",
+                      "none"
+                    ]
+                  }
+                },
+                "required": [
+                  "contract",
+                  "lifecycle",
+                  "runtime",
+                  "verification"
+                ],
+                "additionalProperties": false
+              },
+              "summary": {
+                "type": "string",
+                "minLength": 1
+              },
+              "payload": {
+                "type": "string",
+                "enum": [
+                  "GameEvent",
+                  "GameSnapshot",
+                  "ServerReady"
+                ]
+              },
+              "eventTypes": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "round.started",
+                    "blackjack.card.dealt",
+                    "roulette.result",
+                    "round.settled",
+                    "reaction.cue"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "event",
+              "source",
+              "maturity",
+              "summary",
+              "payload",
+              "eventTypes"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "nodes": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "lane": {
+            "type": "string",
+            "enum": [
+              "player",
+              "web",
+              "server",
+              "engine",
+              "data",
+              "presentation"
+            ]
+          },
+          "owner": {
+            "type": "string",
+            "enum": [
+              "backend",
+              "frontend",
+              "shared"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-zA-Z0-9._/-]+$"
+          },
+          "maturity": {
+            "type": "object",
+            "properties": {
+              "contract": {
+                "type": "string",
+                "enum": [
+                  "zod-v1",
+                  "ad-hoc",
+                  "none"
+                ]
+              },
+              "lifecycle": {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "planned",
+                  "deprecated"
+                ]
+              },
+              "runtime": {
+                "type": "string",
+                "enum": [
+                  "implemented",
+                  "partial",
+                  "absent"
+                ]
+              },
+              "verification": {
+                "type": "string",
+                "enum": [
+                  "direct",
+                  "partial",
+                  "fixture-only",
+                  "none"
+                ]
+              }
+            },
+            "required": [
+              "contract",
+              "lifecycle",
+              "runtime",
+              "verification"
+            ],
+            "additionalProperties": false
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "lane",
+          "owner",
+          "source",
+          "maturity",
+          "summary"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "presentationCues": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "actor": {
+            "type": "string",
+            "enum": [
+              "dealer",
+              "player",
+              "table",
+              "from-event"
+            ]
+          },
+          "clip": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+          },
+          "condition": {
+            "type": "object",
+            "properties": {
+              "equals": {
+                "type": "string",
+                "minLength": 1
+              },
+              "path": {
+                "type": "string",
+                "pattern": "^payload\\.[a-zA-Z0-9_.]+$"
+              }
+            },
+            "required": [
+              "equals",
+              "path"
+            ],
+            "additionalProperties": false
+          },
+          "eventType": {
+            "type": "string",
+            "enum": [
+              "round.started",
+              "blackjack.card.dealt",
+              "roulette.result",
+              "round.settled",
+              "reaction.cue"
+            ]
+          },
+          "game": {
+            "type": "string",
+            "enum": [
+              "blackjack",
+              "roulette"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+          },
+          "reducedMotionText": {
+            "type": "string",
+            "minLength": 1
+          },
+          "maturity": {
+            "type": "object",
+            "properties": {
+              "contract": {
+                "type": "string",
+                "enum": [
+                  "zod-v1",
+                  "ad-hoc",
+                  "none"
+                ]
+              },
+              "lifecycle": {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "planned",
+                  "deprecated"
+                ]
+              },
+              "runtime": {
+                "type": "string",
+                "enum": [
+                  "implemented",
+                  "partial",
+                  "absent"
+                ]
+              },
+              "verification": {
+                "type": "string",
+                "enum": [
+                  "direct",
+                  "partial",
+                  "fixture-only",
+                  "none"
+                ]
+              }
+            },
+            "required": [
+              "contract",
+              "lifecycle",
+              "runtime",
+              "verification"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "actor",
+          "clip",
+          "eventType",
+          "game",
+          "id",
+          "reducedMotionText",
+          "maturity"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "scenarios": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "game": {
+            "type": "string",
+            "enum": [
+              "blackjack",
+              "roulette"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "steps": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+                    },
+                    "label": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "nodeId": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+                    },
+                    "commandType": {
+                      "type": "string",
+                      "enum": [
+                        "PLACE_BET",
+                        "BLACKJACK_ACTION",
+                        "ROULETTE_SPIN"
+                      ]
+                    },
+                    "interfaceId": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "const": "command"
+                    }
+                  },
+                  "required": [
+                    "detail",
+                    "id",
+                    "label",
+                    "nodeId",
+                    "commandType",
+                    "interfaceId",
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+                    },
+                    "label": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "nodeId": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+                    },
+                    "eventType": {
+                      "type": "string",
+                      "enum": [
+                        "round.started",
+                        "blackjack.card.dealt",
+                        "roulette.result",
+                        "round.settled",
+                        "reaction.cue"
+                      ]
+                    },
+                    "interfaceId": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "const": "event"
+                    }
+                  },
+                  "required": [
+                    "detail",
+                    "id",
+                    "label",
+                    "nodeId",
+                    "eventType",
+                    "interfaceId",
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+                    },
+                    "label": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "nodeId": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "const": "system"
+                    }
+                  },
+                  "required": [
+                    "detail",
+                    "id",
+                    "label",
+                    "nodeId",
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "detail": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+                    },
+                    "label": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "nodeId": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+                    },
+                    "cueId": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "const": "animation"
+                    }
+                  },
+                  "required": [
+                    "detail",
+                    "id",
+                    "label",
+                    "nodeId",
+                    "cueId",
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "game",
+          "id",
+          "label",
+          "steps",
+          "summary"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "$schema",
+    "connections",
+    "id",
+    "interfaces",
+    "nodes",
+    "presentationCues",
+    "scenarios",
+    "schemaVersion",
+    "title"
+  ],
+  "additionalProperties": false,
+  "$id": "https://schemas.spelsajt.local/v1/system-model.schema.json",
+  "title": "Spelsajt system model v1"
+}

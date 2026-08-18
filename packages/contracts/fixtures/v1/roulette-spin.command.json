@@ -1,0 +1,10 @@
+{
+  "commandId": "13131313-1313-4313-8313-131313131313",
+  "issuedAt": "2026-08-18T12:00:01.000Z",
+  "schemaVersion": 1,
+  "tableId": "roulette-demo",
+  "type": "ROULETTE_SPIN",
+  "payload": {
+    "roundId": "55555555-5555-4555-8555-555555555555"
+  }
+}

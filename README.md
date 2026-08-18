@@ -10,6 +10,7 @@ Live scaffold: [spelsajt-web.vercel.app](https://spelsajt-web.vercel.app)
 apps/web                 Next.js 16, React 19 och React Three Fiber
 apps/game-server         Fastify och Socket.IO
 packages/contracts       Versionslåsta commands och events
+packages/system-model    Validerad integrationskarta och textscenarier
 packages/game-core       Deterministiska spelregler
 packages/fairness        Commit/reveal och unbiased RNG-mappning
 packages/config          Delad konfiguration
@@ -35,6 +36,8 @@ pnpm dev
 
 Webbappen startar normalt på `http://localhost:3000` och spelservern på `http://localhost:4000`.
 
+Den levande systemkartan finns på [http://localhost:3000/system](http://localhost:3000/system). Den visar blackjack- och rouletteflöden från command till presentation och markerar separat vad som är implementerat, kontrakterat och planerat. Samma modell finns maskinläsbart i [`packages/system-model/models/play-money-mvp.json`](packages/system-model/models/play-money-mvp.json).
+
 ## Kvalitetskontroll
 
 ```powershell
@@ -51,6 +54,7 @@ pnpm db:verify
 
 ## Dokument
 
+- [System canvas – börja här för arkitektur och integrationsstatus](docs/SYSTEM_CANVAS.md)
 - [MVP-plan](docs/MVP_PLAN.md)
 - [MVP-regler](docs/rulesets/mvp-v1.md)
 - [Engineeringavtal och source of truth](docs/ENGINEERING.md)

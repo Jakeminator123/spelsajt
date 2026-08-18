@@ -15,8 +15,8 @@
     "db:verify": "supabase db reset --local && pnpm db:test && pnpm db:lint",
     "lint": "turbo run lint",
     "rulesets:check": "pnpm --filter @spelsajt/config rulesets:check",
-    "schemas:check": "pnpm --filter @spelsajt/config schemas:check && pnpm --filter @spelsajt/contracts schemas:check",
-    "schemas:generate": "pnpm --filter @spelsajt/config schemas:generate && pnpm --filter @spelsajt/contracts schemas:generate",
+    "schemas:check": "pnpm --filter @spelsajt/config schemas:check && pnpm --filter @spelsajt/contracts schemas:check && pnpm --filter @spelsajt/system-model schemas:check",
+    "schemas:generate": "pnpm --filter @spelsajt/config schemas:generate && pnpm --filter @spelsajt/contracts schemas:generate && pnpm --filter @spelsajt/system-model schemas:generate",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "check": "pnpm schemas:check && pnpm rulesets:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
