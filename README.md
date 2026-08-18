@@ -74,3 +74,5 @@ docker run --rm --publish 4000:4000 --env-file apps/game-server/.env.local --env
 ```
 
 Imagen kör som en icke-privilegierad användare, lyssnar på `0.0.0.0:4000` och har `/health` för processhälsa samt `/ready` för Postgres- och eventreläberedskap. `NODE_ENV=production` är satt i imagen, så komplett `SUPABASE_URL`, publishable/secret key och `SUPABASE_DATABASE_URL` krävs; produktionsservern startar inte med den tillfälliga minnesadaptern. CI bygger och startprovar imagen mot en isolerad Postgres, men publicerar eller deployar den inte.
+
+Om Postgres `LISTEN`-sessionen bryts blir instansen oreado och kopplar ned sockets. Servern försöker därefter upprätta en ny anslutning varje sekund med fem sekunders anslutningstak och blir inte redo förrän en ny `LISTEN` har lyckats; klienten återankrar då via snapshot.
