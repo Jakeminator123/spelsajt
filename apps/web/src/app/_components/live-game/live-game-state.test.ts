@@ -91,6 +91,29 @@ describe("live game state", () => {
     expect(state.recentEvents).toHaveLength(8);
     expect(state.recentEvents[0]?.sequence).toBe(3);
     expect(state.recentEvents.at(-1)?.sequence).toBe(10);
+    expect(state.roundEvents).toHaveLength(10);
+  });
+
+  it("keeps the complete current-round transcript and clears it on snapshot re-anchoring", () => {
+    const loaded = reduceLiveGameState(initialLiveGameState, {
+      snapshot,
+      type: "load.succeeded",
+    });
+    const withEvent = reduceLiveGameState(loaded, { event, type: "event.received" });
+    expect(withEvent.roundEvents).toEqual([event]);
+
+    const commandSnapshot = { ...snapshot, revision: 2 };
+    const afterCommand = reduceLiveGameState(withEvent, {
+      snapshot: commandSnapshot,
+      type: "command.finished",
+    });
+    expect(afterCommand.roundEvents).toEqual([event]);
+
+    const reanchored = reduceLiveGameState(afterCommand, {
+      snapshot: commandSnapshot,
+      type: "snapshot.received",
+    });
+    expect(reanchored.roundEvents).toEqual([]);
   });
 
   it("stops loading with an actionable configuration error", () => {

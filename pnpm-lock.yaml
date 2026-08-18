@@ -87,9 +87,18 @@ importers:
       '@react-three/fiber':
         specifier: 9.7.0
         version: 9.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(three@0.185.1)
+      '@spelsajt/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@spelsajt/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@spelsajt/fairness':
+        specifier: workspace:*
+        version: link:../../packages/fairness
+      '@spelsajt/game-core':
+        specifier: workspace:*
+        version: link:../../packages/game-core
       '@spelsajt/system-model':
         specifier: workspace:*
         version: link:../../packages/system-model
