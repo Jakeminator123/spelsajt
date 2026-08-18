@@ -77,11 +77,11 @@ docker build --file apps/game-server/Dockerfile --tag spelsajt-game-server .
 docker run --rm --publish 4000:4000 --env-file apps/game-server/.env.local --env GAME_SERVER_HOST=0.0.0.0 spelsajt-game-server
 ```
 
-Render-konfigurationen finns i `render.yaml`. Blueprinten bygger den befintliga Docker-imagen från monorepots rot, använder en kostnadsfri web service i Frankfurt, testar `/ready` och låser produktionsorigin till `https://spelsajt.vercel.app`. Samma image kan i stället skapas manuellt som en vanlig Render Web Service: välj Docker, lämna root directory tom, använd `./apps/game-server/Dockerfile`, Docker context `.`, branch `main`, region Frankfurt, Free och health check `/ready`. Servern läser Renders vanliga `PORT` automatiskt.
+Render-konfigurationen finns i `render.yaml`. Blueprinten bygger den befintliga Docker-imagen från monorepots rot, använder en Starter-webbtjänst i Frankfurt, testar `/ready` och låser produktionsorigin till `https://spelsajt.vercel.app`. Samma image kan i stället skapas manuellt som en vanlig Render Web Service: välj Docker, lämna root directory tom, använd `./apps/game-server/Dockerfile`, Docker context `.`, branch `main`, region Frankfurt, Starter och health check `/ready`. Servern läser Renders vanliga `PORT` automatiskt.
 
 Oavsett installationssätt ska `WEB_ORIGIN=https://spelsajt.vercel.app` sättas. Render frågar även efter `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` och `SUPABASE_DATABASE_URL`; den senare ska vara Supabases session-pooleranslutning på port 5432 för en långlivad IPv4-process. Servern uppgraderar Supabase-anslutningen till `sslmode=verify-full` och verifierar värdnamnet mot det bundlade Supabase Root 2021 CA-certifikatet. Värdena är Render-secrets och hör aldrig hemma i Git.
 
-Render Free går ned i vila efter 15 minuters inaktivitet och kan ta ungefär en minut att starta igen. En ny HTTP- eller WebSocket-anslutning väcker tjänsten; klientens reconnect- och snapshotflöde återankrar därefter från Postgres. Free-nivån är avsedd för MVP/alpha och kan senare skalas vertikalt genom att byta instance type utan att ändra spelarkitekturen.
+Starter-instansen hålls varm för den hostade MVP:n. Klientens reconnect- och snapshotflöde återankrar ändå från Postgres efter transportavbrott eller processomstart. Tjänsten kan senare skalas vertikalt genom att byta instance type utan att ändra spelarkitekturen.
 
 När Render visar en grön deploy kan den hostade processen, databasen, CORS-gränsen, fail-closed auth och WebSocket-transporten verifieras utan användarhemligheter:
 
@@ -89,7 +89,15 @@ När Render visar en grön deploy kan den hostade processen, databasen, CORS-gr�
 pnpm verify:hosted -- https://spelsajt-game-server.onrender.com
 ```
 
-Imagen kör som en icke-privilegierad användare, lyssnar på `0.0.0.0:4000` och har `/health` för processhälsa samt `/ready` för migrerat Postgres-schema och eventreläberedskap. `NODE_ENV=production` är satt i imagen, så komplett `SUPABASE_URL`, publishable/secret key och `SUPABASE_DATABASE_URL` krävs; produktionsservern startar inte med den tillfälliga minnesadaptern. CI bygger och health-startprovar imagen mot en isolerad tom Postgres och verifierar att `/ready` svarar 503 där; databasjobbet verifierar 200 och relayåterhämtning mot det migrerade schemat. Imagen publiceras eller deployas inte.
+Ett opt-in-test går hela vägen genom publik Supabase Auth och båda produktionsspelen. Det skapar en isolerad anonym PLAY-session, verifierar command-replay utan dubbel saldoeffekt, realtime-event, avsiktlig socketfrånkoppling, reconnect-snapshot och settlement med heltalssaldo. Endast de publika webbnycklarna används; service-role eller databaslösenord ska inte lämnas till testet.
+
+```bash
+HOSTED_SUPABASE_URL=https://<project-ref>.supabase.co \
+HOSTED_SUPABASE_PUBLISHABLE_KEY=<public-key> \
+pnpm verify:hosted -- https://spelsajt-game-server.onrender.com --gameplay
+```
+
+Imagen kör som en icke-privilegierad användare, lyssnar på `0.0.0.0:4000` och har `/health` för processhälsa samt `/ready` för migrerat Postgres-schema och eventreläberedskap. `NODE_ENV=production` är satt i imagen, så komplett `SUPABASE_URL`, publishable/secret key och `SUPABASE_DATABASE_URL` krävs; produktionsservern startar inte med den tillfälliga minnesadaptern. CI bygger och health-startprovar imagen mot en isolerad tom Postgres och verifierar att `/ready` svarar 503 där; databasjobbet verifierar 200 och relayåterhämtning mot det migrerade schemat. CI publicerar inte imagen, medan den granskade `main`-branchen deployas till den konfigurerade Render-tjänsten.
 
 Om Postgres `LISTEN`-sessionen bryts blir instansen oreado och kopplar ned sockets. Servern försöker därefter upprätta en ny anslutning varje sekund med fem sekunders anslutningstak och blir inte redo förrän en ny `LISTEN` har lyckats; klienten återankrar då via snapshot.
 
