@@ -81,6 +81,12 @@ Render-konfigurationen finns i `render.yaml`. Blueprinten bygger den befintliga 
 
 Render Free går ned i vila efter 15 minuters inaktivitet och kan ta ungefär en minut att starta igen. En ny HTTP- eller WebSocket-anslutning väcker tjänsten; klientens reconnect- och snapshotflöde återankrar därefter från Postgres. Free-nivån är avsedd för MVP/alpha och kan senare skalas vertikalt genom att byta instance type utan att ändra spelarkitekturen.
 
+När Render visar en grön deploy kan den hostade processen, databasen, CORS-gränsen, fail-closed auth och WebSocket-transporten verifieras utan användarhemligheter:
+
+```bash
+pnpm verify:hosted -- https://spelsajt-game-server.onrender.com
+```
+
 Imagen kör som en icke-privilegierad användare, lyssnar på `0.0.0.0:4000` och har `/health` för processhälsa samt `/ready` för migrerat Postgres-schema och eventreläberedskap. `NODE_ENV=production` är satt i imagen, så komplett `SUPABASE_URL`, publishable/secret key och `SUPABASE_DATABASE_URL` krävs; produktionsservern startar inte med den tillfälliga minnesadaptern. CI bygger och health-startprovar imagen mot en isolerad tom Postgres och verifierar att `/ready` svarar 503 där; databasjobbet verifierar 200 och relayåterhämtning mot det migrerade schemat. Imagen publiceras eller deployas inte.
 
 Om Postgres `LISTEN`-sessionen bryts blir instansen oreado och kopplar ned sockets. Servern försöker därefter upprätta en ny anslutning varje sekund med fem sekunders anslutningstak och blir inte redo förrän en ny `LISTEN` har lyckats; klienten återankrar då via snapshot.

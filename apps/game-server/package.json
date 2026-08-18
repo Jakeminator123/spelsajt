@@ -12,7 +12,8 @@
     "lint": "tsc --noEmit",
     "start": "node dist/start.js",
     "test": "vitest run --testTimeout=30000",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "verify:hosted": "tsx scripts/verify-hosted.ts"
   },
   "dependencies": {
     "@fastify/cors": "11.3.0",

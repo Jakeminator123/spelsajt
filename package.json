@@ -19,6 +19,7 @@
     "schemas:generate": "pnpm --filter @spelsajt/config schemas:generate && pnpm --filter @spelsajt/contracts schemas:generate && pnpm --filter @spelsajt/system-model schemas:generate",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "verify:hosted": "pnpm --filter @spelsajt/game-server verify:hosted",
     "check": "pnpm schemas:check && pnpm rulesets:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {
