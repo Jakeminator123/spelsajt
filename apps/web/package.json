@@ -15,9 +15,11 @@
     "@react-three/fiber": "9.7.0",
     "@spelsajt/contracts": "workspace:*",
     "@spelsajt/system-model": "workspace:*",
+    "@supabase/supabase-js": "2.112.3",
     "next": "16.3.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "socket.io-client": "4.8.3",
     "three": "0.185.1"
   },
   "devDependencies": {

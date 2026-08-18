@@ -2,7 +2,9 @@
 
 Modern play-money-plattform för blackjack och europeisk roulette. Projektet är ett pnpm/Turborepo-monorepo där webb, spelserver och deterministiska domänpaket kan utvecklas och testas tillsammans men deployas separat.
 
-Live scaffold: [spelsajt-web.vercel.app](https://spelsajt-web.vercel.app)
+Produktionswebb: [spelsajt.vercel.app](https://spelsajt.vercel.app)
+
+Publika routes: [blackjack](https://spelsajt.vercel.app/blackjack), [roulette](https://spelsajt.vercel.app/roulette) och [systemkarta](https://spelsajt.vercel.app/system).
 
 ## Struktur
 
@@ -35,6 +37,8 @@ pnpm dev
 ```
 
 Webbappen startar normalt på `http://localhost:3000` och spelservern på `http://localhost:4000`.
+
+De spelbara borden finns på [http://localhost:3000/blackjack](http://localhost:3000/blackjack) och [http://localhost:3000/roulette](http://localhost:3000/roulette). De återanvänder en persisterad anonym Supabase-session, skickar kontraktsvaliderade v2-commands till spelservern och återankrar från snapshots över Socket.IO. Om publik Supabase-konfiguration eller spelserver-URL saknas visas ett uttryckligt konfigurationsfel; webben faller aldrig tillbaka till lokalt beräknade utfall.
 
 Den levande systemkartan finns på [http://localhost:3000/system](http://localhost:3000/system). Den visar blackjack- och rouletteflöden från command till presentation och markerar separat vad som är implementerat, kontrakterat och planerat. Samma modell finns maskinläsbart i [`packages/system-model/models/play-money-mvp.json`](packages/system-model/models/play-money-mvp.json).
 

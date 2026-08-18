@@ -9,14 +9,14 @@
       "label": "Spelyta och kontroller",
       "lane": "web",
       "owner": "frontend",
-      "source": "apps/web/src/app/page.tsx",
+      "source": "apps/web/src/app/_components/live-game/live-game-table.tsx",
       "maturity": {
-        "runtime": "partial",
+        "runtime": "implemented",
         "contract": "zod-v2",
-        "verification": "fixture-only",
-        "lifecycle": "planned"
+        "verification": "direct",
+        "lifecycle": "active"
       },
-      "summary": "En visuell webbscaffold finns; kontroller som skickar v2 GameCommand till servern är ännu planerade."
+      "summary": "Spelbara /blackjack- och /roulette-ytor återanvänder anonym Supabase-session, skickar validerade revisionslåsta v2-commands och återankrar från auktoritativa snapshots utan att beräkna utfall lokalt."
     },
     {
       "id": "node.command-api",
@@ -114,7 +114,7 @@
         "verification": "partial",
         "lifecycle": "active"
       },
-      "summary": "Den responsiva 3D-scenen konsumerar Reaction Planner-state från ett schema-validerat v2-demotranscript; liveleverans från servern återstår."
+      "summary": "Den responsiva 3D-/textscenen kan konsumera Reaction Planner-state från både ett schema-validerat demotranscript och livelevererade serverevents; full cue-specifik visuell täckning återstår."
     },
     {
       "id": "node.verifier",
@@ -547,7 +547,7 @@
       "id": "scenario.blackjack-basic",
       "game": "blackjack",
       "label": "Blackjack: förberedelse till verifierat split-resultat",
-      "summary": "V2-flöde där application service, Postgres-ledger och motorn driver blackjack från prepare till settlement; liveleverans och livepresentation återstår.",
+      "summary": "Spelbart v2-flöde där /blackjack, application service, Postgres-ledger och motorn driver blackjack från prepare till settlement med snapshotåterankring och livepresentation.",
       "steps": [
         {
           "id": "blackjack.command-prepare",
@@ -772,7 +772,7 @@
       "id": "scenario.roulette-basic",
       "game": "roulette",
       "label": "Roulette: bets till verifierat blandat resultat",
-      "summary": "V2-flöde där application service buntar validerade bets och driver lock, serverägd spin och atomiskt Postgres-settlement; liveleverans och livepresentation återstår.",
+      "summary": "Spelbart v2-flöde där /roulette skickar validerade bets och application service driver lock, serverägd spin, atomiskt Postgres-settlement, snapshotåterankring och livepresentation.",
       "steps": [
         {
           "id": "roulette.command-prepare",

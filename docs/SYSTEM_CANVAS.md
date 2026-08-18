@@ -56,7 +56,7 @@ Backend avgör alltid state, utfall, payout och saldo. Frontend skickar endast s
 | Serveradapter för v2 | Implementerad och direkt testad | `apps/game-server/src/application.ts` mappar båda spelens v2-commands till motortransitioner, ledger intents, validerade events, ack och snapshots. |
 | Atomisk command- och settlementtjänst | Implementerad och direkt integrationstestad | Supabase Auth verifierar bearer-token; användare isoleras per bord och Postgres-adaptern committar wallet, state, fairness, ledger intents, events och command receipt i en låst transaktion. Produktionsruntime har validerade tak för anslutning och statement/query; CI låser en riktig command-transaktion, verifierar timeout och återanvänder repositoryt. In-memory-adaptern finns kvar för test/utveckling. |
 | `game.event` och snapshots över realtime | Implementerade och direkt testade | En verifierad socket prenumererar med `table.subscribe`, får ett validerat snapshot som sekvensankare och därefter endast events som publicerats efter repository-commit. Transaktionell Postgres `NOTIFY` med återläsning levererar över serverinstanser. Om relän faller blir instansen oreado, befintliga sockets kopplas ned och nya nekas; servern skapar en ny begränsad LISTEN-anslutning, och reconnect återankrar från hållbar Postgres-state innan nya cross-instance-events levereras. |
-| Webbpresentation | Delvis implementerad | En uttömmande, direkt testad v2-projektor driver den responsiva 3D-scenen från ett schema-validerat demotranscript. Serverns liveleverans återstår. |
+| Webbpresentation | Livekopplad, visuell täckning delvis implementerad | `/blackjack` och `/roulette` skapar eller återställer en anonym Supabase-session, skickar validerade v2-commands, återankrar från snapshots och projicerar Socket.IO-events i samma responsiva 3D-/textscen. Transport, loading, fel och reconnect är direkt testade; full cue-specifik visuell polish återstår. |
 | `/system` | Dokumentationsyta | Visar den validerade systemmodellen; den är inte ett spel eller driftbevis. |
 
 ## V2-transporten
@@ -116,7 +116,7 @@ Blackjacksnapshoten beskriver faserna `prepared`, `player`, `dealer` och `settle
 
 V2:s dolda blackjackkort är säkert genom en discriminated union. När `faceUp` är `false` finns inget `card`, inget `cardId`, ingen rank och ingen suit i eventet eller den publika spelar-snapshoten. Kortet blir publikt först via `blackjack.card.revealed` eller en senare fas där alla kort är synliga. V1:s osäkra form är historisk och får inte användas för ny speltransport.
 
-Fixtures för hela unionen finns i [`packages/contracts/fixtures/v2`](../packages/contracts/fixtures/v2). Presentationen kan fortsätta testas isolerat mot dem tills liveleveransen kopplats in.
+Fixtures för hela unionen finns i [`packages/contracts/fixtures/v2`](../packages/contracts/fixtures/v2). De fortsätter låsa presentationen isolerat samtidigt som de spelbara sidorna konsumerar validerade liveevents.
 
 ## Blackjackmotorn
 

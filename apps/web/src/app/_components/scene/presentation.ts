@@ -3,9 +3,11 @@
 import type {
   CardV2,
   GameEventV2,
+  GameSnapshotV2,
+  PublicCardV2,
   RouletteBetV2,
 } from "@spelsajt/contracts";
-import { gameEventV2Schema } from "@spelsajt/contracts";
+import { gameEventV2Schema, gameSnapshotV2Schema } from "@spelsajt/contracts";
 import { useSyncExternalStore } from "react";
 
 export const presentationCueDefinitions = {
@@ -150,6 +152,87 @@ export function createInitialPresentationState(): PresentationState {
     stage: "idle",
     tableId: null,
     transitionId: 0,
+  };
+}
+
+function snapshotCard(
+  card: PublicCardV2,
+  handId: string,
+  recipient: "dealer" | "player",
+  visualId: string,
+): PresentationCard {
+  return card.faceUp
+    ? { card: card.card, faceUp: true, handId, recipient, visualId }
+    : { faceUp: false, handId: "dealer", recipient: "dealer", visualId };
+}
+
+export function projectGameSnapshot(
+  current: PresentationState,
+  snapshot: GameSnapshotV2,
+): PresentationState {
+  if (
+    current.tableId === snapshot.tableId
+    && (
+      snapshot.lastSequence < current.lastSequence
+      || snapshot.revision < current.revision
+    )
+  ) {
+    return current;
+  }
+
+  const base: PresentationState = {
+    ...createInitialPresentationState(),
+    game: snapshot.game,
+    lastSequence: snapshot.lastSequence,
+    revision: snapshot.revision,
+    tableId: snapshot.tableId,
+    transitionId: current.transitionId + 1,
+  };
+  const round = snapshot.round;
+  if (!round) return base;
+
+  if (round.game === "blackjack") {
+    const dealerCards = round.dealerCards.map((card, index) => snapshotCard(
+      card,
+      "dealer",
+      "dealer",
+      card.faceUp
+        ? `snapshot-${card.card.cardId}`
+        : `snapshot-${snapshot.tableId}-${round.roundId}-dealer-hidden-${index}`,
+    ));
+    const playerCards = round.hands.flatMap((hand) => hand.cards.map((card) => snapshotCard(
+      card,
+      hand.handId,
+      "player",
+      `snapshot-${card.card.cardId}`,
+    )));
+    const activeHand = round.phase === "player"
+      ? round.hands.find((hand) => hand.handId === round.activeHandId)
+      : null;
+    return {
+      ...base,
+      activeHandId: round.phase === "player" ? round.activeHandId : null,
+      allowedActions: activeHand?.allowedActions ?? [],
+      cards: [...dealerCards, ...playerCards],
+      roundId: round.roundId,
+      stage: round.phase === "prepared"
+        ? "prepared"
+        : round.phase === "settled" ? "settled" : "active",
+    };
+  }
+
+  return {
+    ...base,
+    rouletteBets: round.bets,
+    rouletteResult: round.result,
+    roundId: round.roundId,
+    stage: round.phase === "prepared"
+      ? "prepared"
+      : round.phase === "betting"
+        ? "roulette-betting"
+        : round.phase === "locked"
+          ? "roulette-locked"
+          : round.phase === "spinning" ? "roulette-spinning" : "settled",
   };
 }
 
@@ -435,6 +518,19 @@ function emit(): void {
 }
 
 export const presentationStore = {
+  anchor(input: unknown): boolean {
+    const parsed = gameSnapshotV2Schema.safeParse(input);
+    if (!parsed.success) {
+      return false;
+    }
+    const next = projectGameSnapshot(currentState, parsed.data);
+    if (next !== currentState) {
+      currentState = next;
+      emit();
+      return true;
+    }
+    return false;
+  },
   dispatch(input: unknown): boolean {
     const parsed = gameEventV2Schema.safeParse(input);
     if (!parsed.success) {
