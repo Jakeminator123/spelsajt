@@ -1,11 +1,13 @@
 import {
   gameEventV2Schema,
   gameSnapshotV2Schema,
+  serverReadyV2Schema,
   socketAuthV2Schema,
   tableSubscriptionAckV2Schema,
   tableSubscriptionV2Schema,
   type GameEventV2,
   type GameSnapshotV2,
+  type ServerReadyV2,
   type TableSubscriptionAckV2,
 } from "@spelsajt/contracts";
 import type { FastifyInstance } from "fastify";
@@ -22,7 +24,7 @@ interface ClientToServerEvents {
 
 interface ServerToClientEvents {
   "game.event": (event: GameEventV2) => void;
-  "server.ready": (payload: { readonly connectionId: string; readonly timestamp: string }) => void;
+  "server.ready": (payload: ServerReadyV2) => void;
   "table.snapshot": (snapshot: GameSnapshotV2) => void;
 }
 
@@ -60,10 +62,11 @@ export function attachRealtime(app: FastifyInstance): GameRealtimeServer {
 
   io.on("connection", (socket) => {
     let unsubscribe: (() => void) | null = null;
-    socket.emit("server.ready", {
+    socket.emit("server.ready", serverReadyV2Schema.parse({
       connectionId: socket.id,
+      schemaVersion: 2,
       timestamp: new Date().toISOString(),
-    });
+    }));
 
     socket.on("table.subscribe", async (input, acknowledge) => {
       if (typeof acknowledge !== "function") return;

@@ -1,6 +1,7 @@
 import {
   gameEventV2Schema,
   gameSnapshotV2Schema,
+  serverReadyV2Schema,
   tableSubscriptionAckV2Schema,
   type GameEventV2,
   type GameSnapshotV2,
@@ -72,7 +73,12 @@ async function connect(address: string, token: string): Promise<Socket> {
     transports: ["websocket"],
   });
   openSockets.add(socket);
+  const ready = eventOnce(socket, "server.ready");
   await eventOnce(socket, "connect");
+  expect(serverReadyV2Schema.parse(await ready)).toMatchObject({
+    connectionId: socket.id,
+    schemaVersion: 2,
+  });
   return socket;
 }
 
