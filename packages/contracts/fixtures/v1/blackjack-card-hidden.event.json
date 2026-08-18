@@ -1,0 +1,15 @@
+{
+  "eventId": "16161616-1616-4616-8616-161616161616",
+  "occurredAt": "2026-08-18T12:00:01.300Z",
+  "roundId": "33333333-3333-4333-8333-333333333333",
+  "schemaVersion": 1,
+  "sequence": 3,
+  "tableId": "blackjack-demo",
+  "type": "blackjack.card.dealt",
+  "payload": {
+    "card": "KS",
+    "faceUp": false,
+    "handIndex": 0,
+    "recipient": "dealer"
+  }
+}

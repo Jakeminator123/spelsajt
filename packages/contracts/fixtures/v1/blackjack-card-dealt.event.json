@@ -1,0 +1,15 @@
+{
+  "eventId": "15151515-1515-4515-8515-151515151515",
+  "occurredAt": "2026-08-18T12:00:01.200Z",
+  "roundId": "33333333-3333-4333-8333-333333333333",
+  "schemaVersion": 1,
+  "sequence": 2,
+  "tableId": "blackjack-demo",
+  "type": "blackjack.card.dealt",
+  "payload": {
+    "card": "AS",
+    "faceUp": true,
+    "handIndex": 0,
+    "recipient": "player"
+  }
+}

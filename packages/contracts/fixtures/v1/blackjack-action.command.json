@@ -1,0 +1,12 @@
+{
+  "commandId": "12121212-1212-4212-8212-121212121212",
+  "issuedAt": "2026-08-18T12:00:01.000Z",
+  "schemaVersion": 1,
+  "tableId": "blackjack-demo",
+  "type": "BLACKJACK_ACTION",
+  "payload": {
+    "roundId": "33333333-3333-4333-8333-333333333333",
+    "action": "stand",
+    "handIndex": 0
+  }
+}

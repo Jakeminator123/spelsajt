@@ -1,0 +1,14 @@
+{
+  "eventId": "14141414-1414-4414-8414-141414141414",
+  "occurredAt": "2026-08-18T12:00:01.100Z",
+  "roundId": "33333333-3333-4333-8333-333333333333",
+  "schemaVersion": 1,
+  "sequence": 1,
+  "tableId": "blackjack-demo",
+  "type": "round.started",
+  "payload": {
+    "commitment": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "game": "blackjack",
+    "ruleset": "mvp-v1"
+  }
+}

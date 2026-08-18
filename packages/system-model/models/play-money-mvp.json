@@ -1,0 +1,654 @@
+{
+  "$schema": "../schemas/system-model.schema.json",
+  "schemaVersion": 1,
+  "id": "play-money-mvp",
+  "title": "Play-money MVP systemkarta",
+  "nodes": [
+    {
+      "id": "node.web-controls",
+      "label": "Spelyta och kontroller",
+      "lane": "web",
+      "owner": "frontend",
+      "source": "apps/web/src/app/page.tsx",
+      "maturity": {
+        "runtime": "partial",
+        "contract": "none",
+        "verification": "none",
+        "lifecycle": "planned"
+      },
+      "summary": "En statisk webbscaffold finns; kontroller som skapar GameCommand är ännu planerade."
+    },
+    {
+      "id": "node.command-api",
+      "label": "Command API",
+      "lane": "server",
+      "owner": "backend",
+      "source": "docs/SYSTEM_CANVAS.md",
+      "maturity": {
+        "runtime": "absent",
+        "contract": "zod-v1",
+        "verification": "fixture-only",
+        "lifecycle": "planned"
+      },
+      "summary": "Planerad idempotent ingress för versionslåsta GameCommand-payloads."
+    },
+    {
+      "id": "node.game-core",
+      "label": "Game core",
+      "lane": "engine",
+      "owner": "backend",
+      "source": "packages/game-core/src/index.ts",
+      "maturity": {
+        "runtime": "partial",
+        "contract": "none",
+        "verification": "direct",
+        "lifecycle": "active"
+      },
+      "summary": "Har regelprojektion och rena hjälpfunktioner men saknar kompletta state machines."
+    },
+    {
+      "id": "node.fairness",
+      "label": "Fairness-kärna",
+      "lane": "engine",
+      "owner": "backend",
+      "source": "packages/fairness/src/index.ts",
+      "maturity": {
+        "runtime": "implemented",
+        "contract": "none",
+        "verification": "direct",
+        "lifecycle": "active"
+      },
+      "summary": "Skapar verifierbar byte-stream och unbiased mappning för shuffle och pocket."
+    },
+    {
+      "id": "node.ledger",
+      "label": "PLAY-ledger",
+      "lane": "data",
+      "owner": "backend",
+      "source": "supabase/migrations/20260817231223_initial_play_money_schema.sql",
+      "maturity": {
+        "runtime": "partial",
+        "contract": "none",
+        "verification": "partial",
+        "lifecycle": "active"
+      },
+      "summary": "Databasschemat finns; den atomiska command- och settlementtjänsten återstår."
+    },
+    {
+      "id": "node.event-stream",
+      "label": "Sekvensnumrerade events",
+      "lane": "server",
+      "owner": "shared",
+      "source": "packages/contracts/src/index.ts",
+      "maturity": {
+        "runtime": "absent",
+        "contract": "zod-v1",
+        "verification": "fixture-only",
+        "lifecycle": "planned"
+      },
+      "summary": "Planerad GameEvent-ström med reconnect från senaste sekvensnummer."
+    },
+    {
+      "id": "node.presentation",
+      "label": "Reaction Planner",
+      "lane": "presentation",
+      "owner": "frontend",
+      "source": "docs/PRESENTATION_AI.md",
+      "maturity": {
+        "runtime": "absent",
+        "contract": "zod-v1",
+        "verification": "none",
+        "lifecycle": "planned"
+      },
+      "summary": "Översätter semantiska events till godkända presentationsintentioner."
+    },
+    {
+      "id": "node.scene",
+      "label": "2D/3D-scen",
+      "lane": "presentation",
+      "owner": "frontend",
+      "source": "apps/web/src/app/_components/casino-scene.tsx",
+      "maturity": {
+        "runtime": "partial",
+        "contract": "none",
+        "verification": "none",
+        "lifecycle": "active"
+      },
+      "summary": "Visuell scaffold finns men är ännu inte driven av inspelade GameEvents."
+    },
+    {
+      "id": "node.verifier",
+      "label": "Fairness-verifierare",
+      "lane": "web",
+      "owner": "shared",
+      "source": "packages/fairness/src/browser.ts",
+      "maturity": {
+        "runtime": "partial",
+        "contract": "none",
+        "verification": "direct",
+        "lifecycle": "planned"
+      },
+      "summary": "Web Crypto-stöd finns; användargränssnittet för rundverifiering återstår."
+    }
+  ],
+  "connections": [
+    { "from": "node.web-controls", "to": "node.command-api", "label": "GameCommand" },
+    { "from": "node.command-api", "to": "node.game-core", "label": "validerad avsikt" },
+    { "from": "node.fairness", "to": "node.game-core", "label": "deterministiska bytes" },
+    { "from": "node.game-core", "to": "node.ledger", "label": "ledger intent" },
+    { "from": "node.fairness", "to": "node.ledger", "label": "commit och reveal" },
+    { "from": "node.ledger", "to": "node.event-stream", "label": "committat resultat" },
+    { "from": "node.event-stream", "to": "node.presentation", "label": "GameEvent" },
+    { "from": "node.presentation", "to": "node.scene", "label": "presentation intent" },
+    { "from": "node.event-stream", "to": "node.verifier", "label": "round data" }
+  ],
+  "interfaces": [
+    {
+      "id": "http.health",
+      "kind": "http",
+      "method": "GET",
+      "path": "/health",
+      "source": "apps/game-server/src/app.ts",
+      "maturity": {
+        "runtime": "implemented",
+        "contract": "ad-hoc",
+        "verification": "partial",
+        "lifecycle": "active"
+      },
+      "summary": "Processhälsa för driftkontroll.",
+      "accepts": [],
+      "returns": "HealthResponse"
+    },
+    {
+      "id": "http.status",
+      "kind": "http",
+      "method": "GET",
+      "path": "/v1/status",
+      "source": "apps/game-server/src/app.ts",
+      "maturity": {
+        "runtime": "implemented",
+        "contract": "ad-hoc",
+        "verification": "partial",
+        "lifecycle": "active"
+      },
+      "summary": "Publicerar play-money-läge och frysta rulesetprojektioner.",
+      "accepts": [],
+      "returns": "ServiceStatus"
+    },
+    {
+      "id": "http.commands",
+      "kind": "http",
+      "method": "POST",
+      "path": "/v1/tables/{tableId}/commands",
+      "source": "docs/SYSTEM_CANVAS.md",
+      "maturity": {
+        "runtime": "absent",
+        "contract": "zod-v1",
+        "verification": "fixture-only",
+        "lifecycle": "planned"
+      },
+      "summary": "Föreslagen gemensam ingress; ingen endpoint per animation eller spelhandling.",
+      "accepts": ["PLACE_BET", "BLACKJACK_ACTION", "ROULETTE_SPIN"],
+      "returns": "CommandAck"
+    },
+    {
+      "id": "http.snapshot",
+      "kind": "http",
+      "method": "GET",
+      "path": "/v1/tables/{tableId}/snapshot",
+      "source": "docs/SYSTEM_CANVAS.md",
+      "maturity": {
+        "runtime": "absent",
+        "contract": "zod-v1",
+        "verification": "fixture-only",
+        "lifecycle": "planned"
+      },
+      "summary": "Föreslagen reconnect-yta för auktoritativt bordstillstånd.",
+      "accepts": [],
+      "returns": "GameSnapshot"
+    },
+    {
+      "id": "realtime.server-ready",
+      "kind": "realtime",
+      "event": "server.ready",
+      "source": "apps/game-server/src/realtime.ts",
+      "maturity": {
+        "runtime": "implemented",
+        "contract": "ad-hoc",
+        "verification": "none",
+        "lifecycle": "active"
+      },
+      "summary": "Bekräftar Socket.IO-anslutningen; är ännu inte Zod-kontrakterad.",
+      "payload": "ServerReady",
+      "eventTypes": []
+    },
+    {
+      "id": "realtime.game-event",
+      "kind": "realtime",
+      "event": "game.event",
+      "source": "docs/SYSTEM_CANVAS.md",
+      "maturity": {
+        "runtime": "absent",
+        "contract": "zod-v1",
+        "verification": "fixture-only",
+        "lifecycle": "planned"
+      },
+      "summary": "Föreslagen enda kanal för sekvensnumrerade semantiska events.",
+      "payload": "GameEvent",
+      "eventTypes": [
+        "round.started",
+        "blackjack.card.dealt",
+        "roulette.result",
+        "round.settled",
+        "reaction.cue"
+      ]
+    },
+    {
+      "id": "realtime.table-snapshot",
+      "kind": "realtime",
+      "event": "table.snapshot",
+      "source": "docs/SYSTEM_CANVAS.md",
+      "maturity": {
+        "runtime": "absent",
+        "contract": "zod-v1",
+        "verification": "fixture-only",
+        "lifecycle": "planned"
+      },
+      "summary": "Föreslagen snapshot efter anslutning eller sekvensgap.",
+      "payload": "GameSnapshot",
+      "eventTypes": []
+    }
+  ],
+  "presentationCues": [
+    {
+      "id": "blackjack.round-start",
+      "game": "blackjack",
+      "eventType": "round.started",
+      "condition": { "path": "payload.game", "equals": "blackjack" },
+      "actor": "table",
+      "clip": "table.round-start",
+      "reducedMotionText": "Blackjackrundan har startat.",
+      "maturity": {
+        "runtime": "absent",
+        "contract": "zod-v1",
+        "verification": "fixture-only",
+        "lifecycle": "planned"
+      }
+    },
+    {
+      "id": "blackjack.deal-card",
+      "game": "blackjack",
+      "eventType": "blackjack.card.dealt",
+      "actor": "dealer",
+      "clip": "dealer.deal-card",
+      "reducedMotionText": "Dealern delar ett kort.",
+      "maturity": {
+        "runtime": "absent",
+        "contract": "zod-v1",
+        "verification": "none",
+        "lifecycle": "planned"
+      }
+    },
+    {
+      "id": "blackjack.settled-win",
+      "game": "blackjack",
+      "eventType": "round.settled",
+      "condition": { "path": "payload.outcome", "equals": "win" },
+      "actor": "table",
+      "clip": "table.pay-winning-bet",
+      "reducedMotionText": "Spelaren vann blackjackrundan.",
+      "maturity": {
+        "runtime": "absent",
+        "contract": "zod-v1",
+        "verification": "fixture-only",
+        "lifecycle": "planned"
+      }
+    },
+    {
+      "id": "blackjack.settled-loss",
+      "game": "blackjack",
+      "eventType": "round.settled",
+      "condition": { "path": "payload.outcome", "equals": "loss" },
+      "actor": "table",
+      "clip": "table.collect-losing-bet",
+      "reducedMotionText": "Spelaren förlorade blackjackrundan.",
+      "maturity": {
+        "runtime": "absent",
+        "contract": "zod-v1",
+        "verification": "fixture-only",
+        "lifecycle": "planned"
+      }
+    },
+    {
+      "id": "blackjack.settled-push",
+      "game": "blackjack",
+      "eventType": "round.settled",
+      "condition": { "path": "payload.outcome", "equals": "push" },
+      "actor": "table",
+      "clip": "table.return-push",
+      "reducedMotionText": "Blackjackrundan slutade oavgjort och insatsen återlämnas.",
+      "maturity": {
+        "runtime": "absent",
+        "contract": "zod-v1",
+        "verification": "fixture-only",
+        "lifecycle": "planned"
+      }
+    },
+    {
+      "id": "blackjack.reaction",
+      "game": "blackjack",
+      "eventType": "reaction.cue",
+      "actor": "from-event",
+      "clip": "reaction.by-mood",
+      "reducedMotionText": "Den angivna aktören visar en godkänd blackjackreaktion.",
+      "maturity": {
+        "runtime": "absent",
+        "contract": "zod-v1",
+        "verification": "fixture-only",
+        "lifecycle": "planned"
+      }
+    },
+    {
+      "id": "roulette.round-start",
+      "game": "roulette",
+      "eventType": "round.started",
+      "condition": { "path": "payload.game", "equals": "roulette" },
+      "actor": "table",
+      "clip": "table.round-start",
+      "reducedMotionText": "Rouletterundan har startat.",
+      "maturity": {
+        "runtime": "absent",
+        "contract": "zod-v1",
+        "verification": "fixture-only",
+        "lifecycle": "planned"
+      }
+    },
+    {
+      "id": "roulette.land-pocket",
+      "game": "roulette",
+      "eventType": "roulette.result",
+      "actor": "table",
+      "clip": "table.roulette-land",
+      "reducedMotionText": "Roulettehjulet visar serverns vinnande nummer.",
+      "maturity": {
+        "runtime": "absent",
+        "contract": "zod-v1",
+        "verification": "none",
+        "lifecycle": "planned"
+      }
+    },
+    {
+      "id": "roulette.settled-win",
+      "game": "roulette",
+      "eventType": "round.settled",
+      "condition": { "path": "payload.outcome", "equals": "win" },
+      "actor": "table",
+      "clip": "table.pay-winning-bet",
+      "reducedMotionText": "Spelaren vann rouletterundan.",
+      "maturity": {
+        "runtime": "absent",
+        "contract": "zod-v1",
+        "verification": "fixture-only",
+        "lifecycle": "planned"
+      }
+    },
+    {
+      "id": "roulette.settled-loss",
+      "game": "roulette",
+      "eventType": "round.settled",
+      "condition": { "path": "payload.outcome", "equals": "loss" },
+      "actor": "table",
+      "clip": "table.collect-losing-bet",
+      "reducedMotionText": "Spelaren förlorade rouletterundan.",
+      "maturity": {
+        "runtime": "absent",
+        "contract": "zod-v1",
+        "verification": "fixture-only",
+        "lifecycle": "planned"
+      }
+    },
+    {
+      "id": "roulette.settled-push",
+      "game": "roulette",
+      "eventType": "round.settled",
+      "condition": { "path": "payload.outcome", "equals": "push" },
+      "actor": "table",
+      "clip": "table.return-push",
+      "reducedMotionText": "Rouletterundan slutade utan vinst eller förlust och insatsen återlämnas.",
+      "maturity": {
+        "runtime": "absent",
+        "contract": "zod-v1",
+        "verification": "fixture-only",
+        "lifecycle": "planned"
+      }
+    },
+    {
+      "id": "roulette.reaction",
+      "game": "roulette",
+      "eventType": "reaction.cue",
+      "actor": "from-event",
+      "clip": "reaction.by-mood",
+      "reducedMotionText": "Den angivna aktören visar en godkänd roulettereaktion.",
+      "maturity": {
+        "runtime": "absent",
+        "contract": "zod-v1",
+        "verification": "fixture-only",
+        "lifecycle": "planned"
+      }
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "scenario.blackjack-basic",
+      "game": "blackjack",
+      "label": "Blackjack: insats till reaktion",
+      "summary": "Textflöde för en verifierbar hand som slutar i förlust och en sympatisk dealerreaktion.",
+      "steps": [
+        {
+          "id": "blackjack.command-place-bet",
+          "kind": "command",
+          "nodeId": "node.web-controls",
+          "interfaceId": "http.commands",
+          "commandType": "PLACE_BET",
+          "label": "Spelaren satsar",
+          "detail": "Webben skickar ett idempotent PLACE_BET med heltalsbelopp i PLAY."
+        },
+        {
+          "id": "blackjack.reserve-ledger",
+          "kind": "system",
+          "nodeId": "node.ledger",
+          "label": "Insatsen reserveras",
+          "detail": "Servern ska debitera och skapa rundan i samma databastransaktion."
+        },
+        {
+          "id": "blackjack.event-round-started",
+          "kind": "event",
+          "nodeId": "node.event-stream",
+          "interfaceId": "realtime.game-event",
+          "eventType": "round.started",
+          "label": "Commitment publiceras",
+          "detail": "Frontend får commitment och ruleset innan några kort presenteras."
+        },
+        {
+          "id": "blackjack.shuffle",
+          "kind": "system",
+          "nodeId": "node.fairness",
+          "label": "Verifierbar shuffle",
+          "detail": "Fairness-kärnan skapar samma sexlekssko i Node och Web Crypto."
+        },
+        {
+          "id": "blackjack.event-card",
+          "kind": "event",
+          "nodeId": "node.event-stream",
+          "interfaceId": "realtime.game-event",
+          "eventType": "blackjack.card.dealt",
+          "label": "Kort-event levereras",
+          "detail": "Eventet anger mottagare, handindex och om kortet ska visas."
+        },
+        {
+          "id": "blackjack.animation-deal",
+          "kind": "animation",
+          "nodeId": "node.scene",
+          "cueId": "blackjack.deal-card",
+          "label": "Deal-animation",
+          "detail": "Animation Director mappar eventet till en godkänd deal-intention."
+        },
+        {
+          "id": "blackjack.command-stand",
+          "kind": "command",
+          "nodeId": "node.command-api",
+          "interfaceId": "http.commands",
+          "commandType": "BLACKJACK_ACTION",
+          "label": "Spelaren stannar",
+          "detail": "BLACKJACK_ACTION bär action=stand; UI väntar på serverns events."
+        },
+        {
+          "id": "blackjack.resolve",
+          "kind": "system",
+          "nodeId": "node.game-core",
+          "label": "Motorn avgör",
+          "detail": "Den framtida state machinen spelar dealerturn och producerar ledger intent plus events."
+        },
+        {
+          "id": "blackjack.event-settled",
+          "kind": "event",
+          "nodeId": "node.event-stream",
+          "interfaceId": "realtime.game-event",
+          "eventType": "round.settled",
+          "label": "Rundan är settled",
+          "detail": "Saldo, payout, outcome och avslöjat server seed kommer från backend."
+        },
+        {
+          "id": "blackjack.event-reaction",
+          "kind": "event",
+          "nodeId": "node.event-stream",
+          "interfaceId": "realtime.game-event",
+          "eventType": "reaction.cue",
+          "label": "Reaktionsintention levereras",
+          "detail": "Backendens deterministiska policy väljer actor, mood och intensity; inga klippnamn skickas."
+        },
+        {
+          "id": "blackjack.animation-loss",
+          "kind": "animation",
+          "nodeId": "node.presentation",
+          "cueId": "blackjack.reaction",
+          "label": "Sympatisk reaktion",
+          "detail": "Frontend mappar actor och mood till en godkänd reaktion; AI får bara förfina en eventuell replik."
+        },
+        {
+          "id": "blackjack.verify",
+          "kind": "system",
+          "nodeId": "node.verifier",
+          "label": "Spelaren verifierar",
+          "detail": "Webbläsaren reproducerar shufflen från seed, nonce och ruleset."
+        }
+      ]
+    },
+    {
+      "id": "scenario.roulette-basic",
+      "game": "roulette",
+      "label": "Roulette: insats till landning",
+      "summary": "Textflöde för en verifierbar spin som landar på serverns pocket och slutar i vinst.",
+      "steps": [
+        {
+          "id": "roulette.command-place-bet",
+          "kind": "command",
+          "nodeId": "node.web-controls",
+          "interfaceId": "http.commands",
+          "commandType": "PLACE_BET",
+          "label": "Spelaren placerar marker",
+          "detail": "Bettingmattan samlar spelarens avsikt; nuvarande v1-kontrakt behöver utökas med betposition."
+        },
+        {
+          "id": "roulette.reserve-ledger",
+          "kind": "system",
+          "nodeId": "node.ledger",
+          "label": "Insatsen reserveras",
+          "detail": "Den auktoritativa transaktionen låser saldo och runda innan spin."
+        },
+        {
+          "id": "roulette.event-round-started",
+          "kind": "event",
+          "nodeId": "node.event-stream",
+          "interfaceId": "realtime.game-event",
+          "eventType": "round.started",
+          "label": "Commitment publiceras",
+          "detail": "Klienten ser commitment, spel och ruleset före resultatet."
+        },
+        {
+          "id": "roulette.command-spin",
+          "kind": "command",
+          "nodeId": "node.command-api",
+          "interfaceId": "http.commands",
+          "commandType": "ROULETTE_SPIN",
+          "label": "Spin begärs",
+          "detail": "ROULETTE_SPIN begär settlement men bestämmer aldrig pocket i klienten."
+        },
+        {
+          "id": "roulette.derive-pocket",
+          "kind": "system",
+          "nodeId": "node.fairness",
+          "label": "Pocket härleds",
+          "detail": "Rejection sampling mappar byte-streamen unbiased till 0–36."
+        },
+        {
+          "id": "roulette.event-result",
+          "kind": "event",
+          "nodeId": "node.event-stream",
+          "interfaceId": "realtime.game-event",
+          "eventType": "roulette.result",
+          "label": "Resultatet levereras",
+          "detail": "roulette.result är enda sanningen för vilket nummer scenen ska visa."
+        },
+        {
+          "id": "roulette.animation-land",
+          "kind": "animation",
+          "nodeId": "node.scene",
+          "cueId": "roulette.land-pocket",
+          "label": "Hjul och boll landar",
+          "detail": "Animationen bromsar mot backendens pocket och har en textfallback."
+        },
+        {
+          "id": "roulette.settle-ledger",
+          "kind": "system",
+          "nodeId": "node.ledger",
+          "label": "Payout bokförs",
+          "detail": "Motorn räknar payout och ledgern committar nytt PLAY-saldo atomiskt."
+        },
+        {
+          "id": "roulette.event-settled",
+          "kind": "event",
+          "nodeId": "node.event-stream",
+          "interfaceId": "realtime.game-event",
+          "eventType": "round.settled",
+          "label": "Rundan är settled",
+          "detail": "Frontend får outcome=win, payout, saldo och server seed."
+        },
+        {
+          "id": "roulette.event-reaction",
+          "kind": "event",
+          "nodeId": "node.event-stream",
+          "interfaceId": "realtime.game-event",
+          "eventType": "reaction.cue",
+          "label": "Reaktionsintention levereras",
+          "detail": "Backendens deterministiska policy väljer actor, mood och intensity; inga klippnamn skickas."
+        },
+        {
+          "id": "roulette.animation-win",
+          "kind": "animation",
+          "nodeId": "node.presentation",
+          "cueId": "roulette.reaction",
+          "label": "Vinstreaktion",
+          "detail": "Frontend mappar actor och mood till en godkänd reaktion utan att AI påverkar utfallet."
+        },
+        {
+          "id": "roulette.verify",
+          "kind": "system",
+          "nodeId": "node.verifier",
+          "label": "Spelaren verifierar",
+          "detail": "Webbläsaren reproducerar pocket från samma fairness-input."
+        }
+      ]
+    }
+  ]
+}
