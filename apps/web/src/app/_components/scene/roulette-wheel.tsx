@@ -11,7 +11,7 @@ import {
 } from "three";
 
 import { clamp01, easeOutCubic, TAU } from "./animation";
-import { useTableState } from "./presentation";
+import { tableClock } from "./presentation";
 
 // Official single-zero European wheel order, clockwise from 0.
 const WHEEL_SEQUENCE = [
@@ -190,7 +190,6 @@ function Rotor({ reduceMotion }: { reduceMotion: boolean }) {
 
 function Ball({ reduceMotion }: { reduceMotion: boolean }) {
   const ball = useRef<Mesh>(null);
-  const tableState = useTableState();
 
   useFrame((state) => {
     if (!ball.current) {
@@ -205,7 +204,7 @@ function Ball({ reduceMotion }: { reduceMotion: boolean }) {
     // The ball only launches during the semantic "ball_in_motion" phase; it
     // rests in a pocket for every other phase. It never reports a winning
     // number — that stays authoritative on the backend.
-    const { phase, phaseTime } = tableState.current;
+    const { phase, phaseTime } = tableClock.state;
     const SPIN_DURATION = 3.5;
     const SETTLE_DURATION = 2;
 

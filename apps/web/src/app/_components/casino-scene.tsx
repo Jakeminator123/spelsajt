@@ -8,9 +8,8 @@ import { Group, Vector3 } from "three";
 import { clamp01, easeOutCubic, lerp } from "./scene/animation";
 import { Croupier } from "./scene/croupier";
 import { PlayingCard } from "./scene/playing-card";
-import { PHASE_LABELS, type TablePhase, useTableState } from "./scene/presentation";
+import { PHASE_LABELS, tableClock, useTablePhase } from "./scene/presentation";
 import { RouletteWheel } from "./scene/roulette-wheel";
-import { TableDirector, TableStateProvider } from "./scene/table-director";
 
 const FELT_TOP = 0.1;
 
@@ -32,7 +31,6 @@ interface DealtCardConfig {
 // table state — the same event-driven approach that will drive future rigs.
 function DealtCard({ config, index, reduceMotion }: { config: DealtCardConfig; index: number; reduceMotion: boolean }) {
   const group = useRef<Group>(null);
-  const tableState = useTableState();
 
   useFrame(() => {
     if (!group.current) {
@@ -46,7 +44,7 @@ function DealtCard({ config, index, reduceMotion }: { config: DealtCardConfig; i
       return;
     }
 
-    const { phase, phaseTime } = tableState.current;
+    const { phase, phaseTime } = tableClock.state;
     const dealStart = 0.6 + index * 0.7;
     const dealDuration = 0.9;
     const progress = phase === "betting" ? clamp01((phaseTime - dealStart) / dealDuration) : 1;
@@ -125,16 +123,9 @@ const CARD_CONFIGS: DealtCardConfig[] = [
   { rank: "Q", suit: "club", target: [1.35, FELT_TOP + 0.12, 0.72], rotationY: -0.16, faceUp: false },
 ];
 
-function Scene({
-  reduceMotion,
-  onPhaseChange,
-}: {
-  reduceMotion: boolean;
-  onPhaseChange: (phase: TablePhase) => void;
-}) {
+function Scene({ reduceMotion }: { reduceMotion: boolean }) {
   return (
-    <TableStateProvider>
-      <TableDirector onPhaseChange={onPhaseChange} />
+    <>
       <CameraRig reduceMotion={reduceMotion} />
 
       <ambientLight intensity={0.5} />
@@ -160,13 +151,13 @@ function Scene({
         <Lightformer form="rect" intensity={1.6} position={[5, 2, 3]} scale={[3, 4, 1]} color="#c6f24e" />
         <Lightformer form="rect" intensity={1.4} position={[-5, 2, 2]} scale={[3, 4, 1]} color="#7c5cff" />
       </Environment>
-    </TableStateProvider>
+    </>
   );
 }
 
 export function CasinoScene() {
   const [reduceMotion, setReduceMotion] = useState(false);
-  const [phase, setPhase] = useState<TablePhase>("betting");
+  const phase = useTablePhase();
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -175,6 +166,27 @@ export function CasinoScene() {
     mediaQuery.addEventListener("change", syncPreference);
     return () => mediaQuery.removeEventListener("change", syncPreference);
   }, []);
+
+  // Advance the shared semantic clock from the DOM side. The 3D scene only
+  // reads `tableClock.state`, and the phase caption updates via the store's
+  // subscription. Replace this rAF loop with a backend-event feed to make the
+  // scene react to authoritative round events instead of the demo timeline.
+  useEffect(() => {
+    if (reduceMotion) {
+      tableClock.set(0);
+      return;
+    }
+
+    let frame = 0;
+    let last = performance.now();
+    const tick = (now: number) => {
+      tableClock.advance((now - last) / 1000);
+      last = now;
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [reduceMotion]);
 
   return (
     <div className="scene-stage">
@@ -186,7 +198,7 @@ export function CasinoScene() {
       >
         <color attach="background" args={["#0a0b10"]} />
         <fog attach="fog" args={["#0a0b10", 9, 18]} />
-        <Scene reduceMotion={reduceMotion} onPhaseChange={setPhase} />
+        <Scene reduceMotion={reduceMotion} />
       </Canvas>
 
       {!reduceMotion ? (

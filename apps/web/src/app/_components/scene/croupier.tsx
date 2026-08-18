@@ -6,7 +6,7 @@ import { useMemo, useRef } from "react";
 import type { Group } from "three";
 
 import { lerp, type Pose, PoseMixer } from "./animation";
-import { useTableState } from "./presentation";
+import { tableClock } from "./presentation";
 
 // Named poses the croupier cross-fades between. The same channel-based pose
 // approach is intended to later drive a rigged GLB dealer (idle / deal /
@@ -25,7 +25,6 @@ function DealerArm({ side, phaseOffset }: { side: number; phaseOffset: number })
   const hand = useRef<Group>(null);
   const fingers = useRef<Group>(null);
   const mixer = useMemo(() => new PoseMixer(POSES, "rest"), []);
-  const tableState = useTableState();
   const baseZ = 0.12;
 
   useFrame((state, delta) => {
@@ -36,7 +35,7 @@ function DealerArm({ side, phaseOffset }: { side: number; phaseOffset: number })
     // Map the SEMANTIC table phase to an approved presentation pose; the
     // PoseMixer handles the cross-fade. This is the reusable director pattern
     // meant to later drive rigged croupier/player avatars.
-    const phase = tableState.current.phase;
+    const phase = tableClock.state.phase;
     const target = phase === "betting" ? "deal" : phase === "no_more_bets" ? "present" : "rest";
     mixer.play(target, 0.7);
 

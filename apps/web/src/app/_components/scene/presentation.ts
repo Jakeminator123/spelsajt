@@ -15,8 +15,7 @@
 //     with a subscription that sets `phase`/`phaseTime` from backend events.
 //   * No Math.random is used for anything that could be read as an outcome.
 
-import { createContext, useContext } from "react";
-import type { MutableRefObject } from "react";
+import { useSyncExternalStore } from "react";
 
 export type TablePhase = "betting" | "no_more_bets" | "ball_in_motion" | "result" | "payout";
 
@@ -83,25 +82,67 @@ export function resolveTableState(roundClock: number): TableState {
   };
 }
 
-/**
- * Advance an existing table state by `delta` seconds (cosmetic demo clock).
- * When the real engine is connected, this is the single function to replace
- * with a backend-event subscription — nothing else in the scene changes.
- */
-export function advanceTableState(state: TableState, delta: number): void {
-  Object.assign(state, resolveTableState(state.roundClock + delta));
+// A single shared clock, implemented as a tiny external store.
+//
+// The <Canvas> mounts its own React reconciler root, so bridging state from
+// inside useFrame back to the DOM via setState is unreliable. Instead we keep
+// the state in a module-level store: the DOM side advances it and reads the
+// phase via useSyncExternalStore, while the 3D scene components only READ
+// `tableClock.state` each frame. Reading a plain object across roots is always
+// safe, and phase-change notifications reach the DOM through subscribers.
+//
+// When the real engine is connected, replace the `advance` caller (the rAF
+// loop) with a subscription that writes backend-emitted phases into the store.
+
+type Listener = () => void;
+
+let currentState: TableState = resolveTableState(0);
+let lastEmittedPhase: TablePhase = currentState.phase;
+const listeners = new Set<Listener>();
+
+function emit(): void {
+  for (const listener of listeners) {
+    listener();
+  }
 }
 
-// Shared, mutable state read every frame by scene components. A ref (not React
-// state) is used so per-frame reads never trigger re-renders.
-export type TableStateRef = MutableRefObject<TableState>;
+export const tableClock = {
+  /** Latest resolved table state; safe to read every frame from any root. */
+  get state(): TableState {
+    return currentState;
+  },
+  /** Advance the cosmetic demo clock by `delta` seconds. */
+  advance(delta: number): void {
+    currentState = resolveTableState(currentState.roundClock + Math.min(Math.max(delta, 0), 0.05));
+    if (currentState.phase !== lastEmittedPhase) {
+      lastEmittedPhase = currentState.phase;
+      emit();
+    }
+  },
+  /** Jump directly to a round clock position (e.g. a static reduced-motion pose). */
+  set(roundClock: number): void {
+    currentState = resolveTableState(roundClock);
+    if (currentState.phase !== lastEmittedPhase) {
+      lastEmittedPhase = currentState.phase;
+      emit();
+    }
+  },
+  subscribe(listener: Listener): () => void {
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  },
+  getPhaseSnapshot(): TablePhase {
+    return currentState.phase;
+  },
+};
 
-export const TableStateContext = createContext<TableStateRef | null>(null);
-
-export function useTableState(): TableStateRef {
-  const ref = useContext(TableStateContext);
-  if (!ref) {
-    throw new Error("useTableState must be used within a <TableStateProvider>");
-  }
-  return ref;
+/** Subscribe a DOM component to the current semantic phase. */
+export function useTablePhase(): TablePhase {
+  return useSyncExternalStore(
+    tableClock.subscribe,
+    tableClock.getPhaseSnapshot,
+    tableClock.getPhaseSnapshot,
+  );
 }
