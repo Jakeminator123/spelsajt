@@ -86,7 +86,7 @@
         "verification": "direct",
         "lifecycle": "active"
       },
-      "summary": "Application service lagrar validerade v2-events med stigande tabellsekvens i Postgres; transaktionell NOTIFY och återläsning av den committade raden levererar dem till autentiserade Socket.IO-prenumeranter över flera serverinstanser."
+      "summary": "Application service lagrar validerade v2-events med stigande tabellsekvens i Postgres; transaktionell NOTIFY och återläsning av den committade raden levererar dem över flera serverinstanser, medan relayfel kopplar ned sockets så att ingen klient fortsätter med en tyst lucka."
     },
     {
       "id": "node.presentation",
@@ -187,7 +187,7 @@
         "verification": "direct",
         "lifecycle": "active"
       },
-      "summary": "Trafikberedskap som kräver en svarande Postgres-repository och ett aktivt committed-event-relä.",
+      "summary": "Trafikberedskap som kräver en svarande Postgres-repository och ett aktivt committed-event-relä; förlorad relay gör instansen oreado och kopplar ned dess sockets.",
       "accepts": [],
       "returns": "ReadinessResponse"
     },
@@ -270,7 +270,7 @@
         "verification": "direct",
         "lifecycle": "active"
       },
-      "summary": "Enda livekanalen för committade sekvensnumrerade v2-domänevents; Postgres-reläet levererar över serverinstanser och presentation intents härleds i frontend.",
+      "summary": "Enda livekanalen för committade sekvensnumrerade v2-domänevents; Postgres-reläet levererar över serverinstanser och fail-closed nedkoppling tvingar snapshotåterankring via en frisk instans efter relayfel.",
       "payload": "GameEvent",
       "eventTypes": [
         "round.prepared",
