@@ -145,6 +145,28 @@ describe("GameEventV2 presentation projector", () => {
     expect(ignored.lastSequence).toBe(throughReveal.lastSequence + 1);
   });
 
+  it("moves the source cards into separate visual hands when a split is accepted", () => {
+    const split = parseEvent(handSplitRaw);
+    const beforeSplit = {
+      ...createInitialPresentationState(),
+      cards: [
+        { card: { cardId: "left", rank: "8", suit: "spades" }, faceUp: true, handId: "hand-1", recipient: "player", visualId: "left" },
+        { card: { cardId: "right", rank: "8", suit: "hearts" }, faceUp: true, handId: "hand-1", recipient: "player", visualId: "right" },
+      ] as const,
+      game: "blackjack" as const,
+      hasBlackjackWager: true,
+      lastSequence: split.sequence - 1,
+      revision: split.revision,
+      roundId: split.roundId,
+      tableId: split.tableId,
+    };
+
+    const afterSplit = projectGameEvent(beforeSplit, split);
+
+    expect(afterSplit.cards.map((card) => card.handId)).toEqual(["hand-1-left", "hand-1-right"]);
+    expect(afterSplit.hasBlackjackWager).toBe(true);
+  });
+
   it("holds state on sequence gaps, stale events and revision regressions", () => {
     const prepared = projectGameEvent(
       createInitialPresentationState(),
@@ -166,6 +188,7 @@ describe("GameEventV2 presentation projector", () => {
       activeHandId: "hand-1",
       allowedActions: ["hit", "stand", "double"],
       game: "blackjack",
+      hasBlackjackWager: true,
       lastSequence: 9,
       stage: "active",
       tableId: "table-blackjack-1",
