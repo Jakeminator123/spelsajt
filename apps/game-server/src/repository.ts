@@ -35,6 +35,14 @@ export interface StoredCommandReceipt {
   readonly fingerprint: string;
 }
 
+export interface StoredLedgerEntry {
+  /** Signed PLAY amount. Debits are negative and credits are positive. */
+  readonly amount: number;
+  readonly balanceAfter: number;
+  readonly entryType: string;
+  readonly metadata: Readonly<Record<string, unknown>>;
+}
+
 export interface StoredTable {
   readonly balance: number;
   readonly events: readonly GameEventV2[];
@@ -48,8 +56,24 @@ export interface StoredTable {
 }
 
 export interface RepositoryMutation<T> {
+  readonly ledgerEntries?: readonly StoredLedgerEntry[];
   readonly next: StoredTable;
   readonly result: T;
+}
+
+export class TableOwnershipError extends Error {
+  constructor(readonly tableId: string) {
+    super(`Table ${tableId} belongs to another user.`);
+  }
+}
+
+export class CommandIdConflictError extends Error {
+  constructor(
+    readonly commandId: string,
+    readonly current: StoredTable | null,
+  ) {
+    super(`Command ${commandId} was already used on another table.`);
+  }
 }
 
 /**
@@ -57,9 +81,15 @@ export interface RepositoryMutation<T> {
  * returned table, ledger effects, command receipt and events atomically.
  */
 export interface GameRepository {
-  read(tableId: string): Promise<StoredTable | null>;
+  close?(): Promise<void>;
+  read(userId: string, tableId: string): Promise<StoredTable | null>;
   transact<T>(
+    userId: string,
     tableId: string,
-    operation: (current: StoredTable | null) => RepositoryMutation<T>,
+    commandId: string,
+    operation: (
+      current: StoredTable | null,
+      currentBalance: number | null,
+    ) => RepositoryMutation<T>,
   ): Promise<T>;
 }

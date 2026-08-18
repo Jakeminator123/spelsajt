@@ -1,5 +1,6 @@
 import { buildApp } from "./app";
 import { attachRealtime } from "./realtime";
+import { runtimeDependencies } from "./runtime";
 
 try {
   process.loadEnvFile(".env.local");
@@ -9,7 +10,7 @@ try {
   }
 }
 
-const app = buildApp();
+const app = buildApp(runtimeDependencies());
 const realtime = attachRealtime(app);
 const host = process.env.GAME_SERVER_HOST ?? "127.0.0.1";
 const port = Number.parseInt(process.env.GAME_SERVER_PORT ?? "4000", 10);

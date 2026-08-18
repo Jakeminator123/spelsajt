@@ -30,7 +30,7 @@
         "verification": "direct",
         "lifecycle": "active"
       },
-      "summary": "Validerad, idempotent ingress för revisionslåsta v2 GameCommand-payloads; nuvarande repository-adapter är processlokal och saknar ännu auth."
+      "summary": "Supabase-authentiserad, ägarisolerad och idempotent ingress för revisionslåsta v2 GameCommand-payloads med atomisk Postgres-persistens."
     },
     {
       "id": "node.game-core",
@@ -65,14 +65,14 @@
       "label": "PLAY-ledger",
       "lane": "data",
       "owner": "backend",
-      "source": "supabase/migrations/20260817231223_initial_play_money_schema.sql",
+      "source": "supabase/migrations/20260818053717_durable_game_command_repository.sql",
       "maturity": {
-        "runtime": "partial",
+        "runtime": "implemented",
         "contract": "none",
-        "verification": "partial",
+        "verification": "direct",
         "lifecycle": "active"
       },
-      "summary": "Databasschemat och RLS finns och application service applicerar ledger intents atomiskt i processminnet; den hållbara Supabase-transaktionen återstår."
+      "summary": "Motorernas PLAY-intents, wallet-saldo, fairness, state, events och command receipt committas atomiskt i privat Postgres med RLS och utan browser-grants."
     },
     {
       "id": "node.event-stream",
@@ -86,7 +86,7 @@
         "verification": "direct",
         "lifecycle": "active"
       },
-      "summary": "Application service producerar och lagrar validerade v2-events med stigande sekvensnummer i processminnet; hållbar lagring och realtime-leverans återstår."
+      "summary": "Application service producerar och lagrar validerade v2-events med stigande tabellsekvens i Postgres; Socket.IO-leverans återstår."
     },
     {
       "id": "node.presentation",
@@ -187,7 +187,7 @@
         "verification": "direct",
         "lifecycle": "active"
       },
-      "summary": "Gemensam ingress för v2 commands med validering, revision, idempotent replay och en processlokal atomisk repository-adapter.",
+      "summary": "Gemensam autentiserad ingress för v2 commands med ägarisolering, revision och hållbart idempotent replay i en atomisk Postgres-repository.",
       "accepts": [
         "PREPARE_ROUND",
         "BLACKJACK_PLACE_BET",
@@ -209,7 +209,7 @@
         "verification": "direct",
         "lifecycle": "active"
       },
-      "summary": "Reconnect-yta för ett validerat auktoritativt v2-bordssnapshot från nuvarande repository-adapter.",
+      "summary": "Autentiserad reconnect-yta för ett validerat auktoritativt v2-bordssnapshot från hållbar Postgres-state.",
       "accepts": [],
       "returns": "GameSnapshotV2"
     },
@@ -516,7 +516,7 @@
       "id": "scenario.blackjack-basic",
       "game": "blackjack",
       "label": "Blackjack: förberedelse till verifierat split-resultat",
-      "summary": "V2-flöde där application service, in-memory-ledger och motorn driver blackjack från prepare till settlement; hållbar Supabase-transaktion och livepresentation återstår.",
+      "summary": "V2-flöde där application service, Postgres-ledger och motorn driver blackjack från prepare till settlement; liveleverans och livepresentation återstår.",
       "steps": [
         {
           "id": "blackjack.command-prepare",
@@ -558,7 +558,7 @@
           "kind": "system",
           "nodeId": "node.ledger",
           "label": "Insatsen reserveras",
-          "detail": "Application service applicerar motorns debit-intent i samma processlokala transaktion som rundan; Supabase-commit återstår."
+          "detail": "Application service committar motorns debit-intent, wallet, state, fairness, events och command receipt atomiskt i privat Postgres."
         },
         {
           "id": "blackjack.event-round-started",
@@ -741,7 +741,7 @@
       "id": "scenario.roulette-basic",
       "game": "roulette",
       "label": "Roulette: bets till verifierat blandat resultat",
-      "summary": "V2-flöde där application service buntar validerade bets och driver lock, serverägd spin och settlement; hållbar Supabase-transaktion och livepresentation återstår.",
+      "summary": "V2-flöde där application service buntar validerade bets och driver lock, serverägd spin och atomiskt Postgres-settlement; liveleverans och livepresentation återstår.",
       "steps": [
         {
           "id": "roulette.command-prepare",
@@ -800,7 +800,7 @@
           "kind": "system",
           "nodeId": "node.ledger",
           "label": "Insatser reserveras",
-          "detail": "Application service debiterar accepterade bets idempotent i repository-transaktionen; Supabase-commit återstår."
+          "detail": "Application service debiterar accepterade bets idempotent i samma Postgres-transaktion som state, fairness, events och receipt."
         },
         {
           "id": "roulette.event-bet-placed",
@@ -932,7 +932,7 @@
           "kind": "system",
           "nodeId": "node.ledger",
           "label": "Payout bokförs",
-          "detail": "Application service committar motorresultatet och nytt PLAY-saldo atomiskt i processminnet; Supabase-commit återstår."
+          "detail": "Application service committar motorresultatet och nytt PLAY-saldo atomiskt i privat Postgres."
         },
         {
           "id": "roulette.event-settled",

@@ -2,7 +2,7 @@
 
 Det här dokumentet beskriver hur Jakob och Emil kopplar ihop de auktoritativa blackjack- och roulettemotorerna med en responsiv casinopresentation. Målet är att scenen ska kännas levande utan att animation, tema eller AI någonsin kan ändra spelutfall, regler eller PLAY-saldo.
 
-Den aktiva profilen är `mvp-v2`. Båda spelen har nu rena, direkt testade TypeScript-state-machines i `packages/game-core`. V2 commands, events, snapshots och command acknowledgements är Zod-kontrakterade, men serveradapter, atomisk persistence och realtime-leverans är fortfarande planerade. Presentationen kan därför utvecklas mot [`packages/contracts/fixtures/v2`](../packages/contracts/fixtures/v2) utan att låtsas att en spelserver redan levererar dem.
+Den aktiva profilen är `mvp-v2`. Båda spelen har rena, direkt testade TypeScript-state-machines i `packages/game-core`. V2 commands, events, snapshots och command acknowledgements är Zod-kontrakterade; serveradapter, Supabase Auth och atomisk Postgres-persistens är implementerade, medan realtime-leverans och spelar-UI återstår. Presentationen kan utvecklas mot [`packages/contracts/fixtures/v2`](../packages/contracts/fixtures/v2) tills livekanalen kopplas in.
 
 ## Beslut om externa spelprojekt
 
@@ -23,9 +23,9 @@ Våra motorer tar tidigare state, validerad domänavsikt, fryst ruleset och inji
 
 ```text
 spelarens GameCommandV2
-  -> planerad /v2 command-route och serveradapter
+  -> autentiserad /v2 command-route och serveradapter
   -> game-core + fairness
-  -> planerad atomisk PLAY-ledger och eventpersistens
+  -> atomisk PLAY-ledger och eventpersistens i Postgres
   -> sekvensnumrerade GameEventV2
   -> frontendens deterministiska Reaction Planner
   -> lokala presentation intents

@@ -39,12 +39,15 @@ import {
 
 import type {
   GameRepository,
+  RepositoryMutation,
   StoredBlackjackRound,
   StoredCommandReceipt,
+  StoredLedgerEntry,
   StoredRound,
   StoredRouletteRound,
   StoredTable,
 } from "./repository";
+import { CommandIdConflictError } from "./repository";
 
 const nilUuid = "00000000-0000-0000-0000-000000000000";
 const startingBalance = Number(mvpRuleset.currency.startingBalance);
@@ -100,6 +103,7 @@ type EventDraft = GameEventV2 extends infer Event
 
 interface AppliedCommand {
   readonly drafts: readonly EventDraft[];
+  readonly ledgerEntries: readonly StoredLedgerEntry[];
   readonly table: StoredTable;
 }
 
@@ -127,10 +131,10 @@ export class GameApplication {
     this.#ids = options.idGenerator ?? randomUUID;
   }
 
-  async execute(pathTableId: string, input: unknown): Promise<CommandAckV2> {
+  async execute(userId: string, pathTableId: string, input: unknown): Promise<CommandAckV2> {
     const parsed = gameCommandV2Schema.safeParse(input);
     if (!parsed.success) {
-      const current = await this.#repository.read(pathTableId);
+      const current = await this.#repository.read(userId, pathTableId);
       return rejectedAck(
         extractCommandId(input),
         current,
@@ -141,7 +145,7 @@ export class GameApplication {
 
     const command = parsed.data;
     if (command.tableId !== pathTableId) {
-      const current = await this.#repository.read(pathTableId);
+      const current = await this.#repository.read(userId, pathTableId);
       return rejectedAck(
         command.commandId,
         current,
@@ -151,74 +155,86 @@ export class GameApplication {
     }
 
     const fingerprint = canonicalJson(command);
-    return this.#repository.transact(pathTableId, (stored) => {
-      const current = stored ?? emptyTable(pathTableId);
-      const receipt = current.receipts[command.commandId];
-      if (receipt) {
-        if (receipt.fingerprint !== fingerprint) {
-          return {
-            next: current,
-            result: rejectedAck(
-              command.commandId,
+    try {
+      return await this.#repository.transact(userId, pathTableId, command.commandId, (stored, currentBalance) => {
+        const current = stored ?? emptyTable(pathTableId, currentBalance ?? startingBalance);
+        const receipt = current.receipts[command.commandId];
+        if (receipt) {
+          if (receipt.fingerprint !== fingerprint) {
+            return {
+              next: current,
+              result: rejectedAck(
+                command.commandId,
+                current,
+                "IDEMPOTENCY_CONFLICT",
+                "commandId was already used for a different command.",
+              ),
+            };
+          }
+
+          const replay = receipt.ack.status === "accepted"
+            ? commandAckV2Schema.parse({ ...receipt.ack, status: "replayed" })
+            : receipt.ack;
+          return { next: current, result: replay };
+        }
+
+        if (command.expectedRevision !== current.revision) {
+          return rememberRejection(
+            current,
+            command,
+            fingerprint,
+            "STALE_REVISION",
+            `Expected revision ${command.expectedRevision} but table is at revision ${current.revision}.`,
+          );
+        }
+
+        try {
+          const applied = this.#apply(current, command);
+          return this.#commit(current, applied, command, fingerprint);
+        } catch (error) {
+          if (error instanceof CommandRejection) {
+            return rememberRejection(
               current,
-              "IDEMPOTENCY_CONFLICT",
-              "commandId was already used for a different command.",
-            ),
-          };
-        }
+              command,
+              fingerprint,
+              error.code,
+              error.message,
+            );
+          }
+          if (error instanceof RouletteDomainError) {
+            return rememberRejection(
+              current,
+              command,
+              fingerprint,
+              "ILLEGAL_ACTION",
+              error.message,
+            );
+          }
 
-        const replay = receipt.ack.status === "accepted"
-          ? commandAckV2Schema.parse({ ...receipt.ack, status: "replayed" })
-          : receipt.ack;
-        return { next: current, result: replay };
-      }
-
-      if (command.expectedRevision !== current.revision) {
-        return rememberRejection(
-          current,
-          command,
-          fingerprint,
-          "STALE_REVISION",
-          `Expected revision ${command.expectedRevision} but table is at revision ${current.revision}.`,
-        );
-      }
-
-      try {
-        const applied = this.#apply(current, command);
-        return this.#commit(current, applied, command, fingerprint);
-      } catch (error) {
-        if (error instanceof CommandRejection) {
           return rememberRejection(
             current,
             command,
             fingerprint,
-            error.code,
-            error.message,
+            "INTERNAL_ERROR",
+            "The command could not be completed.",
           );
         }
-        if (error instanceof RouletteDomainError) {
-          return rememberRejection(
-            current,
-            command,
-            fingerprint,
-            "ILLEGAL_ACTION",
-            error.message,
-          );
-        }
-
-        return rememberRejection(
-          current,
-          command,
-          fingerprint,
-          "INTERNAL_ERROR",
-          "The command could not be completed.",
+      });
+    } catch (error) {
+      if (error instanceof CommandIdConflictError) {
+        return rejectedAck(
+          command.commandId,
+          error.current,
+          "IDEMPOTENCY_CONFLICT",
+          "commandId was already used on another table.",
         );
       }
-    });
+      throw error;
+    }
   }
 
-  async getSnapshot(tableId: string): Promise<GameSnapshotV2 | null> {
-    const table = await this.#repository.read(tableId);
+  async getSnapshot(userId: string, tableId: string): Promise<GameSnapshotV2 | null> {
+    const table = await this.#repository.read(userId, tableId);
     if (!table || table.game === null) {
       return null;
     }
@@ -276,6 +292,7 @@ export class GameApplication {
       };
       return {
         drafts: [prepared],
+        ledgerEntries: [],
         table: { ...current, game, nextNonce: current.nextNonce + 1, round },
       };
     }
@@ -294,6 +311,7 @@ export class GameApplication {
     };
     return {
       drafts: [prepared, ...rouletteEventDrafts(opened.events, round, current.balance)],
+      ledgerEntries: [],
       table: { ...current, game, nextNonce: current.nextNonce + 1, round },
     };
   }
@@ -319,7 +337,7 @@ export class GameApplication {
       throw new CommandRejection("ILLEGAL_ACTION", transition.error.message);
     }
 
-    const balance = applyBlackjackLedger(current.balance, transition.ledgerIntents);
+    const ledger = applyBlackjackLedger(current.balance, transition.ledgerIntents);
     const nextRound: StoredBlackjackRound = {
       ...round,
       clientSeed: command.payload.clientSeed,
@@ -327,8 +345,9 @@ export class GameApplication {
       state: transition.state,
     };
     return {
-      drafts: blackjackEventDrafts(transition.events, nextRound, balance),
-      table: { ...current, balance, round: nextRound },
+      drafts: blackjackEventDrafts(transition.events, nextRound, ledger.balance),
+      ledgerEntries: ledger.entries,
+      table: { ...current, balance: ledger.balance, round: nextRound },
     };
   }
 
@@ -353,15 +372,16 @@ export class GameApplication {
       throw new CommandRejection("ILLEGAL_ACTION", transition.error.message);
     }
 
-    const balance = applyBlackjackLedger(current.balance, transition.ledgerIntents);
+    const ledger = applyBlackjackLedger(current.balance, transition.ledgerIntents);
     const nextRound: StoredBlackjackRound = {
       ...round,
       shoe: transition.remainingShoe,
       state: transition.state,
     };
     return {
-      drafts: blackjackEventDrafts(transition.events, nextRound, balance),
-      table: { ...current, balance, round: nextRound },
+      drafts: blackjackEventDrafts(transition.events, nextRound, ledger.balance),
+      ledgerEntries: ledger.entries,
+      table: { ...current, balance: ledger.balance, round: nextRound },
     };
   }
 
@@ -377,6 +397,7 @@ export class GameApplication {
     let state = round.state;
     let balance = current.balance;
     const events: RouletteDomainEvent[] = [];
+    const ledgerEntries: StoredLedgerEntry[] = [];
     for (const transportBet of command.payload.bets) {
       const transition = transitionRoulette(
         state,
@@ -385,7 +406,9 @@ export class GameApplication {
       );
       state = transition.state;
       events.push(...transition.events);
-      balance = applyRouletteLedger(balance, transition.ledgerIntent);
+      const ledger = applyRouletteLedger(balance, transition.ledgerIntent);
+      balance = ledger.balance;
+      ledgerEntries.push(...ledger.entries);
     }
 
     const nextRound: StoredRouletteRound = {
@@ -403,6 +426,7 @@ export class GameApplication {
     }
     return {
       drafts,
+      ledgerEntries,
       table: { ...current, balance, round: nextRound },
     };
   }
@@ -425,15 +449,16 @@ export class GameApplication {
       { pocket },
     );
     const settled = transitionRoulette(spun.state, { type: "SETTLE" }, mvpRuleset);
-    const balance = applyRouletteLedger(current.balance, settled.ledgerIntent);
+    const ledger = applyRouletteLedger(current.balance, settled.ledgerIntent);
     const nextRound: StoredRouletteRound = { ...round, state: settled.state };
     return {
       drafts: rouletteEventDrafts(
         [...locked.events, ...spun.events, ...settled.events],
         nextRound,
-        balance,
+        ledger.balance,
       ),
-      table: { ...current, balance, round: nextRound },
+      ledgerEntries: ledger.entries,
+      table: { ...current, balance: ledger.balance, round: nextRound },
     };
   }
 
@@ -442,7 +467,7 @@ export class GameApplication {
     applied: AppliedCommand,
     command: GameCommandV2,
     fingerprint: string,
-  ): { next: StoredTable; result: CommandAckV2 } {
+  ): RepositoryMutation<CommandAckV2> {
     const revision = current.revision + 1;
     const events = applied.drafts.map((draft, index) => gameEventV2Schema.parse({
       ...draft,
@@ -474,13 +499,13 @@ export class GameApplication {
       ...nextWithoutReceipt,
       receipts: { ...nextWithoutReceipt.receipts, [command.commandId]: receipt },
     };
-    return { next, result: ack };
+    return { ledgerEntries: applied.ledgerEntries, next, result: ack };
   }
 }
 
-function emptyTable(tableId: string): StoredTable {
+function emptyTable(tableId: string, balance = startingBalance): StoredTable {
   return {
-    balance: startingBalance,
+    balance,
     events: [],
     game: null,
     lastSequence: 0,
@@ -584,8 +609,9 @@ function fairnessContext(round: StoredRound, clientSeed: string): FairnessContex
 function applyBlackjackLedger(
   initialBalance: number,
   intents: readonly BlackjackLedgerIntent[],
-): number {
+): { readonly balance: number; readonly entries: readonly StoredLedgerEntry[] } {
   let balance = initialBalance;
+  const entries: StoredLedgerEntry[] = [];
   for (const intent of intents) {
     if (intent.direction === "debit") {
       if (balance < intent.amount) {
@@ -598,28 +624,53 @@ function applyBlackjackLedger(
     if (!Number.isSafeInteger(balance)) {
       throw new CommandRejection("INTERNAL_ERROR", "The resulting PLAY balance is outside the supported range.");
     }
+    entries.push({
+      amount: intent.direction === "debit" ? -intent.amount : intent.amount,
+      balanceAfter: balance,
+      entryType: intent.type,
+      metadata: { ...intent },
+    });
   }
-  return balance;
+  return { balance, entries };
 }
 
 function applyRouletteLedger(
   initialBalance: number,
   intent: RouletteLedgerIntent | null,
-): number {
+): { readonly balance: number; readonly entries: readonly StoredLedgerEntry[] } {
   if (intent === null) {
-    return initialBalance;
+    return { balance: initialBalance, entries: [] };
   }
   if (intent.type === "roulette.bet.reserve") {
     if (initialBalance < intent.debitAmount) {
       throw new CommandRejection("INSUFFICIENT_FUNDS", "The PLAY balance cannot cover these bets.");
     }
-    return initialBalance - intent.debitAmount;
+    const balance = initialBalance - intent.debitAmount;
+    return {
+      balance,
+      entries: [{
+        amount: -intent.debitAmount,
+        balanceAfter: balance,
+        entryType: intent.type,
+        metadata: { ...intent },
+      }],
+    };
   }
   const balance = initialBalance + intent.creditAmount;
   if (!Number.isSafeInteger(balance)) {
     throw new CommandRejection("INTERNAL_ERROR", "The resulting PLAY balance is outside the supported range.");
   }
-  return balance;
+  return {
+    balance,
+    entries: intent.creditAmount === 0
+      ? []
+      : [{
+          amount: intent.creditAmount,
+          balanceAfter: balance,
+          entryType: intent.type,
+          metadata: { ...intent },
+        }],
+  };
 }
 
 function toCoreBet(bet: RouletteBetV2): RouletteBet {

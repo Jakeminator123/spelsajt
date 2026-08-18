@@ -1,0 +1,299 @@
+import { randomUUID } from "node:crypto";
+
+import { Pool } from "pg";
+import { afterAll, afterEach, describe, expect, it } from "vitest";
+
+import { buildApp } from "./app";
+import type { FairnessSource } from "./application";
+import type { AuthVerifier } from "./auth";
+import { PostgresGameRepository } from "./postgres-repository";
+
+const databaseUrl = process.env.SUPABASE_DATABASE_URL;
+const databaseDescribe = databaseUrl ? describe : describe.skip;
+const issuedAt = "2026-08-18T10:00:00.000Z";
+const authHeaders = { authorization: "Bearer integration-token" };
+const openApps = new Set<ReturnType<typeof buildApp>>();
+const admin = databaseUrl ? new Pool({ connectionString: databaseUrl }) : null;
+
+const deterministicFairness: FairnessSource = {
+  createServerSeed: () => "22".repeat(32),
+  roulettePocket: () => 17,
+  shuffleBlackjack: () => [
+    { cardId: "db:player-1", rank: "5", suit: "hearts" },
+    { cardId: "db:dealer-up", rank: "9", suit: "clubs" },
+    { cardId: "db:player-2", rank: "6", suit: "diamonds" },
+    { cardId: "db:dealer-hole", rank: "7", suit: "spades" },
+    { cardId: "db:player-hit", rank: "2", suit: "clubs" },
+    { cardId: "db:dealer-hit", rank: "K", suit: "hearts" },
+  ],
+};
+
+function authenticatedAs(userId: string): AuthVerifier {
+  return { verify: async (token) => token === "integration-token" ? userId : null };
+}
+
+function commandBase(commandId: string, tableId: string, expectedRevision: number) {
+  return { commandId, expectedRevision, issuedAt, schemaVersion: 2 as const, tableId };
+}
+
+function createApp(userId: string) {
+  if (!databaseUrl) throw new Error("SUPABASE_DATABASE_URL is required.");
+  const app = buildApp({
+    authVerifier: authenticatedAs(userId),
+    clock: () => issuedAt,
+    fairness: deterministicFairness,
+    repository: new PostgresGameRepository({ connectionString: databaseUrl }),
+  });
+  openApps.add(app);
+  return app;
+}
+
+afterEach(async () => {
+  await Promise.all([...openApps].map((app) => app.close()));
+  openApps.clear();
+});
+
+afterAll(async () => {
+  await admin?.end();
+});
+
+databaseDescribe("Postgres game repository", () => {
+  it("persists an idempotent blackjack command, state, fairness, events and ledger atomically", async () => {
+    if (!admin) throw new Error("Database pool is unavailable.");
+    const userId = randomUUID();
+    const tableId = `db-blackjack-${randomUUID()}`;
+    const prepareId = randomUUID();
+    const betId = randomUUID();
+    const hitId = randomUUID();
+    const standId = randomUUID();
+    await admin.query(
+      "insert into auth.users (id, email) values ($1, $2)",
+      [userId, `${userId}@example.test`],
+    );
+
+    const firstApp = createApp(userId);
+    const prepare = await firstApp.inject({
+      headers: authHeaders,
+      method: "POST",
+      url: `/v2/tables/${tableId}/commands`,
+      payload: {
+        ...commandBase(prepareId, tableId, 0),
+        type: "PREPARE_ROUND",
+        payload: { game: "blackjack" },
+      },
+    });
+    expect(prepare.statusCode).toBe(200);
+    const roundId = prepare.json().snapshot.round.roundId as string;
+    const betCommand = {
+      ...commandBase(betId, tableId, 1),
+      type: "BLACKJACK_PLACE_BET",
+      payload: {
+        amount: "100",
+        clientSeed: "postgres-reconnect-seed",
+        currency: "PLAY",
+        roundId,
+      },
+    };
+    const bet = await firstApp.inject({
+      headers: authHeaders,
+      method: "POST",
+      url: `/v2/tables/${tableId}/commands`,
+      payload: betCommand,
+    });
+    expect(bet.statusCode).toBe(200);
+    expect(bet.json()).toMatchObject({
+      revision: 2,
+      snapshot: { balance: "9900", round: { phase: "player" } },
+    });
+    expect(JSON.stringify(bet.json())).not.toContain("db:dealer-hole");
+    expect(JSON.stringify(bet.json())).not.toContain("22".repeat(32));
+    await firstApp.close();
+    openApps.delete(firstApp);
+
+    const reconnectedApp = createApp(userId);
+    const snapshot = await reconnectedApp.inject({
+      headers: authHeaders,
+      method: "GET",
+      url: `/v2/tables/${tableId}/snapshot`,
+    });
+    expect(snapshot.statusCode).toBe(200);
+    expect(snapshot.json()).toMatchObject({
+      balance: "9900",
+      revision: 2,
+      round: { phase: "player" },
+    });
+
+    const hit = await reconnectedApp.inject({
+      headers: authHeaders,
+      method: "POST",
+      url: `/v2/tables/${tableId}/commands`,
+      payload: {
+        ...commandBase(hitId, tableId, 2),
+        type: "BLACKJACK_ACTION",
+        payload: { action: "hit", handId: "hand-1", roundId },
+      },
+    });
+    expect(hit.statusCode).toBe(200);
+    const stand = await reconnectedApp.inject({
+      headers: authHeaders,
+      method: "POST",
+      url: `/v2/tables/${tableId}/commands`,
+      payload: {
+        ...commandBase(standId, tableId, 3),
+        type: "BLACKJACK_ACTION",
+        payload: { action: "stand", handId: "hand-1", roundId },
+      },
+    });
+    expect(stand.statusCode).toBe(200);
+    expect(stand.json()).toMatchObject({
+      revision: 4,
+      snapshot: { balance: "10100", round: { phase: "settled" } },
+    });
+
+    const beforeReplay = await admin.query<{ readonly count: string }>(
+      "select count(*) from game_private.game_events where table_id = $1",
+      [tableId],
+    );
+    const replay = await reconnectedApp.inject({
+      headers: authHeaders,
+      method: "POST",
+      url: `/v2/tables/${tableId}/commands`,
+      payload: betCommand,
+    });
+    expect(replay.statusCode).toBe(200);
+    expect(replay.json()).toMatchObject({ revision: 2, status: "replayed" });
+
+    const persisted = await admin.query<{
+      readonly balance: string;
+      readonly command_count: string;
+      readonly event_count: string;
+      readonly last_sequence: number;
+      readonly ledger_amounts: string[];
+      readonly revision: number;
+    }>(
+      `select w.balance,
+              t.revision,
+              t.last_sequence,
+              (select count(*) from game_private.game_commands c where c.table_id = t.table_id) command_count,
+              (select count(*) from game_private.game_events e where e.table_id = t.table_id) event_count,
+              (select array_agg(le.amount::text order by le.created_at, le.id)
+                 from game_private.ledger_entries le
+                 join game_private.ledger_transactions lt on lt.id = le.transaction_id
+                where lt.user_id = t.user_id) ledger_amounts
+         from game_private.game_tables t
+         join game_private.wallet_accounts w on w.user_id = t.user_id and w.currency = 'PLAY'
+        where t.table_id = $1`,
+      [tableId],
+    );
+    expect(persisted.rows[0]).toMatchObject({
+      balance: "10100",
+      command_count: "4",
+      event_count: beforeReplay.rows[0]?.count,
+      ledger_amounts: ["10000", "-100", "200"],
+      revision: 4,
+    });
+    expect(persisted.rows[0]?.last_sequence).toBe(Number(persisted.rows[0]?.event_count));
+
+    const hiddenEvent = await admin.query<{ readonly event: unknown }>(
+      `select event
+         from game_private.game_events
+        where table_id = $1
+          and event_type = 'blackjack.card.dealt'
+          and payload->>'faceUp' = 'false'`,
+      [tableId],
+    );
+    expect(hiddenEvent.rows[0]?.event).toMatchObject({
+      payload: { faceUp: false, handId: "dealer", recipient: "dealer" },
+    });
+    expect(JSON.stringify(hiddenEvent.rows[0]?.event)).not.toContain("cardId");
+
+    const fairness = await admin.query<{
+      readonly client_seed: string;
+      readonly revealed_at: Date;
+      readonly server_seed: string;
+    }>(
+      "select client_seed, server_seed, revealed_at from game_private.fairness_records where round_id = $1",
+      [roundId],
+    );
+    expect(fairness.rows[0]).toMatchObject({
+      client_seed: "postgres-reconnect-seed",
+      server_seed: "22".repeat(32),
+    });
+    expect(fairness.rows[0]?.revealed_at).toBeInstanceOf(Date);
+  });
+
+  it("does not reset a shared wallet when the user prepares a second table", async () => {
+    if (!admin) throw new Error("Database pool is unavailable.");
+    const userId = randomUUID();
+    const firstTableId = `db-wallet-a-${randomUUID()}`;
+    const secondTableId = `db-wallet-b-${randomUUID()}`;
+    await admin.query(
+      "insert into auth.users (id, email) values ($1, $2)",
+      [userId, `${userId}@example.test`],
+    );
+    const app = createApp(userId);
+
+    const firstPrepare = await app.inject({
+      headers: authHeaders,
+      method: "POST",
+      url: `/v2/tables/${firstTableId}/commands`,
+      payload: {
+        ...commandBase(randomUUID(), firstTableId, 0),
+        type: "PREPARE_ROUND",
+        payload: { game: "blackjack" },
+      },
+    });
+    const roundId = firstPrepare.json().snapshot.round.roundId as string;
+    const wager = await app.inject({
+      headers: authHeaders,
+      method: "POST",
+      url: `/v2/tables/${firstTableId}/commands`,
+      payload: {
+        ...commandBase(randomUUID(), firstTableId, 1),
+        type: "BLACKJACK_PLACE_BET",
+        payload: {
+          amount: "100",
+          clientSeed: "multi-table-wallet",
+          currency: "PLAY",
+          roundId,
+        },
+      },
+    });
+    const secondPrepare = await app.inject({
+      headers: authHeaders,
+      method: "POST",
+      url: `/v2/tables/${secondTableId}/commands`,
+      payload: {
+        ...commandBase(randomUUID(), secondTableId, 0),
+        type: "PREPARE_ROUND",
+        payload: { game: "roulette" },
+      },
+    });
+    const firstSnapshot = await app.inject({
+      headers: authHeaders,
+      method: "GET",
+      url: `/v2/tables/${firstTableId}/snapshot`,
+    });
+    const persisted = await admin.query<{
+      readonly balance: string;
+      readonly grant_count: string;
+    }>(
+      `select w.balance,
+              (select count(*)
+                 from game_private.ledger_entries le
+                 join game_private.ledger_transactions lt on lt.id = le.transaction_id
+                where lt.user_id = w.user_id
+                  and le.entry_type = 'play-money.initial-grant') grant_count
+         from game_private.wallet_accounts w
+        where w.user_id = $1 and w.currency = 'PLAY'`,
+      [userId],
+    );
+
+    expect(firstPrepare.statusCode).toBe(200);
+    expect(wager.json().snapshot.balance).toBe("9900");
+    expect(secondPrepare.statusCode).toBe(200);
+    expect(secondPrepare.json().snapshot.balance).toBe("9900");
+    expect(firstSnapshot.json().balance).toBe("9900");
+    expect(persisted.rows[0]).toEqual({ balance: "9900", grant_count: "1" });
+  });
+});
