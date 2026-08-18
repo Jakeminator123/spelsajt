@@ -69,6 +69,17 @@ class SwitchableGameEventBus extends GameEventBus {
   }
 }
 
+class MutableAuthVerifier implements AuthVerifier {
+  calls = 0;
+
+  constructor(public userId: string | null) {}
+
+  async verify(): Promise<string | null> {
+    this.calls += 1;
+    return this.userId;
+  }
+}
+
 function uuid(value: number): string {
   return `00000000-0000-4000-8000-${String(value).padStart(12, "0")}`;
 }
@@ -323,5 +334,30 @@ describe("game realtime", () => {
     eventBus.setReady(true);
     const recovered = await connect(address, "owner-token");
     expect(recovered.connected).toBe(true);
+  });
+
+  it.each([
+    { label: "revoked", nextUserId: null },
+    { label: "changed identity", nextUserId: userTwo },
+  ])("disconnects a socket when its auth session is $label", async ({ nextUserId }) => {
+    const mutableAuth = new MutableAuthVerifier(userOne);
+    const app = buildApp({ authVerifier: mutableAuth });
+    openApps.add(app);
+    const io = attachRealtime(app, { authRevalidationIntervalMs: 10 });
+    openRealtime.add(io);
+    const address = await app.listen({ host: "127.0.0.1", port: 0 });
+    const socket = await connect(address, "owner-token");
+
+    await expect.poll(() => mutableAuth.calls, { interval: 5, timeout: 1_000 })
+      .toBeGreaterThanOrEqual(2);
+    expect(socket.connected).toBe(true);
+    const disconnected = eventOnce(socket, "disconnect");
+    mutableAuth.userId = nextUserId;
+
+    expect(await disconnected).toBe("io server disconnect");
+    expect(socket.connected).toBe(false);
+    const callsAfterDisconnect = mutableAuth.calls;
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(mutableAuth.calls).toBe(callsAfterDisconnect);
   });
 });
