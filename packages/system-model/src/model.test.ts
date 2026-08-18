@@ -292,7 +292,7 @@ describe("play-money system model", () => {
     }
   });
 
-  it("records implemented HTTP transport without inventing realtime delivery", () => {
+  it("records the directly verified HTTP and realtime transports", () => {
     const maturity = Object.fromEntries(systemModel.interfaces.map(({ id, maturity }) => [id, maturity]));
 
     expect(maturity["http.health"]).toMatchObject({ contract: "ad-hoc", runtime: "implemented" });
@@ -315,8 +315,21 @@ describe("play-money system model", () => {
     });
     expect(maturity["realtime.game-event"]).toMatchObject({
       contract: "zod-v2",
-      lifecycle: "planned",
-      runtime: "absent",
+      lifecycle: "active",
+      runtime: "implemented",
+      verification: "direct",
+    });
+    expect(maturity["realtime.table-subscribe"]).toMatchObject({
+      contract: "zod-v2",
+      lifecycle: "active",
+      runtime: "implemented",
+      verification: "direct",
+    });
+    expect(maturity["realtime.table-snapshot"]).toMatchObject({
+      contract: "zod-v2",
+      lifecycle: "active",
+      runtime: "implemented",
+      verification: "direct",
     });
 
     const gameCore = systemModel.nodes.find(({ id }) => id === "node.game-core");

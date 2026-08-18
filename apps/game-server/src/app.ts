@@ -4,12 +4,27 @@ import Fastify from "fastify";
 
 import { GameApplication, type GameApplicationOptions } from "./application";
 import { bearerToken, rejectAllAuthVerifier, type AuthVerifier } from "./auth";
+import { GameEventBus } from "./event-bus";
 import { InMemoryGameRepository } from "./in-memory-repository";
 import { TableOwnershipError, type GameRepository } from "./repository";
 
 export interface BuildAppOptions extends GameApplicationOptions {
   readonly authVerifier?: AuthVerifier;
+  readonly eventBus?: GameEventBus;
   readonly repository?: GameRepository;
+}
+
+export interface GameServerServices {
+  readonly application: GameApplication;
+  readonly authVerifier: AuthVerifier;
+  readonly eventBus: GameEventBus;
+  readonly repository: GameRepository;
+}
+
+declare module "fastify" {
+  interface FastifyInstance {
+    gameServices: GameServerServices;
+  }
 }
 
 function commandStatusCode(code: string): number {
@@ -41,7 +56,9 @@ export function buildApp(options: BuildAppOptions = {}) {
 
   const repository: GameRepository = options.repository ?? new InMemoryGameRepository();
   const authVerifier = options.authVerifier ?? rejectAllAuthVerifier;
+  const eventBus = options.eventBus ?? new GameEventBus();
   const application = new GameApplication(repository, options);
+  app.decorate("gameServices", { application, authVerifier, eventBus, repository });
 
   app.addHook("onClose", async () => {
     await repository.close?.();
@@ -74,6 +91,22 @@ export function buildApp(options: BuildAppOptions = {}) {
       }
       try {
         const ack = await application.execute(userId, request.params.tableId, request.body);
+        if (ack.status === "accepted" && ack.firstSequence !== null) {
+          try {
+            const events = await application.getEvents(
+              userId,
+              request.params.tableId,
+              ack.firstSequence,
+              ack.lastSequence,
+            );
+            eventBus.publish(events);
+          } catch (error) {
+            request.log.error(
+              { err: error, tableId: request.params.tableId },
+              "Committed game events could not be published live",
+            );
+          }
+        }
         if (ack.status === "rejected") {
           return reply.code(commandStatusCode(ack.error.code)).send(ack);
         }

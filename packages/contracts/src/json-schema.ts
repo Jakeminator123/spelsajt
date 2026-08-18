@@ -7,6 +7,9 @@ import {
   gameEventV2Schema,
   gameSnapshotV2Schema,
   rouletteBetV2Schema,
+  socketAuthV2Schema,
+  tableSubscriptionAckV2Schema,
+  tableSubscriptionV2Schema,
 } from "./v2";
 
 const definitions = [
@@ -57,6 +60,24 @@ const definitions = [
     id: "https://schemas.spelsajt.local/v2/roulette-bet.schema.json",
     schema: rouletteBetV2Schema,
     title: "Spelsajt roulette bet v2",
+  },
+  {
+    fileName: "v2/socket-auth.schema.json",
+    id: "https://schemas.spelsajt.local/v2/socket-auth.schema.json",
+    schema: socketAuthV2Schema,
+    title: "Spelsajt Socket.IO auth v2",
+  },
+  {
+    fileName: "v2/table-subscription.schema.json",
+    id: "https://schemas.spelsajt.local/v2/table-subscription.schema.json",
+    schema: tableSubscriptionV2Schema,
+    title: "Spelsajt table subscription v2",
+  },
+  {
+    fileName: "v2/table-subscription-ack.schema.json",
+    id: "https://schemas.spelsajt.local/v2/table-subscription-ack.schema.json",
+    schema: tableSubscriptionAckV2Schema,
+    title: "Spelsajt table subscription acknowledgement v2",
   },
 ] as const satisfies readonly {
   fileName: string;

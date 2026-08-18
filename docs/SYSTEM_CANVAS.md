@@ -23,7 +23,7 @@ flowchart LR
     CORE["Blackjack + roulette TS state machines (implementerade)"]
     FAIR["Fairness-kärna"]
     TX["Serveradapter + atomisk Postgres-ledger (implementerade)"]
-    EVENTS["Persistenta sekvensnumrerade v2-events (delvis implementerade)"]
+    EVENTS["Persistenta sekvensnumrerade v2-events + Socket.IO"]
     PLAN["Reaction Planner (implementerad frontend)"]
     SCENE["Eventstyrd text/3D-scen (delvis implementerad)"]
     VERIFY["Fairness-verifierare"]
@@ -54,7 +54,7 @@ Backend avgör alltid state, utfall, payout och saldo. Frontend skickar endast s
 | Socket.IO `server.ready` | Implementerad | Bekräftar anslutning men är ännu inte Zod-kontrakterad. |
 | Serveradapter för v2 | Implementerad och direkt testad | `apps/game-server/src/application.ts` mappar båda spelens v2-commands till motortransitioner, ledger intents, validerade events, ack och snapshots. |
 | Atomisk command- och settlementtjänst | Implementerad och direkt integrationstestad | Supabase Auth verifierar bearer-token; användare isoleras per bord och Postgres-adaptern committar wallet, state, fairness, ledger intents, events och command receipt i en låst transaktion. In-memory-adaptern finns kvar för test/utveckling. |
-| `game.event` och snapshots över realtime | Delvis implementerade | Sekvensnumrerade events och snapshot-state lagras hållbart i Postgres och HTTP-snapshot kan återläsas efter processrestart. Socket.IO-leverans saknas. |
+| `game.event` och snapshots över realtime | Implementerade och direkt testade | En verifierad socket prenumererar med `table.subscribe`, får ett validerat snapshot som sekvensankare och därefter endast events som publicerats efter repository-commit. Reconnect återställer från hållbar Postgres-state. |
 | Webbpresentation | Delvis implementerad | En uttömmande, direkt testad v2-projektor driver den responsiva 3D-scenen från ett schema-validerat demotranscript. Serverns liveleverans återstår. |
 | `/system` | Dokumentationsyta | Visar den validerade systemmodellen; den är inte ett spel eller driftbevis. |
 
@@ -66,8 +66,9 @@ De två HTTP-routes som bär speltrafik ligger under `/v2`. I konfigurerad runti
 | --- | --- | --- |
 | `POST /v2/tables/{tableId}/commands` | Gemensam, idempotent ingress för `GameCommandV2`. | Implementerad med bearer-auth, ägarisolering, atomisk Postgres-persistens och restart/replay-test. |
 | `GET /v2/tables/{tableId}/snapshot` | Auktoritativ återställning vid anslutning eller sekvensgap. | Implementerad med bearer-auth och hållbar Postgres-state. |
-| Socket.IO `game.event` | En kanal för sekvensnumrerade `GameEventV2`. | Planerad; eventunionen finns. |
-| Socket.IO `table.snapshot` | V2-snapshot vid reconnect eller saknade events. | Planerad; payload finns, transporten saknas. |
+| Socket.IO `table.subscribe` | Prenumerera på ett ägarisolerat bord med klientens senaste sekvens. | Implementerad med Supabase-token i socket-handshake och Zod-validerat subscription/ack. |
+| Socket.IO `game.event` | En kanal för sekvensnumrerade `GameEventV2`. | Implementerad; nya accepterade commands publiceras först efter commit och replay återutsänder inget. |
+| Socket.IO `table.snapshot` | V2-snapshot vid reconnect eller saknade events. | Implementerad som första sekvensankare vid varje godkänd subscription. |
 
 De historiska v1-kontrakten och fixtures ligger kvar för kompatibilitet och regression. Någon `/v1/tables/...`-speltransport ska inte byggas nu.
 
@@ -177,7 +178,6 @@ Emils utseendebranch kan normalt ändra `apps/web/src/**`, `apps/web/public/**`,
 
 ## Kvar innan en produktionsnära spelbar server
 
-- Leverera de persisterade `game.event` samt `table.snapshot` över Socket.IO, inklusive reconnect från senaste sekvensnummer.
 - Koppla serverns livelevererade v2-events till den befintliga projektorn och färdigställ text-, reduced-motion- och 3D-presentation för samtliga cues.
 
 Ett gap löses först i den auktoritativa källan, med schema-/fixtureuppdatering och tester. En kompatibilitetsbrytning kräver en ny schema-, ruleset- eller algoritmversion; den får inte döljas i UI-kod eller dokumentation.
