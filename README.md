@@ -77,4 +77,6 @@ Imagen kör som en icke-privilegierad användare, lyssnar på `0.0.0.0:4000` och
 
 Om Postgres `LISTEN`-sessionen bryts blir instansen oreado och kopplar ned sockets. Servern försöker därefter upprätta en ny anslutning varje sekund med fem sekunders anslutningstak och blir inte redo förrän en ny `LISTEN` har lyckats; klienten återankrar då via snapshot.
 
+Postgresanslutningar har fem sekunders anslutningstak och command-, snapshot- och reläfrågor avbryts efter tio sekunder som standard. `GAME_SERVER_POSTGRES_CONNECTION_TIMEOUT_MS` och `GAME_SERVER_POSTGRES_STATEMENT_TIMEOUT_MS` kan justera gränserna till heltal mellan `100` och `300000`; ogiltig konfiguration stoppar serverstarten. CI verifierar mot riktig Postgres att en låst command-transaktion avbryts inom gränsen och att repositoryt kan användas efteråt.
+
 Socket.IO-sessioner omverifieras server-side var 60:e sekund. `GAME_SERVER_SOCKET_AUTH_REVALIDATION_MS` kan justera intervallet till ett positivt heltal på minst `10000`; ogiltig konfiguration stoppar serverstarten.
