@@ -4,6 +4,7 @@ import { Client, type ClientConfig } from "pg";
 import {
   GameEventBus,
   type GameEventBusPort,
+  type GameEventBusReadinessListener,
   type GameEventListener,
 } from "./event-bus";
 import {
@@ -26,6 +27,7 @@ export class PostgresGameEventBus implements GameEventBusPort {
   readonly #local = new GameEventBus();
   readonly #lastSequence = new Map<string, number>();
   readonly #onError: (error: unknown) => void;
+  readonly #readinessListeners = new Set<GameEventBusReadinessListener>();
   #closed = false;
   #pending: Promise<void> = Promise.resolve();
   #ready = false;
@@ -38,7 +40,7 @@ export class PostgresGameEventBus implements GameEventBusPort {
       process.emitWarning(error instanceof Error ? error : String(error));
     });
     this.#client.on("error", (error) => {
-      this.#ready = false;
+      this.#setReady(false);
       this.#onError(error);
     });
     this.#client.on("notification", (notification) => {
@@ -47,6 +49,7 @@ export class PostgresGameEventBus implements GameEventBusPort {
       this.#pending = this.#pending
         .then(() => this.#loadAndPublish(notification.payload!))
         .catch((error: unknown) => {
+          this.#setReady(false);
           this.#onError(error);
         });
     });
@@ -60,6 +63,11 @@ export class PostgresGameEventBus implements GameEventBusPort {
 
   isReady(): boolean {
     return this.#ready;
+  }
+
+  onReadinessChange(listener: GameEventBusReadinessListener): () => void {
+    this.#readinessListeners.add(listener);
+    return () => this.#readinessListeners.delete(listener);
   }
 
   publish(events: readonly GameEventV2[]): void {
@@ -83,7 +91,7 @@ export class PostgresGameEventBus implements GameEventBusPort {
   async close(): Promise<void> {
     if (this.#closed) return;
     this.#closed = true;
-    this.#ready = false;
+    this.#setReady(false);
     await this.#pending;
     if (this.#startPromise) {
       try {
@@ -98,7 +106,19 @@ export class PostgresGameEventBus implements GameEventBusPort {
   async #connect(): Promise<void> {
     await this.#client.connect();
     await this.#client.query(`listen ${postgresGameEventChannel}`);
-    this.#ready = true;
+    this.#setReady(true);
+  }
+
+  #setReady(ready: boolean): void {
+    if (this.#ready === ready) return;
+    this.#ready = ready;
+    for (const listener of this.#readinessListeners) {
+      try {
+        listener(ready);
+      } catch {
+        // A faulty observer must not hide relay availability from other observers.
+      }
+    }
   }
 
   async #loadAndPublish(payload: string): Promise<void> {

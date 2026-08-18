@@ -47,7 +47,17 @@ export function attachRealtime(app: FastifyInstance): GameRealtimeServer {
     transports: ["websocket"],
   });
 
+  const stopObservingReadiness = eventBus.onReadinessChange?.((ready) => {
+    if (ready) return;
+    app.log.error("Committed-event relay unavailable; disconnecting realtime clients");
+    io.disconnectSockets(true);
+  });
+  app.addHook("onClose", async () => {
+    stopObservingReadiness?.();
+  });
+
   io.use(async (socket, next) => {
+    if (eventBus.isReady?.() === false) return next(new Error("SERVER_UNAVAILABLE"));
     const auth = socketAuthV2Schema.safeParse(socket.handshake.auth);
     if (!auth.success) return next(new Error("UNAUTHENTICATED"));
     try {
