@@ -29,7 +29,12 @@ interface ServerToClientEvents {
 }
 
 interface SocketData {
+  accessToken: string;
   userId: string;
+}
+
+export interface RealtimeOptions {
+  readonly authRevalidationIntervalMs?: number;
 }
 
 export type GameRealtimeServer = Server<
@@ -39,9 +44,16 @@ export type GameRealtimeServer = Server<
   SocketData
 >;
 
-export function attachRealtime(app: FastifyInstance): GameRealtimeServer {
+export function attachRealtime(
+  app: FastifyInstance,
+  options: RealtimeOptions = {},
+): GameRealtimeServer {
   const allowedOrigin = process.env.WEB_ORIGIN ?? "http://localhost:3000";
   const { application, authVerifier, eventBus } = app.gameServices;
+  const authRevalidationIntervalMs = options.authRevalidationIntervalMs ?? 60_000;
+  if (!Number.isSafeInteger(authRevalidationIntervalMs) || authRevalidationIntervalMs <= 0) {
+    throw new Error("authRevalidationIntervalMs must be a positive safe integer.");
+  }
   const io: GameRealtimeServer = new Server(app.server, {
     cors: { origin: allowedOrigin },
     transports: ["websocket"],
@@ -63,6 +75,7 @@ export function attachRealtime(app: FastifyInstance): GameRealtimeServer {
     try {
       const userId = await authVerifier.verify(auth.data.accessToken);
       if (!userId) return next(new Error("UNAUTHENTICATED"));
+      socket.data.accessToken = auth.data.accessToken;
       socket.data.userId = userId;
       return next();
     } catch {
@@ -72,6 +85,25 @@ export function attachRealtime(app: FastifyInstance): GameRealtimeServer {
 
   io.on("connection", (socket) => {
     let unsubscribe: (() => void) | null = null;
+    let authRevalidationTimer: NodeJS.Timeout | null = null;
+    let disconnected = false;
+    const scheduleAuthRevalidation = () => {
+      authRevalidationTimer = setTimeout(async () => {
+        try {
+          const userId = await authVerifier.verify(socket.data.accessToken);
+          if (userId !== socket.data.userId) {
+            socket.disconnect(true);
+            return;
+          }
+        } catch {
+          socket.disconnect(true);
+          return;
+        }
+        if (!disconnected && socket.connected) scheduleAuthRevalidation();
+      }, authRevalidationIntervalMs);
+      authRevalidationTimer.unref();
+    };
+    scheduleAuthRevalidation();
     socket.emit("server.ready", serverReadyV2Schema.parse({
       connectionId: socket.id,
       schemaVersion: 2,
@@ -197,6 +229,10 @@ export function attachRealtime(app: FastifyInstance): GameRealtimeServer {
     });
 
     socket.on("disconnect", () => {
+      disconnected = true;
+      if (authRevalidationTimer) clearTimeout(authRevalidationTimer);
+      authRevalidationTimer = null;
+      socket.data.accessToken = "";
       unsubscribe?.();
       unsubscribe = null;
     });

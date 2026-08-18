@@ -4,6 +4,25 @@ import { PostgresGameEventBus } from "./postgres-event-bus";
 import { PostgresGameRepository } from "./postgres-repository";
 import type { GameRepository } from "./repository";
 
+export const defaultSocketAuthRevalidationIntervalMs = 60_000;
+
+export function socketAuthRevalidationInterval(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): number {
+  const configured = env.GAME_SERVER_SOCKET_AUTH_REVALIDATION_MS;
+  if (configured === undefined) return defaultSocketAuthRevalidationIntervalMs;
+  if (!/^\d+$/.test(configured)) {
+    throw new Error("GAME_SERVER_SOCKET_AUTH_REVALIDATION_MS must be a positive integer.");
+  }
+  const milliseconds = Number(configured);
+  if (!Number.isSafeInteger(milliseconds) || milliseconds < 10_000) {
+    throw new Error(
+      "GAME_SERVER_SOCKET_AUTH_REVALIDATION_MS must be a safe integer of at least 10000.",
+    );
+  }
+  return milliseconds;
+}
+
 export interface RuntimeDependencies {
   readonly authVerifier?: AuthVerifier;
   readonly eventBus?: GameEventBusPort;

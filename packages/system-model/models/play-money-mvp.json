@@ -240,7 +240,7 @@
         "verification": "direct",
         "lifecycle": "active"
       },
-      "summary": "Bekräftar Socket.IO-anslutningen med ett strikt, versionslåst och direkt socket-testat v2-payload.",
+      "summary": "Bekräftar Socket.IO-anslutningen med ett strikt, versionslåst och direkt socket-testat v2-payload; Supabase-token omverifieras därefter periodiskt och ogiltig eller identitetsändrad session kopplas ned.",
       "payload": "ServerReadyV2",
       "eventTypes": []
     },
