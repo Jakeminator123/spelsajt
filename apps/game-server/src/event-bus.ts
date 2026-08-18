@@ -1,10 +1,12 @@
 import { gameEventV2Schema, type GameEventV2 } from "@spelsajt/contracts";
 
 export type GameEventListener = (events: readonly GameEventV2[]) => void;
+export type GameEventBusReadinessListener = (ready: boolean) => void;
 
 export interface GameEventBusPort {
   close?(): Promise<void>;
   isReady?(): boolean;
+  onReadinessChange?(listener: GameEventBusReadinessListener): () => void;
   publish(events: readonly GameEventV2[]): void;
   start?(): Promise<void>;
   subscribe(tableId: string, listener: GameEventListener): () => void;

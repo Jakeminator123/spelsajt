@@ -49,9 +49,18 @@ function commandBase(commandId: string, tableId: string, expectedRevision: numbe
   return { commandId, expectedRevision, issuedAt, schemaVersion: 2 as const, tableId };
 }
 
-async function createServer(userId: string) {
+interface CreateServerOptions {
+  readonly applicationName?: string;
+  readonly onRelayError?: (error: unknown) => void;
+}
+
+async function createServer(userId: string, options: CreateServerOptions = {}) {
   if (!databaseUrl) throw new Error("SUPABASE_DATABASE_URL is required.");
-  const eventBus = new PostgresGameEventBus({ connectionString: databaseUrl });
+  const eventBus = new PostgresGameEventBus({
+    application_name: options.applicationName,
+    connectionString: databaseUrl,
+    onError: options.onRelayError,
+  });
   const app = buildApp({
     authVerifier: authenticatedAs(userId),
     clock: () => issuedAt,
@@ -64,7 +73,7 @@ async function createServer(userId: string) {
   const realtime = attachRealtime(app);
   openRealtime.add(realtime);
   const address = await app.listen({ host: "127.0.0.1", port: 0 });
-  return { address, app };
+  return { address, app, eventBus };
 }
 
 async function connect(address: string): Promise<Socket> {
@@ -220,5 +229,65 @@ databaseDescribe("Postgres realtime relay", () => {
     );
     expect(new Set(remoteEvents.map((event) => event.sequence)).size).toBe(remoteEvents.length);
     unsubscribeLocal();
+  });
+
+  it("fails closed when the Postgres relay connection is lost and recovers via another server", async () => {
+    if (!admin) throw new Error("Database pool is unavailable.");
+    const userId = randomUUID();
+    const tableId = `db-relay-failure-${randomUUID()}`;
+    const applicationName = `relay-${randomUUID()}`;
+    const relayErrors: unknown[] = [];
+    await admin.query(
+      "insert into auth.users (id, email) values ($1, $2)",
+      [userId, `${userId}@example.test`],
+    );
+    const failedServer = await createServer(userId, {
+      applicationName,
+      onRelayError: (error) => relayErrors.push(error),
+    });
+    const prepare = await failedServer.app.inject({
+      headers: authHeaders,
+      method: "POST",
+      url: `/v2/tables/${tableId}/commands`,
+      payload: {
+        ...commandBase(randomUUID(), tableId, 0),
+        type: "PREPARE_ROUND",
+        payload: { game: "blackjack" },
+      },
+    });
+    expect(prepare.statusCode).toBe(200);
+
+    const failedSocket = await connect(failedServer.address);
+    const initialSnapshotPromise = snapshotOnce(failedSocket);
+    expect(await subscribe(failedSocket, tableId)).toMatchObject({ status: "accepted", tableId });
+    expect(await initialSnapshotPromise).toMatchObject({ lastSequence: 1, revision: 1, tableId });
+    const disconnected = eventOnce(failedSocket, "disconnect");
+    const terminated = await admin.query<{ readonly terminated: boolean }>(
+      `select pg_terminate_backend(pid) as terminated
+         from pg_stat_activity
+        where application_name = $1 and pid <> pg_backend_pid()`,
+      [applicationName],
+    );
+    expect(terminated.rows).toEqual([{ terminated: true }]);
+
+    expect(await disconnected).toBe("io server disconnect");
+    expect(failedServer.eventBus.isReady()).toBe(false);
+    expect(relayErrors.length).toBeGreaterThan(0);
+    expect((await failedServer.app.inject({ method: "GET", url: "/ready" })).statusCode).toBe(503);
+    const refused = createSocket(failedServer.address, {
+      auth: { accessToken: "integration-token", schemaVersion: 2 },
+      forceNew: true,
+      reconnection: false,
+      transports: ["websocket"],
+    });
+    openSockets.add(refused);
+    const unavailable = await eventOnce(refused, "connect_error") as Error;
+    expect(unavailable.message).toBe("SERVER_UNAVAILABLE");
+
+    const healthyServer = await createServer(userId);
+    const recoveredSocket = await connect(healthyServer.address);
+    const recoveredSnapshotPromise = snapshotOnce(recoveredSocket);
+    expect(await subscribe(recoveredSocket, tableId)).toMatchObject({ status: "accepted", tableId });
+    expect(await recoveredSnapshotPromise).toMatchObject({ lastSequence: 1, revision: 1, tableId });
   });
 });

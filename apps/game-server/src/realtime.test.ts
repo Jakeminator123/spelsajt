@@ -14,6 +14,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { FairnessSource } from "./application";
 import { buildApp } from "./app";
 import type { AuthVerifier } from "./auth";
+import {
+  GameEventBus,
+  type GameEventBusReadinessListener,
+} from "./event-bus";
 import { attachRealtime, type GameRealtimeServer } from "./realtime";
 
 const issuedAt = "2026-08-18T10:00:00.000Z";
@@ -44,6 +48,26 @@ const deterministicFairness: FairnessSource = {
     { cardId: "live:dealer-hit", rank: "K", suit: "hearts" },
   ],
 };
+
+class SwitchableGameEventBus extends GameEventBus {
+  readonly #readinessListeners = new Set<GameEventBusReadinessListener>();
+  #ready = true;
+
+  override isReady(): boolean {
+    return this.#ready;
+  }
+
+  onReadinessChange(listener: GameEventBusReadinessListener): () => void {
+    this.#readinessListeners.add(listener);
+    return () => this.#readinessListeners.delete(listener);
+  }
+
+  setReady(ready: boolean): void {
+    if (this.#ready === ready) return;
+    this.#ready = ready;
+    for (const listener of this.#readinessListeners) listener(ready);
+  }
+}
 
 function uuid(value: number): string {
   return `00000000-0000-4000-8000-${String(value).padStart(12, "0")}`;
@@ -270,5 +294,34 @@ describe("game realtime", () => {
     const error = await eventOnce(socket, "connect_error") as Error;
     expect(error.message).toBe("UNAUTHENTICATED");
     expect(socket.connected).toBe(false);
+  });
+
+  it("disconnects clients and rejects new sockets while the event relay is unavailable", async () => {
+    const eventBus = new SwitchableGameEventBus();
+    const app = buildApp({ authVerifier, eventBus });
+    openApps.add(app);
+    const io = attachRealtime(app);
+    openRealtime.add(io);
+    const address = await app.listen({ host: "127.0.0.1", port: 0 });
+    const socket = await connect(address, "owner-token");
+    const disconnected = eventOnce(socket, "disconnect");
+
+    eventBus.setReady(false);
+
+    expect(await disconnected).toBe("io server disconnect");
+    expect(socket.connected).toBe(false);
+    const refused = createSocket(address, {
+      auth: { accessToken: "owner-token", schemaVersion: 2 },
+      forceNew: true,
+      reconnection: false,
+      transports: ["websocket"],
+    });
+    openSockets.add(refused);
+    const error = await eventOnce(refused, "connect_error") as Error;
+    expect(error.message).toBe("SERVER_UNAVAILABLE");
+
+    eventBus.setReady(true);
+    const recovered = await connect(address, "owner-token");
+    expect(recovered.connected).toBe(true);
   });
 });
