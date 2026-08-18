@@ -7,6 +7,7 @@ import { type Group, Vector3 } from "three";
 
 import { clamp01, easeOutCubic, lerp } from "./scene/animation";
 import { Croupier, type CroupierVisualPose } from "./scene/croupier";
+import { DummyHeroCards } from "./scene/dummy-card-decoration";
 import { PlayingCard } from "./scene/playing-card";
 import {
   type PresentationCard,
@@ -162,6 +163,7 @@ function Scene({
   roulettePhase,
   rouletteTransitionKey,
   showChips,
+  showDummyCards,
 }: {
   cards: readonly PresentationCard[];
   croupierVisualPose: CroupierVisualPose;
@@ -169,6 +171,7 @@ function Scene({
   roulettePhase: RouletteVisualPhase;
   rouletteTransitionKey: string;
   showChips: boolean;
+  showDummyCards: boolean;
 }) {
   return (
     <>
@@ -188,6 +191,7 @@ function Scene({
       {cards.map((card, index) => (
         <DealtCard card={card} cards={cards} index={index} key={card.visualId} reduceMotion={false} />
       ))}
+      {showDummyCards ? <DummyHeroCards /> : null}
       {showChips ? <ChipStack position={[1.95, FELT_TOP + 0.03, 0.9]} /> : null}
       <Croupier pose={croupierVisualPose} position={[1.8, FELT_TOP, -1.15]} reduceMotion={false} />
       <ContactShadows blur={2.8} color="#04060a" far={2.2} opacity={0.5} position={[0, FELT_TOP + 0.001, 0]} resolution={512} scale={12} />
@@ -273,6 +277,7 @@ export function CasinoScene() {
     ? `${STAGE_LABELS[presentation.stage]} · ${result.pocket} ${ROULETTE_COLOUR_LABELS[result.colour]}`
     : STAGE_LABELS[presentation.stage];
   const fallback = presentation.activeCue?.reducedMotionText ?? status;
+  const showDummyCards = presentation.cards.length === 0;
 
   if (reduceMotion === null) {
     return <div className="scene-loading">Läser rörelseinställning...</div>;
@@ -305,8 +310,15 @@ export function CasinoScene() {
           roulettePhase={roulettePhase}
           rouletteTransitionKey={rouletteTransitionKey}
           showChips={presentation.rouletteBets.length > 0}
+          showDummyCards={showDummyCards}
         />
       </Canvas>
+      {showDummyCards ? (
+        <div className="scene-dummy-label" role="note">
+          <span>DUMMYKORT</span>
+          <strong>Frikopplad dekoration · ej speldata</strong>
+        </div>
+      ) : null}
       <div className="scene-phase">
         <span className="scene-phase-dot" data-phase={stageDataPhase(presentation.stage)} />
         <span className="scene-phase-label">{status}</span>

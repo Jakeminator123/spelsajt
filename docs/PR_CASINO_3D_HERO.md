@@ -49,8 +49,11 @@ rank, suit eller kort-id till scenen.
   `roulette.spin-started`-cuen;
 - demotranscriptets `roulette.result` anger pocket 17, och först då riktas kulan
   mot motsvarande mål;
-- blackjackkort skapas från deal/reveal-cues och ett dolt kort visas endast som
-  en anonym baksida; inga dekorationskort skapas utan blackjackevents;
+- blackjackkort som hör till spelpresentationen skapas endast från
+  deal/reveal-cues, och ett dolt kort visas endast som en anonym baksida;
+- hero-bilden har dessutom tre fast märkta dummy-kort i
+  `scene/dummy-card-decoration.tsx`. De saknar `cardId`, ligger utanför
+  `presentationStore` och är ren dekoration, aldrig speldata;
 - `PoseMixer` cross-fadar croupierns godkända poser utifrån presentationscues;
 - scenen räknar inte payout, saldo, kort eller roulettepocket.
 
