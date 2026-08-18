@@ -16,6 +16,8 @@
     "@spelsajt/config": "workspace:*"
   },
   "devDependencies": {
+    "@spelsajt/fairness": "workspace:*",
+    "@types/node": "24.13.3",
     "typescript": "6.0.3",
     "vitest": "4.1.10"
   }

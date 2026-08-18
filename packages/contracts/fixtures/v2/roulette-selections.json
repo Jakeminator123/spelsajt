@@ -1,0 +1,12 @@
+[
+  { "type": "straight", "pocket": 0 },
+  { "type": "split", "pockets": [0, 1] },
+  { "type": "street", "start": 1 },
+  { "type": "corner", "topLeft": 1 },
+  { "type": "six-line", "start": 1 },
+  { "type": "column", "column": 1 },
+  { "type": "dozen", "dozen": 1 },
+  { "type": "red-black", "colour": "red" },
+  { "type": "odd-even", "parity": "odd" },
+  { "type": "low-high", "range": "low" }
+]

@@ -1,20 +1,24 @@
-import { gameCommandTypes, gameEventTypes, gameNames } from "@spelsajt/contracts";
+import {
+  gameCommandTypesV2,
+  gameEventTypesV2,
+  gameNamesV2,
+} from "@spelsajt/contracts";
 import { z } from "zod";
 
 const idSchema = z.string().regex(/^[a-z0-9]+(?:[._-][a-z0-9]+)*$/);
 const sourcePathSchema = z.string().regex(/^[a-z0-9][a-zA-Z0-9._/-]+$/);
 
 export const maturitySchema = z.strictObject({
-  contract: z.enum(["zod-v1", "ad-hoc", "none"]),
+  contract: z.enum(["zod-v2", "zod-v1", "ad-hoc", "none"]),
   lifecycle: z.enum(["active", "planned", "deprecated"]),
   runtime: z.enum(["implemented", "partial", "absent"]),
   verification: z.enum(["direct", "partial", "fixture-only", "none"]),
 });
 
 const ownerSchema = z.enum(["backend", "frontend", "shared"]);
-const gameSchema = z.enum(gameNames);
-const commandTypeSchema = z.enum(gameCommandTypes);
-const eventTypeSchema = z.enum(gameEventTypes);
+const gameSchema = z.enum(gameNamesV2);
+const commandTypeSchema = z.enum(gameCommandTypesV2);
+const eventTypeSchema = z.enum(gameEventTypesV2);
 
 const nodeSchema = z.strictObject({
   id: idSchema,
@@ -71,6 +75,14 @@ const presentationCueSchema = z.strictObject({
   maturity: maturitySchema,
 });
 
+const presentationIgnoreSchema = z.strictObject({
+  eventType: eventTypeSchema,
+  game: gameSchema,
+  id: idSchema,
+  maturity: maturitySchema,
+  reason: z.string().min(1),
+});
+
 const stepBaseSchema = z.strictObject({
   detail: z.string().min(1),
   id: idSchema,
@@ -121,8 +133,9 @@ export const systemModelSchema = z.strictObject({
   interfaces: z.array(z.discriminatedUnion("kind", [httpInterfaceSchema, realtimeInterfaceSchema])).min(1),
   nodes: z.array(nodeSchema).min(1),
   presentationCues: z.array(presentationCueSchema).min(1),
+  presentationIgnores: z.array(presentationIgnoreSchema),
   scenarios: z.array(scenarioSchema).min(1),
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   title: z.string().min(1),
 });
 
@@ -134,8 +147,8 @@ export function buildSystemModelJsonSchema(): Record<string, unknown> {
 
   return {
     ...JSON.parse(JSON.stringify(generated)) as Record<string, unknown>,
-    $id: "https://schemas.spelsajt.local/v1/system-model.schema.json",
-    title: "Spelsajt system model v1",
+    $id: "https://schemas.spelsajt.local/v2/system-model.schema.json",
+    title: "Spelsajt system model v2",
   };
 }
 

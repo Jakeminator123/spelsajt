@@ -1,0 +1,14 @@
+{
+  "eventId": "33333333-3333-4333-8333-333333333315",
+  "occurredAt": "2026-08-18T00:00:03.000Z",
+  "revision": 3,
+  "roundId": "22222222-2222-4222-8222-222222222223",
+  "schemaVersion": 2,
+  "sequence": 6,
+  "tableId": "table-roulette-1",
+  "type": "roulette.result",
+  "payload": {
+    "colour": "black",
+    "pocket": 17
+  }
+}

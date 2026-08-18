@@ -31,8 +31,8 @@ describe("game server", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       games: {
-        blackjack: { decks: 6, rulesetId: "mvp-v1" },
-        roulette: { pockets: 37, rulesetId: "mvp-v1" },
+        blackjack: { decks: 6, rulesetId: "mvp-v2" },
+        roulette: { pockets: 37, rulesetId: "mvp-v2" },
       },
       mode: "play-money",
     });

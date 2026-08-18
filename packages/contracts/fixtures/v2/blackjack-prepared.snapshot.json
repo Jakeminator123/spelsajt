@@ -1,0 +1,24 @@
+{
+  "balance": "10000",
+  "game": "blackjack",
+  "lastSequence": 1,
+  "revision": 1,
+  "round": {
+    "fairness": {
+      "algorithm": "pf-v1",
+      "commitment": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "nonce": 0
+    },
+    "revision": 1,
+    "roundId": "22222222-2222-4222-8222-222222222220",
+    "rulesetHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "rulesetId": "mvp-v2",
+    "game": "blackjack",
+    "activeHandId": null,
+    "dealerCards": [],
+    "hands": [],
+    "phase": "prepared"
+  },
+  "schemaVersion": 2,
+  "tableId": "table-blackjack-1"
+}

@@ -1,0 +1,15 @@
+{
+  "eventId": "33333333-3333-4333-8333-333333333316",
+  "occurredAt": "2026-08-18T00:00:03.100Z",
+  "revision": 4,
+  "roundId": "22222222-2222-4222-8222-222222222223",
+  "schemaVersion": 2,
+  "sequence": 7,
+  "tableId": "table-roulette-1",
+  "type": "roulette.bet.settled",
+  "payload": {
+    "betId": "bet-1",
+    "payout": "900",
+    "won": true
+  }
+}

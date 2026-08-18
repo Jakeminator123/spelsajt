@@ -1,170 +1,189 @@
 # System canvas
 
-Det här är den mänskliga kartan över hur blackjack och europeisk roulette ska hänga ihop från spelarens knapptryckning till serverbeslut, bokföring, event och presentation. Den körbara motsvarigheten finns i [`packages/system-model/models/play-money-mvp.json`](../packages/system-model/models/play-money-mvp.json) och kan visas som en enkel, levande textvy på [`/system`](http://localhost:3000/system) när webbappen körs lokalt.
+Det här är den mänskliga kartan över hur blackjack och europeisk roulette hänger ihop från spelarens knapptryckning till serverbeslut, bokföring, event och presentation. Den körbara motsvarigheten finns i [`packages/system-model/models/play-money-mvp.json`](../packages/system-model/models/play-money-mvp.json) och visas som en enkel textvy på [`/system`](http://localhost:3000/system) när webbappen körs lokalt.
 
-Canvasen är navigationshjälp, inte en alternativ implementation. Spelregler, nätverksformat, databasschema och fairness bestäms av sina respektive auktoritativa källor enligt [engineeringavtalet](ENGINEERING.md).
+Canvasen är navigationshjälp, inte en alternativ implementation. Den aktiva play-money-profilen är `mvp-v2`. `mvp-v1` är bevarad som historisk, publicerad profil och ändras inte i efterhand. Spelregler, nätverksformat, databasschema och fairness bestäms av sina respektive auktoritativa källor enligt [engineeringavtalet](ENGINEERING.md).
 
 ## Så läser man status
 
 Tre ord används medvetet olika:
 
 - **Implementerad** betyder att funktionen finns i runtime i den utpekade källfilen.
-- **Kontrakterad** betyder att ett Zod-format och normalt en fixture finns, men inte nödvändigtvis någon serverroute eller realtime-leverans.
-- **Planerad** betyder att modellen beskriver önskat gränssnitt eller flöde som ännu inte finns i runtime.
+- **Kontrakterad** betyder att ett Zod-format och fixtures finns, men inte nödvändigtvis någon serverroute eller realtime-leverans.
+- **Planerad** betyder att gränssnittet eller flödet ännu inte finns i runtime.
 
-Den maskinläsbara modellen är mer exakt och delar status i fyra oberoende axlar: `runtime`, `contract`, `verification` och `lifecycle`. Det hindrar exempelvis ett Zod-kontrakterat event från att av misstag beskrivas som implementerat.
+Direkta motortester bevisar motorbeteende, inte serverorkestrering. En kontrakterad v2-route är därför fortfarande planerad tills game-server faktiskt validerar, persisterar och levererar den.
 
 ## Systemet i en bild
 
 ```mermaid
 flowchart LR
     UI["Spelyta och kontroller"]
-    API["Command API (planerat)"]
-    CORE["TypeScript state machine (delvis byggd)"]
+    API["Command API /v2 (planerat)"]
+    CORE["Blackjack + roulette TS state machines (implementerade)"]
     FAIR["Fairness-kärna"]
-    TX["Atomisk PLAY-ledger (planerad tjänst)"]
-    EVENTS["Sekvensnumrerad eventström (planerad)"]
-    PLAN["Reaction Planner (planerad)"]
+    TX["Serveradapter + atomisk PLAY-ledger (planerade)"]
+    EVENTS["Sekvensnumrerad v2-eventström (planerad)"]
+    PLAN["Reaction Planner (planerad frontend)"]
     SCENE["Text, 2D eller 3D-scen"]
     VERIFY["Fairness-verifierare"]
 
-    UI -->|"GameCommand"| API
+    UI -->|"GameCommandV2"| API
     API -->|"validerad avsikt"| CORE
-    FAIR -->|"deterministiska bytes"| CORE
-    CORE -->|"ny state + ledger intent"| TX
+    FAIR -->|"injicerad sko eller pocket"| CORE
+    CORE -->|"ny state + domänevents + ledger intent"| TX
     TX -->|"committat resultat"| EVENTS
-    EVENTS -->|"GameEvent"| PLAN
-    PLAN -->|"presentation intent"| SCENE
+    EVENTS -->|"GameEventV2"| PLAN
+    PLAN -->|"lokalt presentation intent"| SCENE
     EVENTS -->|"seed och runddata"| VERIFY
 ```
 
-Backend avgör alltid state, utfall, payout och saldo. Frontend får endast skicka spelarens avsikt och presentera serverns semantiska events. Animationen får aldrig skapa ett konkurrerande visuellt utfall.
+Backend avgör alltid state, utfall, payout och saldo. Frontend skickar endast spelarens avsikt och presenterar serverns semantiska events. Animationen får aldrig skapa ett konkurrerande visuellt utfall.
 
 ## Vad som faktiskt finns nu
 
 | Yta | Status | Sanning och kommentar |
 | --- | --- | --- |
+| Ruleset `mvp-v2` | Implementerad och aktiv | Fryst JSON, schema, semantisk hash och golden vectors finns. `mvp-v1` är historisk. |
+| Blackjackmotor | Implementerad och direkt testad | Ren TypeScript-state-machine i `packages/game-core`; stödjer satsning, deal, peek, hit, stand, double, split, dealerupplösning och settlement. |
+| Roulettemotor | Implementerad och direkt testad | Ren TypeScript-state-machine i `packages/game-core`; stödjer hela rundlivscykeln, alla tio bettyper och settlement för 0–36. |
+| Fairness | Implementerad kärna | Deterministisk byte-stream, rejection sampling, shuffle och Node/Web Crypto-golden vectors finns. Rundorkestrering återstår. |
+| V2 commands, events, snapshots och ack | Kontrakterade och fixture-testade | Zod finns i `packages/contracts/src/v2.ts`; genererade scheman och fixtures finns under respektive `v2`-katalog. |
 | `GET /health` | Implementerad | Ad hoc-svar i `apps/game-server/src/app.ts`, med servertest. |
-| `GET /v1/status` | Implementerad | Publicerar play-money-läge och rulesetprojektioner, med servertest. |
+| `GET /v1/status` | Implementerad | Det äldre status-URL:et publicerar nu projektioner från aktivt `mvp-v2`; det är inte v2 commandtransport. |
 | Socket.IO `server.ready` | Implementerad | Bekräftar anslutning men är ännu inte Zod-kontrakterad. |
-| Commands och domänevents | Kontrakterade | Zod v1 och fixtures finns i `packages/contracts`; ingen command-route eller `game.event`-ström kör dem ännu. |
-| Blackjackmotor | Delvis implementerad | Rulesetprojektion och handvärdering finns; komplett state machine och settlement saknas. |
-| Roulettemotor | Delvis implementerad | Rulesetprojektion och färgmappning finns; betmodell, state machine och payout saknas. |
-| Fairness | Implementerad kärna | Deterministisk byte-stream, unbiased mappning och golden vectors finns; rundorkestrering återstår. |
-| PLAY-ledger | Delvis implementerad | Databasschemat och skydd finns; atomisk command-/settlementtjänst återstår. |
-| Webbpresentation | Delvis implementerad | En responsiv 3D-scaffold finns; den reagerar ännu inte på inspelade `GameEvent`. |
-| `/system` | Dokumentationsyta | Visar den validerade systemmodellen och scenarierna; den är inte ett spel eller driftbevis. |
+| Serveradapter för v2 | Planerad | Mappning mellan transportsträngar/metadata och motorns numeriska domäntyper finns inte ännu. |
+| Atomisk command- och settlementtjänst | Planerad | Databasschema, grants och RLS finns, men idempotent command, motortransition och ledgercommit binds ännu inte ihop i en transaktion. |
+| `game.event` och snapshots över realtime | Planerade | V2-format finns, men sekvenslagring, återläsning och Socket.IO-leverans saknas. |
+| Webbpresentation | Delvis implementerad | En responsiv 3D-scaffold finns; en uttömmande Reaction Planner för v2-events återstår. |
+| `/system` | Dokumentationsyta | Visar den validerade systemmodellen; den är inte ett spel eller driftbevis. |
 
-Använd den levande [`/system`](http://localhost:3000/system)-vyn för aktuell komponentstatus och två stegvisa textscenarier. Läs JSON-modellen när en annan LLM eller ett verktyg behöver samma karta i maskinläsbar form.
+## V2-transporten vi bygger mot
 
-## Transporten vi bygger mot
-
-De två befintliga GET-routes ovan är de enda implementerade HTTP-ytorna. Följande transport är uttryckligen **planerad**:
+De två HTTP-routes som ska bära speltrafik ligger under `/v2`. De är kontrakterade men ännu inte implementerade:
 
 | Gränssnitt | Syfte | Status |
 | --- | --- | --- |
-| `POST /v1/tables/{tableId}/commands` | Gemensam, idempotent ingress för alla `GameCommand`. | Planerad; Zod-payloads finns. |
-| `GET /v1/tables/{tableId}/snapshot` | Auktoritativ återställning vid anslutning eller sekvensgap. | Planerad; ett minimalt snapshotkontrakt finns. |
-| Socket.IO `game.event` | En kanal för sekvensnumrerade `GameEvent`. | Planerad; eventunionen finns. |
-| Socket.IO `table.snapshot` | Snapshot vid reconnect eller saknade events. | Planerad; transporten saknas. |
+| `POST /v2/tables/{tableId}/commands` | Gemensam, idempotent ingress för `GameCommandV2`. | Planerad; command- och ack-scheman finns. |
+| `GET /v2/tables/{tableId}/snapshot` | Auktoritativ återställning vid anslutning eller sekvensgap. | Planerad; fullständiga snapshots finns. |
+| Socket.IO `game.event` | En kanal för sekvensnumrerade `GameEventV2`. | Planerad; eventunionen finns. |
+| Socket.IO `table.snapshot` | V2-snapshot vid reconnect eller saknade events. | Planerad; payload finns, transporten saknas. |
 
-Animationer reagerar alltså på **eventtyper i `game.event`**, inte på en egen endpoint per animation. Det håller nätverksprotokollet stabilt när Emil byter från text till CSS, GLB eller en annan renderer.
+De historiska v1-kontrakten och fixtures ligger kvar för kompatibilitet och regression. Någon `/v1/tables/...`-speltransport ska inte byggas nu.
 
-## Commands till presentation
+### Exakta v2-commands
 
-### Blackjack
+| Commandtyp | Avsikt |
+| --- | --- |
+| `PREPARE_ROUND` | Förbered commitment, nonce och vald speltyp före insats. |
+| `BLACKJACK_PLACE_BET` | Satsa ett positivt, jämnt heltalsbelopp i PLAY och starta blackjackrundan. |
+| `BLACKJACK_ACTION` | Begär `hit`, `stand`, `double` eller `split` på en viss aktiv hand. |
+| `ROULETTE_PLACE_BETS` | Placera en eller flera strukturerade roulettebets för rundan. |
+| `ROULETTE_SPIN` | Lås och avgör den befintliga rundan; klienten skickar aldrig önskad pocket. |
 
-```mermaid
-stateDiagram-v2
-    [*] --> WaitingForBet
-    WaitingForBet --> PlayerTurn: "PLACE_BET accepterad"
-    PlayerTurn --> PlayerTurn: "BLACKJACK_ACTION hit/split"
-    PlayerTurn --> DealerTurn: "BLACKJACK_ACTION stand/double eller färdig hand"
-    DealerTurn --> Settled: "dealer klar och ledger committad"
-    Settled --> WaitingForBet: "nästa runda"
-```
+Varje command har `commandId`, `expectedRevision`, `issuedAt`, `schemaVersion: 2` och `tableId`. Acknowledgement skiljer explicit mellan `accepted`, `replayed` och `rejected`. Idempotens är kontrakterad men blir inte verklig förrän server och databas implementerar den.
 
-Tillstånden ovan är en plan för den kommande state machinen, inte dagens runtime-API.
+### Exakta semantiska v2-events
 
-1. Webben skapar `PLACE_BET` och väntar på serverbekräftelse.
-2. Servern validerar kontrakt, behörighet, idempotens och saldo.
-3. Blackjack-state-machinen använder injicerade fairness-bytes och ruleset `mvp-v1`.
-4. Runda, fairness och ledger committas atomiskt.
-5. Servern skickar bland annat `round.started`, `blackjack.card.dealt` och slutligen `round.settled`.
-6. Frontend mappar eventen till exempelvis bordstart, deal, kortvisning och resultatreaktion.
+Följande 16 eventtyper utgör hela `GameEventV2`-unionen:
 
-Det nuvarande v1-kontraktet innehåller tyvärr fortfarande `card` även när `faceUp` är `false`. Frontend måste ignorera värdet. Innan någon spelserver börjar emittera kort-events ska en versionshanterad v2 ta bort fältet för nedvända kort och lägga till ett auktoritativt reveal-event eller en tillräcklig snapshot.
-
-### Europeisk roulette
-
-```mermaid
-stateDiagram-v2
-    [*] --> AcceptingBets
-    AcceptingBets --> Locked: "PLACE_BET och spin begärd"
-    Locked --> Spinning: "utfall reserverat av servern"
-    Spinning --> Settled: "roulette.result och ledger commit"
-    Settled --> AcceptingBets: "nästa runda"
-```
-
-Även dessa tillstånd är planerade, inte implementerade routes eller publika eventnamn.
-
-1. Bettingmattan samlar spelarens marker utan att räkna fram ett utfall.
-2. Servern validerar en framtida strukturerad betmodell och reserverar insatsen atomiskt.
-3. `ROULETTE_SPIN` begär settlement; klienten skickar aldrig önskat pocketnummer.
-4. Fairness-kärnan härleder ett unbiased värde från 0 till 36.
-5. `roulette.result` är enda sanningen för var hjulet och bollen ska landa.
-6. `round.settled` uppdaterar resultat, payout och saldo efter databascommit.
-
-## Eventmatris för Emil
-
-Emil kan bygga presentationen mot incheckade fixtures innan servertransporten finns. Mappningen ska ligga i frontendens presentationslager och vara uttömmande typkontrollerad; den får inte kopieras till spelmotorn.
-
-| Kontrakterad eventtyp | Frontend får presentera | Frontend får inte göra |
+| Domän | Eventtyp | Presentationsbetydelse |
 | --- | --- | --- |
-| `round.started` | Nollställ scenen, visa commitment och starta bordets rundläge. | Anta kort, pocket eller payout. |
-| `blackjack.card.dealt` | Animera deal till angiven mottagare/hand; visa endast `card` när `faceUp` är `true`. | Läsa eller gissa ett dolt kort. |
-| `roulette.result` | Bromsa hjul och boll mot `payload.pocket`; erbjuda textfallback. | Slumpa eller korrigera vinnande pocket lokalt. |
-| `round.settled` | Visa outcome, payout, nytt saldo och verifieringsmöjlighet. | Räkna auktoritativt saldo eller settle:a rundan. |
-| `reaction.cue` | Välja en godkänd reaktion från actor, mood och intensity. | Ändra spelstate eller låta AI skapa godtycklig kod/animation. |
+| Runda | `round.prepared` | Commitment, fairnessalgoritm, nonce och ruleset är publicerade. |
+| Runda | `round.started` | Insatsen är accepterad och rundan har startat. |
+| Blackjack | `blackjack.bet.accepted` | En blackjackinsats och handidentitet är accepterade. |
+| Blackjack | `blackjack.card.dealt` | Ett synligt eller uttryckligen dolt kort har delats. |
+| Blackjack | `blackjack.card.revealed` | Dealerns tidigare dolda kort får nu visas. |
+| Blackjack | `blackjack.action.accepted` | En viss spelaråtgärd är accepterad av motorn. |
+| Blackjack | `blackjack.hand.split` | Ursprungshanden har ersatts av två identifierade händer. |
+| Blackjack | `blackjack.turn.changed` | Aktiv hand, tillåtna actions och fas har ändrats. |
+| Blackjack | `blackjack.hand.settled` | En enskild hand har outcome, total och payout. |
+| Roulette | `roulette.betting.opened` | Bettingfasen är öppen. |
+| Roulette | `roulette.bet.placed` | En validerad bet är placerad och total insats är uppdaterad. |
+| Roulette | `roulette.bets.locked` | Inga fler bets får läggas i rundan. |
+| Roulette | `roulette.spin.started` | Scenen får starta spinnanimationen utan att välja slutresultat. |
+| Roulette | `roulette.result` | Auktoritativ pocket och färg får visas. |
+| Roulette | `roulette.bet.settled` | En viss bet har vinststatus och payout. |
+| Runda | `round.settled` | Slutligt saldo, total payout, outcome och fairness reveal är committade. |
 
-Fixtures finns i [`packages/contracts/fixtures/v1`](../packages/contracts/fixtures/v1). Systemmodellens blackjack- och roulettescenarier binder ihop commands, systemsteg, event och presentations-cues. De är dokumentationsscenarier, inte ännu fullständiga inspelningar från spelservern.
+Det finns inget `reaction.cue`-domänevent i v2. Reaktioner är en frontendhärledning från eventen ovan och får inte bli ytterligare en backend-sanning.
 
-## Kända gap i kontrakt v1
+### V2-snapshots och dolda kort
 
-V1 är en bra gräns för scaffolden men ännu inte tillräcklig för komplett spel:
+Blackjacksnapshoten beskriver faserna `prepared`, `player`, `dealer` och `settled`, inklusive händer, aktiv hand och tillåtna actions. Roulettesnapshoten beskriver `prepared`, `betting`, `locked`, `spinning` och `settled`, inklusive bets, total wager och resultat när det är känt.
 
-- `PLACE_BET` anger spel och belopp men saknar roulettens betpositioner och bettyper.
-- `GameSnapshot` saknar fas, aktiva händer, dealerstate, roulettebets och tillåtna actions; det räcker inte för full reconnect.
-- Det saknas kontrakterad command-ack, avvisningsorsak och idempotent replay-status.
-- Blackjack saknar ett uttryckligt reveal-event och settlement per hand efter split.
-- Blackjack-v1 kräver fortfarande kortvärdet även för `faceUp:false`; det får inte användas i runtime innan ett säkert v2-kontrakt finns.
-- Roulette saknar flera samtidiga bettickets och payoutdetaljer per bet.
-- `reaction.cue` saknar ännu source-event, gesture/speech-intent, prioritet och avbrottsregel.
-- Eventlagring, sekvensåterläsning och snapshottransport är planerade men inte implementerade.
+V2:s dolda blackjackkort är säkert genom en discriminated union. När `faceUp` är `false` finns inget `card`, inget `cardId`, ingen rank och ingen suit i eventet eller den publika spelar-snapshoten. Kortet blir publikt först via `blackjack.card.revealed` eller en senare fas där alla kort är synliga. V1:s osäkra form är historisk och får inte användas för ny speltransport.
 
-Ett gap löses först i den auktoritativa Zod-källan, med schema-/fixtureuppdatering och tester. En kompatibilitetsbrytning ska versionshanteras; den får inte döljas i UI-kod eller en dokumentationstabell.
+Fixtures för hela unionen finns i [`packages/contracts/fixtures/v2`](../packages/contracts/fixtures/v2). Emil kan bygga och testa presentationen mot dem innan servertransporten finns.
 
-## Spelmotorbeslut
+## Blackjackmotorn
 
-Vi bygger en egen, ren TypeScript-motor i `packages/game-core` för båda spelen. Den ska bestå av deterministiska state machines som tar tidigare state, validerat command, ruleset och injicerad fairness-data och returnerar ny state, domänevents och ledger-intent. Paketet ska inte känna till HTTP, Socket.IO, Supabase, GLB, React eller AI.
+```mermaid
+stateDiagram-v2
+    [*] --> AwaitingBet
+    AwaitingBet --> PlayerTurn: "place-bet + injicerad sko"
+    PlayerTurn --> PlayerTurn: "hit eller nästa splithand"
+    PlayerTurn --> DealerResolution: "stand/double eller sista handen klar"
+    DealerResolution --> Settled: "dealer klar + settlement"
+```
 
-Externa GitHubprojekt används endast som referenser för state-machine-idéer, regler, UX och visuell inspiration. De importeras inte som auktoritativ motor och får aldrig äga RNG, payout eller saldo. Den tekniska bedömningen finns i [Spelmotor, 3D-avatarer och AI](PRESENTATION_AI.md).
+State-machinen är implementerad som rena transitioner i `packages/game-core`. Den muterar inte indata och tar en injicerad sko; den skapar inte själv slump eller saldo. Den aktiva `mvp-v2`-profilen låser bland annat sex kortlekar, American hole card med peek, S17, 3:2, double after split, högst en split, ett kort på splittade ess och att split-21 inte är blackjack.
 
-## Branchgräns för utseende
+Motorn producerar ny state, domänevents och ledger intents. Den planerade serveradaptern ska validera `GameCommandV2`, kontrollera behörighet/saldo/idempotens, tillföra fairnessdata, anropa transitionen och först efter databascommit omsluta eventen med `eventId`, `sequence`, `revision` och tid.
 
-Emils utseendebranch ska vara kortlivad och skapas från uppdaterad `main`. Den kan normalt ändra:
+## Roulettemotorn
 
-- `apps/web/src/**`;
-- `apps/web/public/**` när mappen finns;
-- webbspecifika tester och små presentationsanteckningar.
+```mermaid
+stateDiagram-v2
+    [*] --> Created
+    Created --> AcceptingBets: "OPEN_BETTING"
+    AcceptingBets --> AcceptingBets: "PLACE_BET"
+    AcceptingBets --> Locked: "LOCK_BETS"
+    Locked --> Spinning: "ROULETTE_SPIN + injicerad pocket"
+    Spinning --> Settled: "SETTLE"
+```
 
-Den ska konsumera `@spelsajt/contracts`, `@spelsajt/system-model` och fixtures utan att ändra deras format. Den ska normalt inte röra:
+State-machinen är implementerad och direkt testad för alla 37 europeiska pockets. Den validerar bordstopologi, heltalsbelopp och alla aktiva bettyper:
 
-- `packages/contracts`, `packages/system-model`, `packages/game-core`, `packages/fairness` eller `packages/config`;
-- `apps/game-server` eller `supabase`;
-- rootens packagefiler eller lockfil.
+- `straight`, `split`, `street`, `corner` och `six-line`;
+- `column` och `dozen`;
+- `red-black`, `odd-even` och `low-high`.
 
-Om presentationen upptäcker ett kontraktsgap görs en liten, separat och gemensamt granskad kontraktsändring först. Efter merge rebaseras utseendebranchen. Behåll `/system`, reduced-motion-fallback och textscenarier fungerande även när den visuella designen byts ut.
+Payoutmultiplikatorerna kommer från `mvp-v2`, och alla outside bets förlorar på noll. Motorn tar en serverinjicerad pocket och returnerar settlement samt ledger intent; den använder inte `Math.random`. V2-transporten buntar roulettebets i `ROULETTE_PLACE_BETS`, så serveradaptern måste mappa den publika commanden till motorns validerade transitioner.
+
+## Event till animation och AI
+
+Animationer reagerar på `GameEventV2`, inte på en endpoint per animation. Frontendens Reaction Planner ska göra en uttömmande, deterministisk mappning från event till lokala presentation intents. Några exempel:
+
+| Källevent | Tillåten lokal intention | Förbjudet |
+| --- | --- | --- |
+| `blackjack.card.dealt` | Deal-animation till rätt hand; visa kortfront endast när `faceUp:true`. | Läsa eller gissa ett dolt kort. |
+| `blackjack.card.revealed` | Vänd dealerns hålkort till den angivna kortidentiteten. | Välja ett annat kort för dramaturgi. |
+| `blackjack.turn.changed` | Markera aktiv hand och aktivera exakt angivna kontroller. | Härleda egna tillåtna actions. |
+| `roulette.spin.started` | Starta en neutral spinnloop. | Bestämma var bollen ska landa. |
+| `roulette.result` | Bromsa hjul och boll mot `payload.pocket`; visa textfallback. | Slumpa eller korrigera pocket lokalt. |
+| `blackjack.hand.settled` / `roulette.bet.settled` | Animera marker per hand eller bet. | Räkna om payout. |
+| `round.settled` | Visa slutresultat, nytt saldo och verifieringsmöjlighet. | Settle:a eller ändra saldo i frontend. |
+
+AI ligger efter Reaction Planner och är valfri. Den får förfina en godkänd ton eller replik, men spelögonblicket får inte vänta på modellen och AI får aldrig välja command, RNG, regler, payout, saldo, kort, pocket eller godtycklig animation. Den tekniska riktningen finns i [Spelmotor, 3D-avatarer och AI](PRESENTATION_AI.md).
+
+## Visuell baseline och branchgräns
+
+Den visuella referensen sätter en preliminär riktning: nära svart bas, acid-lime som primär actionfärg och violett som sekundär accent. Exakta färgtokens, kontrastnivåer och komponentdetaljer fastställs först i en granskad frontend-PR.
+
+Temat hör enbart hemma i presentationslagret. `packages/game-core`, `packages/contracts`, `packages/config`, fairness, server och databas får inte importera, hårdkoda eller fatta domänbeslut utifrån färger, GLB-filer eller andra visuella tokens.
+
+Emils utseendebranch kan normalt ändra `apps/web/src/**`, `apps/web/public/**`, webbspecifika tester och små presentationsanteckningar. Den ska konsumera `@spelsajt/contracts`, `@spelsajt/system-model` och v2-fixtures utan att ändra deras format. Ett kontraktsgap löses i en separat, gemensamt granskad ändring.
+
+## Kvar innan en spelbar server
+
+- Implementera `/v2` command- och snapshot-routes med autentisering, validering, revisionskontroll och idempotent replay.
+- Bygg serveradaptern mellan transportkontrakten, fairness, de två state-machinerna och ledger intents.
+- Kör command, state, fairnessmetadata, ledger och eventsekvens atomiskt i Supabase.
+- Persistiera och leverera `game.event` samt `table.snapshot`, inklusive reconnect från senaste sekvensnummer.
+- Implementera frontendens uttömmande Reaction Planner och testa den mot v2-fixtures med text- och reduced-motion-fallback.
+
+Ett gap löses först i den auktoritativa källan, med schema-/fixtureuppdatering och tester. En kompatibilitetsbrytning kräver en ny schema-, ruleset- eller algoritmversion; den får inte döljas i UI-kod eller dokumentation.
 
 ## När kartan ska ändras
 

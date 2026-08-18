@@ -1,0 +1,11 @@
+{
+  "commandId": "11111111-1111-4111-8111-111111111113",
+  "error": {
+    "code": "STALE_REVISION",
+    "detail": "Expected revision 2 but table is at revision 3."
+  },
+  "lastSequence": 9,
+  "revision": 3,
+  "schemaVersion": 2,
+  "status": "rejected"
+}

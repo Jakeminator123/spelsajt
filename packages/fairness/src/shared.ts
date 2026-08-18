@@ -11,6 +11,20 @@ export const fairnessAlgorithmId = "pf-v1" as const;
 const HEX_32_BYTES = /^[a-f0-9]{64}$/;
 const encoder = new TextEncoder();
 
+/** Returns null when rejection sampling must consume another uint32. */
+export function mapUint32ToBoundedInteger(candidate: number, maxExclusive: number): number | null {
+  if (!Number.isSafeInteger(maxExclusive) || maxExclusive < 1 || maxExclusive > 0x1_0000_0000) {
+    throw new RangeError("maxExclusive must be an integer from 1 through 2^32.");
+  }
+  if (!Number.isInteger(candidate) || candidate < 0 || candidate > 0xffff_ffff) {
+    throw new RangeError("candidate must be an unsigned 32-bit integer.");
+  }
+
+  const range = 0x1_0000_0000;
+  const acceptanceLimit = Math.floor(range / maxExclusive) * maxExclusive;
+  return candidate < acceptanceLimit ? candidate % maxExclusive : null;
+}
+
 export function requireServerSeed(serverSeed: string): void {
   if (!HEX_32_BYTES.test(serverSeed)) {
     throw new TypeError("Server seed must be a lowercase 32-byte hex string.");

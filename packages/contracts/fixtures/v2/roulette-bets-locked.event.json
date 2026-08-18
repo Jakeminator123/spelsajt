@@ -1,0 +1,14 @@
+{
+  "eventId": "33333333-3333-4333-8333-333333333313",
+  "occurredAt": "2026-08-18T00:00:02.000Z",
+  "revision": 3,
+  "roundId": "22222222-2222-4222-8222-222222222223",
+  "schemaVersion": 2,
+  "sequence": 4,
+  "tableId": "table-roulette-1",
+  "type": "roulette.bets.locked",
+  "payload": {
+    "betCount": 1,
+    "totalWager": "25"
+  }
+}

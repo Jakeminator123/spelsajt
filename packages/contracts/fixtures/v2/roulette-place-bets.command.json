@@ -1,0 +1,23 @@
+{
+  "commandId": "11111111-1111-4111-8111-111111111114",
+  "expectedRevision": 1,
+  "issuedAt": "2026-08-18T00:00:01.000Z",
+  "schemaVersion": 2,
+  "tableId": "table-roulette-1",
+  "type": "ROULETTE_PLACE_BETS",
+  "payload": {
+    "bets": [
+      {
+        "betId": "bet-1",
+        "amount": "25",
+        "currency": "PLAY",
+        "selection": {
+          "type": "straight",
+          "pocket": 17
+        }
+      }
+    ],
+    "clientSeed": "client-seed-002",
+    "roundId": "22222222-2222-4222-8222-222222222223"
+  }
+}

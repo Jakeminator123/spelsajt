@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./rulesets/mvp-v1.json": "./rulesets/mvp-v1.json",
+    "./rulesets/mvp-v2.json": "./rulesets/mvp-v2.json",
     "./schemas/ruleset.schema.json": "./schemas/ruleset.schema.json"
   },
   "scripts": {

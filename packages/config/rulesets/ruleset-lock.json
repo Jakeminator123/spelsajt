@@ -3,6 +3,9 @@
   "rulesets": {
     "mvp-v1": {
       "sha256": "4b803003ef4f5bccd1d0f1cee009beae172779471809da5e1ea0839a7c5d0372"
+    },
+    "mvp-v2": {
+      "sha256": "1b10f9a7d66d5e1f5d39fe96fe95e492003494817521a3708f907b1b91ecb296"
     }
   }
 }

@@ -1,0 +1,15 @@
+{
+  "eventId": "33333333-3333-4333-8333-333333333309",
+  "occurredAt": "2026-08-18T00:00:02.100Z",
+  "revision": 3,
+  "roundId": "22222222-2222-4222-8222-222222222222",
+  "schemaVersion": 2,
+  "sequence": 9,
+  "tableId": "table-blackjack-1",
+  "type": "blackjack.turn.changed",
+  "payload": {
+    "activeHandId": "hand-1",
+    "allowedActions": ["hit", "stand", "double", "split"],
+    "phase": "player"
+  }
+}

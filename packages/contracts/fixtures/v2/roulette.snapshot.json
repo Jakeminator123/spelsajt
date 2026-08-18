@@ -1,0 +1,34 @@
+{
+  "balance": "9975",
+  "game": "roulette",
+  "lastSequence": 4,
+  "revision": 3,
+  "round": {
+    "fairness": {
+      "algorithm": "pf-v1",
+      "commitment": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "nonce": 0
+    },
+    "revision": 3,
+    "roundId": "22222222-2222-4222-8222-222222222223",
+    "rulesetHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "rulesetId": "mvp-v2",
+    "game": "roulette",
+    "bets": [
+      {
+        "betId": "bet-1",
+        "amount": "25",
+        "currency": "PLAY",
+        "selection": {
+          "type": "straight",
+          "pocket": 17
+        }
+      }
+    ],
+    "phase": "locked",
+    "result": null,
+    "totalWager": "25"
+  },
+  "schemaVersion": 2,
+  "tableId": "table-roulette-1"
+}

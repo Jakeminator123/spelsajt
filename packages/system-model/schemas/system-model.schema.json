@@ -74,6 +74,7 @@
                   "contract": {
                     "type": "string",
                     "enum": [
+                      "zod-v2",
                       "zod-v1",
                       "ad-hoc",
                       "none"
@@ -122,8 +123,10 @@
                 "items": {
                   "type": "string",
                   "enum": [
-                    "PLACE_BET",
+                    "PREPARE_ROUND",
+                    "BLACKJACK_PLACE_BET",
                     "BLACKJACK_ACTION",
+                    "ROULETTE_PLACE_BETS",
                     "ROULETTE_SPIN"
                   ]
                 }
@@ -171,6 +174,7 @@
                   "contract": {
                     "type": "string",
                     "enum": [
+                      "zod-v2",
                       "zod-v1",
                       "ad-hoc",
                       "none"
@@ -227,11 +231,22 @@
                 "items": {
                   "type": "string",
                   "enum": [
+                    "round.prepared",
                     "round.started",
+                    "blackjack.bet.accepted",
                     "blackjack.card.dealt",
+                    "blackjack.card.revealed",
+                    "blackjack.action.accepted",
+                    "blackjack.hand.split",
+                    "blackjack.turn.changed",
+                    "blackjack.hand.settled",
+                    "roulette.betting.opened",
+                    "roulette.bet.placed",
+                    "roulette.bets.locked",
+                    "roulette.spin.started",
                     "roulette.result",
-                    "round.settled",
-                    "reaction.cue"
+                    "roulette.bet.settled",
+                    "round.settled"
                   ]
                 }
               }
@@ -294,6 +309,7 @@
               "contract": {
                 "type": "string",
                 "enum": [
+                  "zod-v2",
                   "zod-v1",
                   "ad-hoc",
                   "none"
@@ -390,11 +406,22 @@
           "eventType": {
             "type": "string",
             "enum": [
+              "round.prepared",
               "round.started",
+              "blackjack.bet.accepted",
               "blackjack.card.dealt",
+              "blackjack.card.revealed",
+              "blackjack.action.accepted",
+              "blackjack.hand.split",
+              "blackjack.turn.changed",
+              "blackjack.hand.settled",
+              "roulette.betting.opened",
+              "roulette.bet.placed",
+              "roulette.bets.locked",
+              "roulette.spin.started",
               "roulette.result",
-              "round.settled",
-              "reaction.cue"
+              "roulette.bet.settled",
+              "round.settled"
             ]
           },
           "game": {
@@ -418,6 +445,7 @@
               "contract": {
                 "type": "string",
                 "enum": [
+                  "zod-v2",
                   "zod-v1",
                   "ad-hoc",
                   "none"
@@ -470,6 +498,104 @@
         "additionalProperties": false
       }
     },
+    "presentationIgnores": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "eventType": {
+            "type": "string",
+            "enum": [
+              "round.prepared",
+              "round.started",
+              "blackjack.bet.accepted",
+              "blackjack.card.dealt",
+              "blackjack.card.revealed",
+              "blackjack.action.accepted",
+              "blackjack.hand.split",
+              "blackjack.turn.changed",
+              "blackjack.hand.settled",
+              "roulette.betting.opened",
+              "roulette.bet.placed",
+              "roulette.bets.locked",
+              "roulette.spin.started",
+              "roulette.result",
+              "roulette.bet.settled",
+              "round.settled"
+            ]
+          },
+          "game": {
+            "type": "string",
+            "enum": [
+              "blackjack",
+              "roulette"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+          },
+          "maturity": {
+            "type": "object",
+            "properties": {
+              "contract": {
+                "type": "string",
+                "enum": [
+                  "zod-v2",
+                  "zod-v1",
+                  "ad-hoc",
+                  "none"
+                ]
+              },
+              "lifecycle": {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "planned",
+                  "deprecated"
+                ]
+              },
+              "runtime": {
+                "type": "string",
+                "enum": [
+                  "implemented",
+                  "partial",
+                  "absent"
+                ]
+              },
+              "verification": {
+                "type": "string",
+                "enum": [
+                  "direct",
+                  "partial",
+                  "fixture-only",
+                  "none"
+                ]
+              }
+            },
+            "required": [
+              "contract",
+              "lifecycle",
+              "runtime",
+              "verification"
+            ],
+            "additionalProperties": false
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "eventType",
+          "game",
+          "id",
+          "maturity",
+          "reason"
+        ],
+        "additionalProperties": false
+      }
+    },
     "scenarios": {
       "minItems": 1,
       "type": "array",
@@ -518,8 +644,10 @@
                     "commandType": {
                       "type": "string",
                       "enum": [
-                        "PLACE_BET",
+                        "PREPARE_ROUND",
+                        "BLACKJACK_PLACE_BET",
                         "BLACKJACK_ACTION",
+                        "ROULETTE_PLACE_BETS",
                         "ROULETTE_SPIN"
                       ]
                     },
@@ -565,11 +693,22 @@
                     "eventType": {
                       "type": "string",
                       "enum": [
+                        "round.prepared",
                         "round.started",
+                        "blackjack.bet.accepted",
                         "blackjack.card.dealt",
+                        "blackjack.card.revealed",
+                        "blackjack.action.accepted",
+                        "blackjack.hand.split",
+                        "blackjack.turn.changed",
+                        "blackjack.hand.settled",
+                        "roulette.betting.opened",
+                        "roulette.bet.placed",
+                        "roulette.bets.locked",
+                        "roulette.spin.started",
                         "roulette.result",
-                        "round.settled",
-                        "reaction.cue"
+                        "roulette.bet.settled",
+                        "round.settled"
                       ]
                     },
                     "interfaceId": {
@@ -683,7 +822,7 @@
     },
     "schemaVersion": {
       "type": "number",
-      "const": 1
+      "const": 2
     },
     "title": {
       "type": "string",
@@ -697,11 +836,12 @@
     "interfaces",
     "nodes",
     "presentationCues",
+    "presentationIgnores",
     "scenarios",
     "schemaVersion",
     "title"
   ],
   "additionalProperties": false,
-  "$id": "https://schemas.spelsajt.local/v1/system-model.schema.json",
-  "title": "Spelsajt system model v1"
+  "$id": "https://schemas.spelsajt.local/v2/system-model.schema.json",
+  "title": "Spelsajt system model v2"
 }

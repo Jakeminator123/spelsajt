@@ -1,0 +1,71 @@
+{
+  "$schema": "../schemas/ruleset.schema.json",
+  "schemaVersion": 2,
+  "id": "mvp-v2",
+  "mode": "play-money",
+  "currency": {
+    "code": "PLAY",
+    "fractionDigits": 0,
+    "startingBalance": "10000"
+  },
+  "blackjack": {
+    "decks": 6,
+    "dealerHitsSoft17": false,
+    "dealerHoleCard": "american",
+    "dealerPeek": "ace-or-ten",
+    "blackjackPayout": {
+      "numerator": 3,
+      "denominator": 2
+    },
+    "actions": ["hit", "stand", "double", "split"],
+    "doublePolicy": "any-two-card",
+    "doubleAfterSplit": true,
+    "maxSplits": 1,
+    "insurance": false,
+    "surrender": false,
+    "resplit": false,
+    "splitMatch": "same-value",
+    "splitAcesOneCardOnly": true,
+    "splitTwentyOneIsBlackjack": false,
+    "wagerUnit": 2
+  },
+  "roulette": {
+    "pockets": 37,
+    "minimumPocket": 0,
+    "maximumPocket": 36,
+    "zeroes": 1,
+    "tableTopology": "european-single-zero-v1",
+    "zeroRule": "outside-bets-lose",
+    "betTypes": [
+      "straight",
+      "split",
+      "street",
+      "corner",
+      "six-line",
+      "column",
+      "dozen",
+      "red-black",
+      "odd-even",
+      "low-high"
+    ],
+    "grossPayoutMultipliers": {
+      "straight": 36,
+      "split": 18,
+      "street": 12,
+      "corner": 9,
+      "six-line": 6,
+      "column": 3,
+      "dozen": 3,
+      "red-black": 2,
+      "odd-even": 2,
+      "low-high": 2
+    }
+  },
+  "fairness": {
+    "algorithmId": "pf-v1",
+    "commitment": "sha256",
+    "stream": "hmac-sha256",
+    "boundedInteger": "rejection-sampling",
+    "blackjackShuffle": "fisher-yates"
+  }
+}

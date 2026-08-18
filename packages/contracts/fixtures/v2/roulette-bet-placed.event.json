@@ -1,0 +1,22 @@
+{
+  "eventId": "33333333-3333-4333-8333-333333333312",
+  "occurredAt": "2026-08-18T00:00:01.000Z",
+  "revision": 2,
+  "roundId": "22222222-2222-4222-8222-222222222223",
+  "schemaVersion": 2,
+  "sequence": 3,
+  "tableId": "table-roulette-1",
+  "type": "roulette.bet.placed",
+  "payload": {
+    "bet": {
+      "betId": "bet-1",
+      "amount": "25",
+      "currency": "PLAY",
+      "selection": {
+        "type": "straight",
+        "pocket": 17
+      }
+    },
+    "totalWager": "25"
+  }
+}
