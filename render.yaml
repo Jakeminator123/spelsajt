@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: spelsajt-game-server
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    dockerfilePath: ./apps/game-server/Dockerfile
+    dockerContext: .
+    healthCheckPath: /ready
+    maxShutdownDelaySeconds: 20
+    buildFilter:
+      paths:
+        - apps/game-server/**
+        - packages/config/**
+        - packages/contracts/**
+        - packages/fairness/**
+        - packages/game-core/**
+        - package.json
+        - pnpm-lock.yaml
+        - pnpm-workspace.yaml
+    envVars:
+      - key: GAME_SERVER_HOST
+        value: "0.0.0.0"
+      - key: GAME_SERVER_PORT
+        value: "10000"
+      - key: WEB_ORIGIN
+        value: "https://spelsajt.vercel.app"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_DATABASE_URL
+        sync: false
