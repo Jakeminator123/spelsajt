@@ -7,6 +7,7 @@ import type { GameRepository } from "./repository";
 export const defaultSocketAuthRevalidationIntervalMs = 60_000;
 export const defaultPostgresConnectionTimeoutMs = 5_000;
 export const defaultPostgresStatementTimeoutMs = 10_000;
+export const supabaseDatabaseRootCertificatePath = "certs/supabase-root-2021-ca.crt";
 
 export interface GameServerBinding {
   readonly host: string;
@@ -77,6 +78,22 @@ export interface RuntimeDependencies {
   readonly repository?: GameRepository;
 }
 
+export function secureSupabaseDatabaseUrl(databaseUrl: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(databaseUrl);
+  } catch {
+    return databaseUrl;
+  }
+  const isSupabaseDatabase = parsed.hostname.endsWith(".pooler.supabase.com")
+    || /^db\.[a-z0-9]+\.supabase\.co$/i.test(parsed.hostname);
+  if (!isSupabaseDatabase) return databaseUrl;
+
+  parsed.searchParams.set("sslmode", "verify-full");
+  parsed.searchParams.set("sslrootcert", supabaseDatabaseRootCertificatePath);
+  return parsed.toString();
+}
+
 export function runtimeDependencies(
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): RuntimeDependencies {
@@ -98,7 +115,7 @@ export function runtimeDependencies(
   }
   const timeouts = postgresRuntimeTimeouts(env);
   const postgresOptions = {
-    connectionString: databaseUrl,
+    connectionString: secureSupabaseDatabaseUrl(databaseUrl),
     connectionTimeoutMillis: timeouts.connectionTimeoutMillis,
     query_timeout: timeouts.statementTimeoutMillis,
     statement_timeout: timeouts.statementTimeoutMillis,

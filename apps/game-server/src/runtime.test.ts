@@ -7,7 +7,9 @@ import {
   gameServerBinding,
   postgresRuntimeTimeouts,
   runtimeDependencies,
+  secureSupabaseDatabaseUrl,
   socketAuthRevalidationInterval,
+  supabaseDatabaseRootCertificatePath,
 } from "./runtime";
 
 describe("runtime dependencies", () => {
@@ -35,6 +37,19 @@ describe("runtime dependencies", () => {
     expect(() => runtimeDependencies({ NODE_ENV: "production" })).toThrow(
       "Supabase configuration is required when NODE_ENV is production.",
     );
+  });
+
+  it("pins Supabase database connections to verify-full with the bundled CA", () => {
+    const secured = new URL(secureSupabaseDatabaseUrl(
+      "postgresql://postgres.example:secret@aws-0-eu-north-1.pooler.supabase.com:5432/postgres?sslmode=require",
+    ));
+    expect(secured.searchParams.get("sslmode")).toBe("verify-full");
+    expect(secured.searchParams.get("sslrootcert")).toBe(supabaseDatabaseRootCertificatePath);
+    expect(secured.hostname).toBe("aws-0-eu-north-1.pooler.supabase.com");
+    expect(secured.password).toBe("secret");
+
+    const local = "postgresql://postgres@127.0.0.1:5432/postgres";
+    expect(secureSupabaseDatabaseUrl(local)).toBe(local);
   });
 
   it("rejects partially configured Supabase dependencies in every environment", () => {

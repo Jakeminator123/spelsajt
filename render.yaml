@@ -18,6 +18,7 @@ services:
         - package.json
         - pnpm-lock.yaml
         - pnpm-workspace.yaml
+        - tsconfig.base.json
     envVars:
       - key: GAME_SERVER_HOST
         value: "0.0.0.0"
