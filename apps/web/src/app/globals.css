@@ -502,6 +502,32 @@ h1 span {
   font-weight: 600;
 }
 
+.scene-dummy-label {
+  align-items: flex-end;
+  bottom: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: none;
+  position: absolute;
+  right: 34px;
+  text-align: right;
+  z-index: 4;
+}
+
+.scene-dummy-label span {
+  color: var(--violet-soft);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+}
+
+.scene-dummy-label strong {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .scene-stage {
   position: absolute;
   inset: 0;

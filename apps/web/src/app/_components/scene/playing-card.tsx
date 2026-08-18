@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CanvasTexture, type Group, SRGBColorSpace } from "three";
 
 type Suit = CardV2["suit"];
+export type PlayingCardFace = Pick<CardV2, "rank" | "suit">;
 
 const SUIT_GLYPH: Record<Suit, string> = {
   spades: "\u2660",
@@ -150,7 +151,7 @@ interface PlayingCardLayoutProps {
 }
 
 type PlayingCardProps = PlayingCardLayoutProps & (
-  | { card: CardV2; faceUp: true }
+  | { card: PlayingCardFace; faceUp: true }
   | { card?: never; faceUp: false }
 );
 
