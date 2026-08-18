@@ -1,107 +1,293 @@
-import { SceneLoader } from "./_components/scene-loader";
+import Image from "next/image";
 
-const systemLayers = [
-  { label: "Frontend", value: "Next.js 16 + R3F" },
-  { label: "Game server", value: "Fastify + Socket.IO" },
-  { label: "Data och auth", value: "Supabase" },
-  { label: "Fairness", value: "HMAC-SHA256" },
+import { JackpotCounter } from "./_components/jackpot-counter";
+import { Reveal } from "./_components/reveal";
+import { SceneLoader } from "./_components/scene-loader";
+import { WinnersTicker } from "./_components/winners-ticker";
+
+const navLinks = [
+  { label: "Casino", href: "#casino" },
+  { label: "Live", href: "#live" },
+  { label: "Sport", href: "#sport" },
+  { label: "Kampanjer", href: "#kampanjer" },
 ];
 
 const games = [
   {
-    eyebrow: "TABLE 01",
     title: "Blackjack",
-    description: "Sex lekar, S17 och verifierbar shuffle. Först ut i den vertikala slicen.",
-    status: "VERTICAL SLICE",
+    tag: "Bordsspel",
+    image: "/images/game-blackjack.png",
+    players: "312 spelare",
+    description: "Sex lekar, S17 och verifierbar shuffle.",
+    live: true,
   },
   {
-    eyebrow: "TABLE 02",
     title: "European Roulette",
-    description: "Ett nollfält, full bettingmatta och ett serverbestämt utfall som 3D-hjulet följer.",
-    status: "MILESTONE 3",
+    tag: "Bordsspel",
+    image: "/images/game-roulette.png",
+    players: "198 spelare",
+    description: "Ett nollfält och serverbestämt utfall.",
+    live: true,
   },
+  {
+    title: "Golden Sevens",
+    tag: "Slots",
+    image: "/images/game-slots.png",
+    players: "540 spelare",
+    description: "96,4% RTP och free spins-läge.",
+    live: false,
+  },
+  {
+    title: "Live Baccarat",
+    tag: "Live casino",
+    image: "/images/game-live.png",
+    players: "87 spelare",
+    description: "Riktig dealer i realtid, HD-stream.",
+    live: true,
+  },
+  {
+    title: "Texas Hold'em",
+    tag: "Poker",
+    image: "/images/game-poker.png",
+    players: "126 spelare",
+    description: "Cash games och snabbturneringar.",
+    live: false,
+  },
+];
+
+const sportsEvents = [
+  {
+    league: "Allsvenskan",
+    home: "AIK",
+    away: "Djurgården",
+    time: "Idag 19:00",
+    odds: [
+      { label: "1", value: "2.35" },
+      { label: "X", value: "3.10" },
+      { label: "2", value: "2.90" },
+    ],
+  },
+  {
+    league: "Premier League",
+    home: "Arsenal",
+    away: "Chelsea",
+    time: "Idag 21:00",
+    odds: [
+      { label: "1", value: "1.85" },
+      { label: "X", value: "3.60" },
+      { label: "2", value: "4.20" },
+    ],
+  },
+  {
+    league: "NHL",
+    home: "Rangers",
+    away: "Bruins",
+    time: "Imorgon 01:30",
+    odds: [
+      { label: "1", value: "2.10" },
+      { label: "X", value: "4.00" },
+      { label: "2", value: "2.55" },
+    ],
+  },
+];
+
+const perks = [
+  { title: "Provably fair", copy: "Varje utfall signeras med HMAC-SHA256 och kan verifieras i efterhand." },
+  { title: "Realtidsmotor", copy: "Fastify och Socket.IO driver bordet — utfallet syns direkt i 3D-världen." },
+  { title: "100% play money", copy: "Spela riskfritt. Inga insättningar, inga uttag, bara ren speldesign." },
 ];
 
 export default function HomePage() {
   return (
     <main>
-      <header className="topbar">
+      <header className="topbar" id="top">
         <a className="brand" href="#top" aria-label="Spelsajt startsida">
           <span className="brand-mark">S</span>
           <span>Spelsajt</span>
         </a>
+        <nav className="topnav" aria-label="Huvudnavigering">
+          {navLinks.map((link) => (
+            <a key={link.href} href={link.href}>{link.label}</a>
+          ))}
+        </nav>
         <div className="topbar-actions">
-          <span className="environment"><i /> PLAY MONEY ONLY</span>
-          <button className="ghost-button" type="button" disabled>
-            Logga in - snart
+          <span className="balance-chip" aria-label="Ditt play money-saldo">
+            <i /> 5 000 <small>PLAY</small>
+          </span>
+          <button className="primary-button compact" type="button">
+            Logga in
           </button>
         </div>
       </header>
 
-      <section className="hero" id="top">
+      <WinnersTicker />
+
+      <section className="hero">
         <div className="hero-copy">
-          <p className="kicker">PLAY MONEY. REAL FEEL.</p>
+          <p className="kicker">PLAY MONEY · REAL FEEL</p>
           <h1>
-            Casino precision.
-            <span>Without the casino baggage.</span>
+            Casinokänslan.
+            <span>Utan att riskera en krona.</span>
           </h1>
           <p className="lede">
-            En modern grund för blackjack och roulette där spelmotorn bestämmer utfallet och
-            3D-världen reagerar på varje domänevent.
+            Blackjack, roulette, slots och live casino i en och samma värld — med en
+            auktoritativ spelmotor som avgör varje utfall och en 3D-scen som reagerar direkt.
           </p>
           <div className="hero-actions">
-            <a className="primary-button" href="#games">Se spelplanen</a>
-            <a className="text-link" href="#architecture">Utforska arkitekturen <span>↗</span></a>
+            <a className="primary-button" href="#casino">Spela nu</a>
+            <a className="ghost-button" href="#sport">Till sportboken</a>
           </div>
           <dl className="hero-metrics">
+            <div><dt>120+</dt><dd>spel</dd></div>
             <div><dt>37</dt><dd>roulettefickor</dd></div>
-            <div><dt>312</dt><dd>kort per shuffle</dd></div>
             <div><dt>100%</dt><dd>play money</dd></div>
           </dl>
         </div>
-        <SceneLoader />
-      </section>
 
-      <section className="system-strip" id="architecture" aria-label="Teknisk arkitektur">
-        {systemLayers.map((layer, index) => (
-          <div className="system-cell" key={layer.label}>
-            <span>{String(index + 1).padStart(2, "0")}</span>
-            <div><small>{layer.label}</small><strong>{layer.value}</strong></div>
+        <div className="hero-visual">
+          <SceneLoader />
+          <div className="jackpot-card">
+            <span className="jackpot-label"><i /> MEGA JACKPOT</span>
+            <strong className="jackpot-value">
+              <JackpotCounter target={2847513} /> <em>PLAY</em>
+            </strong>
+            <span className="jackpot-sub">Växer varje sekund · 1 240 spelare online</span>
           </div>
-        ))}
-      </section>
-
-      <section className="games-section" id="games">
-        <div className="section-heading">
-          <div>
-            <p className="kicker">MVP GAME FLOOR</p>
-            <h2>Två spel. En auktoritativ motor.</h2>
-          </div>
-          <p>Frontend visar och animerar. Backend validerar, avgör och bokför.</p>
         </div>
+      </section>
+
+      <section className="games-section" id="casino">
+        <Reveal className="section-heading" as="div">
+          <div>
+            <p className="kicker">SPELUTBUD</p>
+            <h2>Alla favoriter på ett bord.</h2>
+          </div>
+          <p>Bläddra bland bordsspel, slots och live casino. Fler släpps varje månad.</p>
+        </Reveal>
 
         <div className="game-grid">
           {games.map((game, index) => (
-            <article className="game-card" key={game.title}>
-              <div className={`game-art game-art-${index + 1}`} aria-hidden="true">
-                <span className="orbit orbit-one" />
-                <span className="orbit orbit-two" />
-                <span className="game-number">0{index + 1}</span>
+            <Reveal
+              className="game-card"
+              as="article"
+              key={game.title}
+              from="up"
+              delay={index * 80}
+            >
+              <div className="game-art">
+                <Image
+                  src={game.image}
+                  alt={`${game.title} – ${game.tag}`}
+                  fill
+                  sizes="(max-width: 700px) 100vw, 33vw"
+                  className="game-image"
+                />
+                <span className="game-tag">{game.tag}</span>
+                {game.live ? <span className="game-live"><i /> LIVE</span> : null}
               </div>
               <div className="game-copy">
-                <div className="game-meta"><span>{game.eyebrow}</span><i />{game.status}</div>
                 <h3>{game.title}</h3>
                 <p>{game.description}</p>
+                <div className="game-foot">
+                  <span className="game-players"><i /> {game.players}</span>
+                  <button className="play-pill" type="button">Spela</button>
+                </div>
               </div>
-            </article>
+            </Reveal>
+          ))}
+
+          <Reveal className="game-card game-card-cta" as="article" from="up" delay={games.length * 80}>
+            <div className="cta-inner">
+              <span className="game-tag">Snart</span>
+              <h3>120+ spel</h3>
+              <p>Baccarat, craps, keno och nya slots är på väg in i lobbyn.</p>
+              <a className="text-link" href="#kampanjer">Se hela utbudet <span>→</span></a>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      <section className="sports-section" id="sport">
+        <Reveal className="sports-visual" as="div" from="left">
+          <Image
+            src="/images/sports-hero.png"
+            alt="Upplyst fotbollsarena på natten"
+            fill
+            sizes="(max-width: 900px) 100vw, 45vw"
+            className="sports-image"
+          />
+          <div className="sports-visual-copy">
+            <p className="kicker">NYHET</p>
+            <h2>Sportboken<br />är öppen.</h2>
+            <p>Tippa matcher live med samma provably fair-motor som casinot.</p>
+          </div>
+        </Reveal>
+
+        <div className="sports-board">
+          <Reveal className="sports-board-head" as="div" from="right">
+            <span className="live-dot"><i /> LIVE ODDS</span>
+            <h3>Dagens matcher</h3>
+          </Reveal>
+          {sportsEvents.map((event, index) => (
+            <Reveal className="match-row" as="div" key={`${event.home}-${event.away}`} from="right" delay={index * 90}>
+              <div className="match-meta">
+                <span className="match-league">{event.league}</span>
+                <span className="match-time">{event.time}</span>
+              </div>
+              <div className="match-teams">
+                <span>{event.home}</span>
+                <b>vs</b>
+                <span>{event.away}</span>
+              </div>
+              <div className="odds-row">
+                {event.odds.map((odd) => (
+                  <button className="odd-button" type="button" key={odd.label}>
+                    <small>{odd.label}</small>
+                    <strong>{odd.value}</strong>
+                  </button>
+                ))}
+              </div>
+            </Reveal>
+          ))}
+        </div>
+      </section>
+
+      <section className="promo-section" id="kampanjer">
+        <Reveal className="promo-banner" as="div" from="scale">
+          <div className="promo-copy">
+            <p className="kicker">VÄLKOMSTBONUS</p>
+            <h2>5 000 play money direkt.</h2>
+            <p>Skapa ett konto och börja spela på sekunder. Fyll på gratis när du vill.</p>
+            <button className="primary-button" type="button">Skapa konto</button>
+          </div>
+          <div className="promo-chips" aria-hidden="true">
+            <span className="promo-chip chip-1" />
+            <span className="promo-chip chip-2" />
+            <span className="promo-chip chip-3" />
+            <span className="promo-chip chip-4" />
+          </div>
+        </Reveal>
+      </section>
+
+      <section className="perks-section" aria-label="Varför Spelsajt">
+        <div className="perks-grid">
+          {perks.map((perk, index) => (
+            <Reveal className="perk-card" as="div" key={perk.title} from="up" delay={index * 100}>
+              <span className="perk-index">{String(index + 1).padStart(2, "0")}</span>
+              <h3>{perk.title}</h3>
+              <p>{perk.copy}</p>
+            </Reveal>
           ))}
         </div>
       </section>
 
       <footer>
-        <span>SPJ-001 / SCAFFOLD</span>
-        <p>Built for Jakob × Emil</p>
-        <span>17.08.2026</span>
+        <div className="footer-brand">
+          <span className="brand-mark">S</span>
+          <span>Spelsajt</span>
+        </div>
+        <p>Play money only · 18+ · Spela ansvarsfullt</p>
+        <span>SPJ-001</span>
       </footer>
     </main>
   );
