@@ -115,13 +115,23 @@ export function buildApp(options: BuildAppOptions = {}) {
         const ack = await application.execute(userId, request.params.tableId, request.body);
         if (ack.status === "accepted" && ack.firstSequence !== null) {
           try {
-            const events = await application.getEvents(
-              userId,
-              request.params.tableId,
-              ack.firstSequence,
-              ack.lastSequence,
-            );
-            eventBus.publish(events);
+            let firstSequence = ack.firstSequence;
+            while (firstSequence <= ack.lastSequence) {
+              const events = await application.getEvents(
+                userId,
+                request.params.tableId,
+                firstSequence,
+                ack.lastSequence,
+              );
+              const lastEvent = events.at(-1);
+              if (!lastEvent) {
+                throw new Error(
+                  `Committed events stop before sequence ${ack.lastSequence}.`,
+                );
+              }
+              eventBus.publish(events);
+              firstSequence = lastEvent.sequence + 1;
+            }
           } catch (error) {
             request.log.error(
               { err: error, tableId: request.params.tableId },

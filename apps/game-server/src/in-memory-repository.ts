@@ -27,6 +27,26 @@ export class InMemoryGameRepository implements GameRepository {
     };
   }
 
+  async readCurrent(userId: string, tableId: string): Promise<StoredTable | null> {
+    const table = await this.read(userId, tableId);
+    return table ? { ...table, events: [], receipts: {} } : null;
+  }
+
+  async readEvents(
+    userId: string,
+    tableId: string,
+    firstSequence: number,
+    lastSequence: number,
+    limit: number,
+  ) {
+    assertEventPage(firstSequence, lastSequence, limit);
+    const table = await this.read(userId, tableId);
+    if (!table) return [];
+    return table.events
+      .filter((event) => event.sequence >= firstSequence && event.sequence <= lastSequence)
+      .slice(0, limit);
+  }
+
   async transact<T>(
     userId: string,
     tableId: string,
@@ -72,5 +92,18 @@ export class InMemoryGameRepository implements GameRepository {
         this.#locks.delete(lockKey);
       }
     }
+  }
+}
+
+function assertEventPage(firstSequence: number, lastSequence: number, limit: number): void {
+  if (
+    !Number.isSafeInteger(firstSequence)
+    || firstSequence < 1
+    || !Number.isSafeInteger(lastSequence)
+    || lastSequence < firstSequence
+    || !Number.isSafeInteger(limit)
+    || limit < 1
+  ) {
+    throw new Error("Event page bounds must be positive safe integers in ascending order.");
   }
 }

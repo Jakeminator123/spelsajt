@@ -197,6 +197,22 @@ databaseDescribe("Postgres game repository", () => {
       snapshot: { balance: "10100", round: { phase: "settled" } },
     });
 
+    const current = await reconnectedApp.gameServices.repository.readCurrent(userId, tableId);
+    const eventPage = await reconnectedApp.gameServices.repository.readEvents(
+      userId,
+      tableId,
+      2,
+      stand.json().lastSequence as number,
+      2,
+    );
+    expect(current).toMatchObject({
+      events: [],
+      lastSequence: stand.json().lastSequence,
+      receipts: {},
+      revision: 4,
+    });
+    expect(eventPage.map((event) => event.sequence)).toEqual([2, 3]);
+
     const beforeReplay = await admin.query<{ readonly count: string }>(
       "select count(*) from game_private.game_events where table_id = $1",
       [tableId],

@@ -83,7 +83,18 @@ export class CommandIdConflictError extends Error {
 export interface GameRepository {
   close?(): Promise<void>;
   ping?(): Promise<void>;
+  /** Full aggregate including event and command history, for inspection and tests. */
   read(userId: string, tableId: string): Promise<StoredTable | null>;
+  /** Current aggregate state without requiring historical events or receipts. */
+  readCurrent(userId: string, tableId: string): Promise<StoredTable | null>;
+  /** One ordered, bounded page from the durable event sequence. */
+  readEvents(
+    userId: string,
+    tableId: string,
+    firstSequence: number,
+    lastSequence: number,
+    limit: number,
+  ): Promise<readonly GameEventV2[]>;
   transact<T>(
     userId: string,
     tableId: string,
