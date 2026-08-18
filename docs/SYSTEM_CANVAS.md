@@ -25,7 +25,7 @@ flowchart LR
     TX["Serveradapter + atomisk Postgres-ledger (implementerade)"]
     EVENTS["Persistenta sekvensnumrerade v2-events + Socket.IO"]
     PLAN["Reaction Planner (implementerad frontend)"]
-    SCENE["Eventstyrd text/3D-scen (delvis implementerad)"]
+    SCENE["Eventstyrd text/3D-scen (implementerad)"]
     VERIFY["Fairness-verifierare"]
 
     UI -->|"GameCommandV2"| API
@@ -56,7 +56,7 @@ Backend avgör alltid state, utfall, payout och saldo. Frontend skickar endast s
 | Serveradapter för v2 | Implementerad och direkt testad | `apps/game-server/src/application.ts` mappar båda spelens v2-commands till motortransitioner, ledger intents, validerade events, ack och snapshots. |
 | Atomisk command- och settlementtjänst | Implementerad och direkt integrationstestad | Supabase Auth verifierar bearer-token; användare isoleras per bord och Postgres-adaptern committar wallet, state, fairness, ledger intents, events och command receipt i en låst transaktion. Command- och snapshotvägar hydraterar endast aktuell state, och idempotens laddar bara receipten för aktuellt command-id. Produktionsruntime har validerade tak för anslutning och statement/query; CI låser en riktig command-transaktion, verifierar timeout och återanvänder repositoryt. In-memory-adaptern finns kvar för test/utveckling. |
 | `game.event` och snapshots över realtime | Implementerade och direkt testade | En verifierad socket prenumererar med `table.subscribe`, får ett validerat snapshot som sekvensankare och därefter endast events som publicerats efter repository-commit. Eventintervall återläses med `(table_id, sequence)` som cursor i sidor om högst 128 rader; HTTP-publicering och gap-reparation fortsätter tills hela målsekvensen levererats. Transaktionell Postgres `NOTIFY` med återläsning levererar över serverinstanser. Om relän faller blir instansen oreado, befintliga sockets kopplas ned och nya nekas; servern skapar en ny begränsad LISTEN-anslutning, och reconnect återankrar från hållbar Postgres-state innan nya cross-instance-events levereras. |
-| Webbpresentation | Livekopplad, visuell täckning delvis implementerad | `/blackjack` och `/roulette` skapar eller återställer en anonym Supabase-session, skickar validerade v2-commands, återankrar från snapshots och projicerar Socket.IO-events i samma responsiva 3D-/textscen. Transport, loading, fel och reconnect är direkt testade; full cue-specifik visuell polish återstår. |
+| Webbpresentation | Livekopplad och direkt testad | `/blackjack` och `/roulette` skapar eller återställer en anonym Supabase-session, skickar validerade v2-commands, återankrar från snapshots och projicerar Socket.IO-events i samma responsiva 3D-/textscen. Samtliga 24 deklarerade cues har explicita visuella intents för croupier, bord, fokus och marker, med textfallback och reduced-motion-läge. Presentationen återger endast backendens semantiska utfall. |
 | `/system` | Dokumentationsyta | Visar den validerade systemmodellen; den är inte ett spel eller driftbevis. |
 
 ## V2-transporten
@@ -177,10 +177,11 @@ Temat hör enbart hemma i presentationslagret. `packages/game-core`, `packages/c
 
 Emils utseendebranch kan normalt ändra `apps/web/src/**`, `apps/web/public/**`, webbspecifika tester och små presentationsanteckningar. Den ska konsumera `@spelsajt/contracts`, `@spelsajt/system-model` och v2-fixtures utan att ändra deras format. Ett kontraktsgap löses i en separat, gemensamt granskad ändring.
 
-## Kvar innan en produktionsnära spelbar server
+## Produktionsbevis för det spelbara flödet
 
-- Driftsätt den verifierade game-server-containern hos en långlivad värd, koppla webbens publika server-URL och kör det hostade end-to-end-flödet för båda spelen inklusive reconnect.
-- Färdigställ cue-specifik visuell polish för text-, reduced-motion- och 3D-presentationen.
+- `main` deployas till Vercel och den långlivade Render-tjänsten, vars `/health` och Postgres-/relämedvetna `/ready` används som driftgrindar.
+- Det opt-in-körda `verify-hosted.ts --gameplay` går via publik anonym Supabase Auth genom blackjack och roulette, replayar samma command-id, bryter socketen avsiktligt och verifierar reconnect-snapshot, stigande realtime-sekvenser, settlement och heltalssaldo.
+- Den cue-specifika 3D-/textpresentationen och reduced-motion-vyn är runtime- och testtäckta utan att härleda kort, pocket, payout eller saldo lokalt.
 
 Ett gap löses först i den auktoritativa källan, med schema-/fixtureuppdatering och tester. En kompatibilitetsbrytning kräver en ny schema-, ruleset- eller algoritmversion; den får inte döljas i UI-kod eller dokumentation.
 

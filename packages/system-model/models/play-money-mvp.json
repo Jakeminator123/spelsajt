@@ -109,12 +109,12 @@
       "owner": "frontend",
       "source": "apps/web/src/app/_components/casino-scene.tsx",
       "maturity": {
-        "runtime": "partial",
+        "runtime": "implemented",
         "contract": "zod-v2",
-        "verification": "partial",
+        "verification": "direct",
         "lifecycle": "active"
       },
-      "summary": "Den responsiva 3D-/textscenen kan konsumera Reaction Planner-state från både ett schema-validerat demotranscript och livelevererade serverevents; full cue-specifik visuell täckning återstår."
+      "summary": "Den responsiva 3D-/textscenen konsumerar Reaction Planner-state från både schema-validerade demotranscript och livelevererade serverevents; samtliga deklarerade cues har explicita visuella intents, textfallback och reduced-motion-täckning."
     },
     {
       "id": "node.verifier",
@@ -315,7 +315,7 @@
       "actor": "table",
       "clip": "table.reset",
       "reducedMotionText": "Blackjackbordet är förberett för en ny runda.",
-      "maturity": { "runtime": "partial", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
+      "maturity": { "runtime": "implemented", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
     },
     {
       "id": "blackjack.round-start",
@@ -324,7 +324,7 @@
       "actor": "table",
       "clip": "table.round-start",
       "reducedMotionText": "Blackjackrundan har startat.",
-      "maturity": { "runtime": "partial", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
+      "maturity": { "runtime": "implemented", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
     },
     {
       "id": "blackjack.bet-accepted",
@@ -333,7 +333,7 @@
       "actor": "player",
       "clip": "player.place-bet",
       "reducedMotionText": "Blackjackinsatsen är accepterad.",
-      "maturity": { "runtime": "partial", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
+      "maturity": { "runtime": "implemented", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
     },
     {
       "id": "blackjack.deal-card",
@@ -342,7 +342,7 @@
       "actor": "dealer",
       "clip": "dealer.deal-card",
       "reducedMotionText": "Dealern delar ett kort utan att exponera ett nedvänt kort.",
-      "maturity": { "runtime": "partial", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
+      "maturity": { "runtime": "implemented", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
     },
     {
       "id": "blackjack.reveal-card",
@@ -351,7 +351,7 @@
       "actor": "dealer",
       "clip": "dealer.reveal-hole-card",
       "reducedMotionText": "Dealern visar sitt nedvända kort.",
-      "maturity": { "runtime": "partial", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
+      "maturity": { "runtime": "implemented", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
     },
     {
       "id": "blackjack.split-hand",
@@ -360,7 +360,7 @@
       "actor": "dealer",
       "clip": "dealer.split-hand",
       "reducedMotionText": "Spelarens hand delas i två händer.",
-      "maturity": { "runtime": "partial", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
+      "maturity": { "runtime": "implemented", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
     },
     {
       "id": "blackjack.turn-change",
@@ -369,7 +369,7 @@
       "actor": "table",
       "clip": "table.turn-change",
       "reducedMotionText": "Bordet visar vems tur det är och vilka handlingar som är tillåtna.",
-      "maturity": { "runtime": "partial", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
+      "maturity": { "runtime": "implemented", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
     },
     {
       "id": "blackjack.hand-settled",
@@ -378,7 +378,7 @@
       "actor": "table",
       "clip": "table.settle-hand",
       "reducedMotionText": "Blackjackhandens resultat och payout visas.",
-      "maturity": { "runtime": "partial", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
+      "maturity": { "runtime": "implemented", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
     },
     {
       "id": "roulette.round-prepared",
@@ -387,7 +387,7 @@
       "actor": "table",
       "clip": "table.reset",
       "reducedMotionText": "Roulettebordet är förberett för en ny runda.",
-      "maturity": { "runtime": "partial", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
+      "maturity": { "runtime": "implemented", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
     },
     {
       "id": "roulette.round-start",
@@ -396,7 +396,7 @@
       "actor": "table",
       "clip": "table.round-start",
       "reducedMotionText": "Rouletterundan har startat med accepterade insatser.",
-      "maturity": { "runtime": "partial", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
+      "maturity": { "runtime": "implemented", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
     },
     {
       "id": "roulette.betting-opened",
@@ -405,7 +405,7 @@
       "actor": "table",
       "clip": "table.open-betting",
       "reducedMotionText": "Roulettebordet tar emot insatser.",
-      "maturity": { "runtime": "partial", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
+      "maturity": { "runtime": "implemented", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
     },
     {
       "id": "roulette.bet-placed",
@@ -414,7 +414,7 @@
       "actor": "player",
       "clip": "player.place-bet",
       "reducedMotionText": "En accepterad roulettemarkör placeras på bettingmattan.",
-      "maturity": { "runtime": "partial", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
+      "maturity": { "runtime": "implemented", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
     },
     {
       "id": "roulette.bets-locked",
@@ -423,7 +423,7 @@
       "actor": "table",
       "clip": "table.lock-bets",
       "reducedMotionText": "Rouletteinsatserna är låsta.",
-      "maturity": { "runtime": "partial", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
+      "maturity": { "runtime": "implemented", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
     },
     {
       "id": "roulette.spin-started",
@@ -432,7 +432,7 @@
       "actor": "dealer",
       "clip": "dealer.spin-wheel",
       "reducedMotionText": "Roulettehjulet och bollen börjar röra sig.",
-      "maturity": { "runtime": "partial", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
+      "maturity": { "runtime": "implemented", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
     },
     {
       "id": "roulette.land-pocket",
@@ -441,7 +441,7 @@
       "actor": "table",
       "clip": "table.roulette-land",
       "reducedMotionText": "Roulettehjulet visar serverns vinnande pocket.",
-      "maturity": { "runtime": "partial", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
+      "maturity": { "runtime": "implemented", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
     },
     {
       "id": "roulette.bet-settled",
@@ -450,7 +450,7 @@
       "actor": "dealer",
       "clip": "dealer.settle-bet",
       "reducedMotionText": "Den enskilda rouletteinsatsen markeras som vunnen eller förlorad.",
-      "maturity": { "runtime": "partial", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
+      "maturity": { "runtime": "implemented", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
     },
     {
       "id": "blackjack.settled-win",
@@ -460,7 +460,7 @@
       "actor": "table",
       "clip": "table.pay-winning-bet",
       "reducedMotionText": "Spelaren vann blackjackrundan.",
-      "maturity": { "runtime": "partial", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
+      "maturity": { "runtime": "implemented", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
     },
     {
       "id": "blackjack.settled-loss",
@@ -470,7 +470,7 @@
       "actor": "table",
       "clip": "table.collect-losing-bet",
       "reducedMotionText": "Spelaren förlorade blackjackrundan.",
-      "maturity": { "runtime": "partial", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
+      "maturity": { "runtime": "implemented", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
     },
     {
       "id": "blackjack.settled-push",
@@ -480,7 +480,7 @@
       "actor": "table",
       "clip": "table.return-push",
       "reducedMotionText": "Blackjackrundan slutade oavgjort.",
-      "maturity": { "runtime": "partial", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
+      "maturity": { "runtime": "implemented", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
     },
     {
       "id": "blackjack.settled-mixed",
@@ -490,7 +490,7 @@
       "actor": "table",
       "clip": "table.settle-mixed",
       "reducedMotionText": "De delade blackjackhänderna fick olika resultat.",
-      "maturity": { "runtime": "partial", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
+      "maturity": { "runtime": "implemented", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
     },
     {
       "id": "roulette.settled-win",
@@ -500,7 +500,7 @@
       "actor": "table",
       "clip": "table.pay-winning-bet",
       "reducedMotionText": "Alla avgjorda rouletteinsatser vann.",
-      "maturity": { "runtime": "partial", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
+      "maturity": { "runtime": "implemented", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
     },
     {
       "id": "roulette.settled-loss",
@@ -510,7 +510,7 @@
       "actor": "table",
       "clip": "table.collect-losing-bet",
       "reducedMotionText": "Alla avgjorda rouletteinsatser förlorade.",
-      "maturity": { "runtime": "partial", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
+      "maturity": { "runtime": "implemented", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
     },
     {
       "id": "roulette.settled-push",
@@ -520,7 +520,7 @@
       "actor": "table",
       "clip": "table.return-push",
       "reducedMotionText": "Rouletterundan avslutades utan nettovinst eller nettoförlust.",
-      "maturity": { "runtime": "partial", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
+      "maturity": { "runtime": "implemented", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
     },
     {
       "id": "roulette.settled-mixed",
@@ -530,7 +530,7 @@
       "actor": "table",
       "clip": "table.settle-mixed",
       "reducedMotionText": "Rouletterundan innehöll både vinnande och förlorande insatser.",
-      "maturity": { "runtime": "partial", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
+      "maturity": { "runtime": "implemented", "contract": "zod-v2", "verification": "direct", "lifecycle": "active" }
     }
   ],
   "presentationIgnores": [
