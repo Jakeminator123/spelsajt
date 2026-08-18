@@ -8,6 +8,26 @@ export const defaultSocketAuthRevalidationIntervalMs = 60_000;
 export const defaultPostgresConnectionTimeoutMs = 5_000;
 export const defaultPostgresStatementTimeoutMs = 10_000;
 
+export interface GameServerBinding {
+  readonly host: string;
+  readonly port: number;
+}
+
+export function gameServerBinding(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): GameServerBinding {
+  const host = env.GAME_SERVER_HOST ?? "127.0.0.1";
+  const configuredPort = env.GAME_SERVER_PORT ?? env.PORT ?? "4000";
+  if (!/^\d+$/.test(configuredPort)) {
+    throw new Error("GAME_SERVER_PORT or PORT must be a positive integer.");
+  }
+  const port = Number(configuredPort);
+  if (!Number.isSafeInteger(port) || port < 1 || port > 65_535) {
+    throw new Error("GAME_SERVER_PORT or PORT must be a safe integer between 1 and 65535.");
+  }
+  return { host, port };
+}
+
 export interface PostgresRuntimeTimeouts {
   readonly connectionTimeoutMillis: number;
   readonly statementTimeoutMillis: number;
