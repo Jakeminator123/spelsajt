@@ -76,15 +76,15 @@ function Scene({ reduceMotion }: { reduceMotion: boolean }) {
       <Table />
       <RouletteWheel reduceMotion={reduceMotion} position={[-2.2, FELT_TOP, 0.05]} />
 
-      <PlayingCard rank="A" suit="spade" position={[-0.3, 1.4, -0.1]} rotationY={0.12} />
-      <PlayingCard rank="K" suit="heart" position={[1.2, FELT_TOP + 0.02, -0.05]} rotationY={-0.08} />
-      <PlayingCard rank="Q" suit="club" position={[0.35, FELT_TOP + 0.02, 0.55]} rotationY={0.32} faceUp={false} />
+      <PlayingCard rank="A" suit="spade" position={[0.05, FELT_TOP + 0.24, 1.05]} rotationY={0.24} />
+      <PlayingCard rank="K" suit="heart" position={[0.7, FELT_TOP + 0.18, 0.9]} rotationY={0.04} />
+      <PlayingCard rank="Q" suit="club" position={[1.35, FELT_TOP + 0.12, 0.72]} rotationY={-0.16} faceUp={false} />
 
-      <ChipStack position={[1.95, FELT_TOP + 0.03, -0.15]} />
+      <ChipStack position={[1.95, FELT_TOP + 0.03, 0.9]} />
 
-      <Croupier reduceMotion={reduceMotion} position={[1.8, FELT_TOP, -1.05]} />
+      <Croupier reduceMotion={reduceMotion} position={[1.8, FELT_TOP, -1.15]} />
 
-      <ContactShadows position={[0, FELT_TOP + 0.005, 0]} opacity={0.55} scale={12} blur={2.6} far={4} resolution={512} color="#04060a" />
+      <ContactShadows position={[0, FELT_TOP + 0.001, 0]} opacity={0.5} scale={12} blur={2.8} far={2.2} resolution={512} color="#04060a" />
 
       <Environment resolution={256}>
         <Lightformer form="rect" intensity={2} position={[0, 5, -4]} scale={[8, 4, 1]} color="#ffffff" />
