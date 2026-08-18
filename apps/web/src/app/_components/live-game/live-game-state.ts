@@ -1,5 +1,7 @@
 import type { GameEventV2, GameSnapshotV2 } from "@spelsajt/contracts";
 
+import { appendRoundEvent } from "./fairness-evidence-store";
+
 export type LiveConnectionStatus =
   | "idle"
   | "connecting"
@@ -22,12 +24,20 @@ export interface LiveGameState {
 
 export type LiveGameStateAction =
   | { readonly type: "load.failed"; readonly issue: string }
-  | { readonly type: "load.succeeded"; readonly snapshot: GameSnapshotV2 | null }
+  | {
+    readonly type: "load.succeeded";
+    readonly roundEvents?: readonly GameEventV2[];
+    readonly snapshot: GameSnapshotV2 | null;
+  }
   | { readonly type: "command.started" }
   | { readonly type: "command.failed"; readonly issue: string }
   | { readonly type: "command.finished"; readonly snapshot: GameSnapshotV2 }
   | { readonly type: "connection.changed"; readonly connection: LiveConnectionStatus }
-  | { readonly type: "snapshot.received"; readonly snapshot: GameSnapshotV2 }
+  | {
+    readonly type: "snapshot.received";
+    readonly roundEvents?: readonly GameEventV2[];
+    readonly snapshot: GameSnapshotV2;
+  }
   | { readonly type: "event.received"; readonly event: GameEventV2 }
   | { readonly type: "issue.cleared" };
 
@@ -53,7 +63,7 @@ export function reduceLiveGameState(
         ...state,
         issue: null,
         loading: false,
-        roundEvents: [],
+        roundEvents: action.roundEvents ?? [],
         snapshot: action.snapshot,
       };
     case "command.started":
@@ -76,18 +86,15 @@ export function reduceLiveGameState(
     case "snapshot.received":
       return {
         ...state,
-        roundEvents: [],
+        roundEvents: action.roundEvents ?? [],
         snapshot: newerSnapshot(state.snapshot, action.snapshot),
       };
     case "event.received":
       {
-        const continuesCurrentRound = state.roundEvents.at(-1)?.roundId === action.event.roundId
-          || state.snapshot?.round?.roundId === action.event.roundId;
-        const roundEvents = continuesCurrentRound ? state.roundEvents : [];
         return {
           ...state,
           recentEvents: [...state.recentEvents, action.event].slice(-8),
-          roundEvents: [...roundEvents, action.event].slice(-64),
+          roundEvents: appendRoundEvent(state.roundEvents, action.event),
         };
       }
     case "issue.cleared":
