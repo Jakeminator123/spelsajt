@@ -4,12 +4,28 @@ import {
   defaultPostgresConnectionTimeoutMs,
   defaultPostgresStatementTimeoutMs,
   defaultSocketAuthRevalidationIntervalMs,
+  gameServerBinding,
   postgresRuntimeTimeouts,
   runtimeDependencies,
   socketAuthRevalidationInterval,
 } from "./runtime";
 
 describe("runtime dependencies", () => {
+  it("uses Render's standard PORT while preserving local and explicit overrides", () => {
+    expect(gameServerBinding({})).toEqual({ host: "127.0.0.1", port: 4_000 });
+    expect(gameServerBinding({ PORT: "10000" })).toEqual({
+      host: "127.0.0.1",
+      port: 10_000,
+    });
+    expect(gameServerBinding({
+      GAME_SERVER_HOST: "0.0.0.0",
+      GAME_SERVER_PORT: "4100",
+      PORT: "10000",
+    })).toEqual({ host: "0.0.0.0", port: 4_100 });
+    expect(() => gameServerBinding({ PORT: "10000-http" })).toThrow("positive integer");
+    expect(() => gameServerBinding({ PORT: "65536" })).toThrow("between 1 and 65535");
+  });
+
   it("keeps the in-memory fallback available outside production", () => {
     expect(runtimeDependencies({})).toEqual({});
     expect(runtimeDependencies({ NODE_ENV: "test" })).toEqual({});

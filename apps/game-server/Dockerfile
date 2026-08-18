@@ -34,7 +34,6 @@ FROM node:24.19.0-bookworm-slim AS runtime
 
 ENV NODE_ENV=production
 ENV GAME_SERVER_HOST=0.0.0.0
-ENV GAME_SERVER_PORT=4000
 
 WORKDIR /app
 
@@ -47,6 +46,6 @@ USER node
 EXPOSE 4000
 
 HEALTHCHECK --interval=5s --timeout=3s --start-period=5s --retries=5 \
-  CMD ["node", "-e", "const port = process.env.GAME_SERVER_PORT || '4000'; fetch('http://127.0.0.1:' + port + '/health').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));"]
+  CMD ["node", "-e", "const port = process.env.GAME_SERVER_PORT || process.env.PORT || '4000'; fetch('http://127.0.0.1:' + port + '/health').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));"]
 
 CMD ["node", "dist/start.js"]
