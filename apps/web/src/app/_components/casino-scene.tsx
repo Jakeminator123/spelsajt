@@ -1,73 +1,97 @@
 "use client";
 
-import { Float } from "@react-three/drei";
+import { ContactShadows, Environment, Lightformer, RoundedBox } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useEffect, useRef, useState } from "react";
-import type { Group } from "three";
+import { useEffect, useMemo, useState } from "react";
+import { Vector3 } from "three";
 
-function RouletteWheel({ reduceMotion }: { reduceMotion: boolean }) {
-  const group = useRef<Group>(null);
+import { Croupier } from "./scene/croupier";
+import { PlayingCard } from "./scene/playing-card";
+import { RouletteWheel } from "./scene/roulette-wheel";
 
-  useFrame((_state, delta) => {
-    if (!reduceMotion && group.current) {
-      group.current.rotation.z -= delta * 0.32;
+const FELT_TOP = 0.1;
+
+function ChipStack({ position }: { position: [number, number, number] }) {
+  const colors = ["#7c5cff", "#c6f24e", "#f4f5f8", "#7c5cff", "#c6f24e"];
+  return (
+    <group position={position}>
+      {colors.map((color, i) => (
+        <mesh key={i} position={[0, i * 0.05, 0]} castShadow>
+          <cylinderGeometry args={[0.19, 0.19, 0.05, 32]} />
+          <meshStandardMaterial color={color} metalness={0.3} roughness={0.45} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function Table() {
+  return (
+    <group>
+      {/* Table frame */}
+      <RoundedBox args={[8.4, 0.5, 4.8]} radius={0.28} smoothness={4} position={[0, -0.15, 0]} receiveShadow>
+        <meshStandardMaterial color="#0d0e13" metalness={0.4} roughness={0.5} />
+      </RoundedBox>
+      {/* Felt surface */}
+      <RoundedBox args={[7.8, 0.18, 4.2]} radius={0.16} smoothness={4} position={[0, 0.01, 0]} receiveShadow>
+        <meshStandardMaterial color="#15251f" roughness={0.98} metalness={0} />
+      </RoundedBox>
+      {/* Thin brand accent inlay around the felt */}
+      <mesh position={[0, 0.101, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[3.55, 3.62, 96]} />
+        <meshStandardMaterial color="#7c5cff" emissive="#5a3ff0" emissiveIntensity={0.4} metalness={0.3} roughness={0.4} />
+      </mesh>
+    </group>
+  );
+}
+
+function CameraRig({ reduceMotion }: { reduceMotion: boolean }) {
+  const target = useMemo(() => new Vector3(-0.3, 0.15, -0.1), []);
+
+  useFrame((state) => {
+    const cam = state.camera;
+    if (reduceMotion) {
+      cam.position.set(0.2, 5.3, 6.7);
+      cam.lookAt(target);
+      return;
     }
+    const t = state.clock.elapsedTime;
+    cam.position.set(0.2 + Math.sin(t * 0.16) * 0.4, 5.3 + Math.sin(t * 0.22) * 0.14, 6.7);
+    cam.lookAt(target);
   });
 
-  return (
-    <group ref={group} rotation={[Math.PI / 2, 0, 0]} position={[1.65, 0.55, -0.1]}>
-      <mesh>
-        <cylinderGeometry args={[1.08, 1.08, 0.18, 37]} />
-        <meshStandardMaterial color="#c9ccd8" metalness={0.92} roughness={0.18} />
-      </mesh>
-      <mesh position={[0, 0.12, 0]}>
-        <cylinderGeometry args={[0.84, 0.84, 0.12, 37]} />
-        <meshStandardMaterial color="#14161f" metalness={0.4} roughness={0.42} />
-      </mesh>
-      <mesh position={[0, 0.2, 0]}>
-        <torusGeometry args={[0.61, 0.055, 16, 74]} />
-        <meshStandardMaterial color="#7c5cff" metalness={0.4} roughness={0.3} emissive="#4a30c0" emissiveIntensity={0.4} />
-      </mesh>
-      <mesh position={[0, 0.31, 0]}>
-        <sphereGeometry args={[0.11, 24, 24]} />
-        <meshStandardMaterial color="#f2f3f7" roughness={0.12} metalness={0.3} />
-      </mesh>
-    </group>
-  );
+  return null;
 }
 
-function Card({ position, rotation = 0 }: { position: [number, number, number]; rotation?: number }) {
+function Scene({ reduceMotion }: { reduceMotion: boolean }) {
   return (
-    <Float speed={1.2} floatIntensity={0.1} rotationIntensity={0.08}>
-      <group position={position} rotation={[0, rotation, 0]}>
-        <mesh>
-          <boxGeometry args={[0.72, 0.035, 1.05]} />
-          <meshStandardMaterial color="#eee7d8" roughness={0.36} />
-        </mesh>
-        <mesh position={[0, 0.025, 0]}>
-          <boxGeometry args={[0.56, 0.01, 0.89]} />
-          <meshStandardMaterial color="#15241c" roughness={0.55} />
-        </mesh>
-      </group>
-    </Float>
-  );
-}
+    <>
+      <CameraRig reduceMotion={reduceMotion} />
 
-function TableScene({ reduceMotion }: { reduceMotion: boolean }) {
-  return (
-    <group rotation={[0.08, -0.23, 0]} position={[0, -0.55, 0]}>
-      <mesh receiveShadow>
-        <cylinderGeometry args={[3.65, 3.75, 0.3, 64]} />
-        <meshStandardMaterial color="#12141c" roughness={0.85} />
-      </mesh>
-      <mesh position={[0, 0.17, 0]}>
-        <torusGeometry args={[3.15, 0.1, 18, 96]} />
-        <meshStandardMaterial color="#c6f24e" metalness={0.6} roughness={0.32} emissive="#87a828" emissiveIntensity={0.35} />
-      </mesh>
-      <Card position={[-1.45, 0.38, 0.2]} rotation={0.1} />
-      <Card position={[-0.68, 0.42, -0.05]} rotation={-0.12} />
-      <RouletteWheel reduceMotion={reduceMotion} />
-    </group>
+      <ambientLight intensity={0.5} />
+      <directionalLight color="#fbf7ff" intensity={2.4} position={[-4, 7, 5]} />
+      <pointLight color="#c6f24e" intensity={14} position={[3.5, 3, 2]} distance={14} />
+      <pointLight color="#7c5cff" intensity={13} position={[-4.5, 2.5, 3]} distance={14} />
+
+      <Table />
+      <RouletteWheel reduceMotion={reduceMotion} position={[-2.2, FELT_TOP, 0.05]} />
+
+      <PlayingCard rank="A" suit="spade" position={[-0.3, 1.4, -0.1]} rotationY={0.12} />
+      <PlayingCard rank="K" suit="heart" position={[1.2, FELT_TOP + 0.02, -0.05]} rotationY={-0.08} />
+      <PlayingCard rank="Q" suit="club" position={[0.35, FELT_TOP + 0.02, 0.55]} rotationY={0.32} faceUp={false} />
+
+      <ChipStack position={[1.95, FELT_TOP + 0.03, -0.15]} />
+
+      <Croupier reduceMotion={reduceMotion} position={[1.8, FELT_TOP, -1.05]} />
+
+      <ContactShadows position={[0, FELT_TOP + 0.005, 0]} opacity={0.55} scale={12} blur={2.6} far={4} resolution={512} color="#04060a" />
+
+      <Environment resolution={256}>
+        <Lightformer form="rect" intensity={2} position={[0, 5, -4]} scale={[8, 4, 1]} color="#ffffff" />
+        <Lightformer form="rect" intensity={1.6} position={[5, 2, 3]} scale={[3, 4, 1]} color="#c6f24e" />
+        <Lightformer form="rect" intensity={1.4} position={[-5, 2, 2]} scale={[3, 4, 1]} color="#7c5cff" />
+      </Environment>
+    </>
   );
 }
 
@@ -84,18 +108,14 @@ export function CasinoScene() {
 
   return (
     <Canvas
-      camera={{ fov: 36, position: [0, 4.8, 7.2] }}
-      dpr={[1, 1.6]}
+      camera={{ fov: 32, position: [0.6, 4.5, 6.9] }}
+      dpr={[1, 1.75]}
       frameloop={reduceMotion ? "demand" : "always"}
       gl={{ antialias: true, powerPreference: "high-performance" }}
     >
       <color attach="background" args={["#0a0b10"]} />
-      <fog attach="fog" args={["#0a0b10", 7, 14]} />
-      <ambientLight intensity={0.75} />
-      <directionalLight color="#f4f2ff" intensity={3} position={[-3, 6, 5]} />
-      <pointLight color="#c6f24e" intensity={16} position={[3, 2.5, 1]} />
-      <pointLight color="#7c5cff" intensity={14} position={[-3, 2, 2.5]} />
-      <TableScene reduceMotion={reduceMotion} />
+      <fog attach="fog" args={["#0a0b10", 9, 18]} />
+      <Scene reduceMotion={reduceMotion} />
     </Canvas>
   );
 }
