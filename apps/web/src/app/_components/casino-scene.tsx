@@ -240,10 +240,10 @@ export function CasinoScene({ game, source = "recorded-demo" }: {
     if (reduceMotion === null) {
       return;
     }
-    presentationStore.reset();
     if (source === "live") {
-      return () => presentationStore.reset();
+      return;
     }
+    presentationStore.reset();
     if (reduceMotion) {
       for (const event of recordedRouletteDemo.events) {
         presentationStore.dispatch(event);

@@ -67,6 +67,12 @@ describe("live game state", () => {
       type: "snapshot.received",
     });
     expect(recovered.snapshot?.revision).toBe(2);
+
+    const stale = reduceLiveGameState(recovered, {
+      snapshot,
+      type: "snapshot.received",
+    });
+    expect(stale.snapshot?.revision).toBe(2);
   });
 
   it("makes reconnect state visible and keeps only recent contracted events", () => {

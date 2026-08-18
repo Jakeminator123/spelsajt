@@ -1,6 +1,7 @@
 import {
   gameEventTypesV2,
   gameEventV2Schema,
+  gameSnapshotV2Schema,
   type GameEventV2,
 } from "@spelsajt/contracts";
 import { systemModel } from "@spelsajt/system-model";
@@ -14,12 +15,14 @@ import cardRevealedRaw from "../../../../../../packages/contracts/fixtures/v2/bl
 import handSettledRaw from "../../../../../../packages/contracts/fixtures/v2/blackjack-hand-settled.event.json";
 import handSplitRaw from "../../../../../../packages/contracts/fixtures/v2/blackjack-hand-split.event.json";
 import turnChangedRaw from "../../../../../../packages/contracts/fixtures/v2/blackjack-turn-changed.event.json";
+import blackjackSnapshotRaw from "../../../../../../packages/contracts/fixtures/v2/blackjack.snapshot.json";
 import rouletteBetPlacedRaw from "../../../../../../packages/contracts/fixtures/v2/roulette-bet-placed.event.json";
 import rouletteBetSettledRaw from "../../../../../../packages/contracts/fixtures/v2/roulette-bet-settled.event.json";
 import rouletteBetsLockedRaw from "../../../../../../packages/contracts/fixtures/v2/roulette-bets-locked.event.json";
 import rouletteBettingOpenedRaw from "../../../../../../packages/contracts/fixtures/v2/roulette-betting-opened.event.json";
 import rouletteResultRaw from "../../../../../../packages/contracts/fixtures/v2/roulette-result.event.json";
 import rouletteSpinStartedRaw from "../../../../../../packages/contracts/fixtures/v2/roulette-spin-started.event.json";
+import rouletteSnapshotRaw from "../../../../../../packages/contracts/fixtures/v2/roulette.snapshot.json";
 import roundPreparedRaw from "../../../../../../packages/contracts/fixtures/v2/round-prepared.event.json";
 import roundSettledRaw from "../../../../../../packages/contracts/fixtures/v2/round-settled.event.json";
 import roundStartedRaw from "../../../../../../packages/contracts/fixtures/v2/round-started.event.json";
@@ -29,6 +32,7 @@ import {
   presentationCueDefinitions,
   presentationStore,
   projectGameEvent,
+  projectGameSnapshot,
   recordedRouletteDemo,
 } from "./presentation";
 
@@ -151,6 +155,53 @@ describe("GameEventV2 presentation projector", () => {
     expect(projectGameEvent(prepared, { ...started, sequence: 3 })).toBe(prepared);
     expect(projectGameEvent(prepared, { ...started, sequence: 1 })).toBe(prepared);
     expect(projectGameEvent({ ...prepared, revision: 3 }, started)).toEqual({ ...prepared, revision: 3 });
+  });
+
+  it("anchors live presentation from authoritative blackjack and roulette snapshots", () => {
+    const blackjack = projectGameSnapshot(
+      createInitialPresentationState(),
+      gameSnapshotV2Schema.parse(blackjackSnapshotRaw),
+    );
+    expect(blackjack).toMatchObject({
+      activeHandId: "hand-1",
+      allowedActions: ["hit", "stand", "double"],
+      game: "blackjack",
+      lastSequence: 9,
+      stage: "active",
+      tableId: "table-blackjack-1",
+    });
+    expect(blackjack.cards).toHaveLength(4);
+    expect(blackjack.cards.find((card) => !card.faceUp)).not.toHaveProperty("card");
+
+    const roulette = projectGameSnapshot(
+      createInitialPresentationState(),
+      gameSnapshotV2Schema.parse(rouletteSnapshotRaw),
+    );
+    expect(roulette).toMatchObject({
+      game: "roulette",
+      lastSequence: 4,
+      rouletteBets: [{ betId: "bet-1" }],
+      rouletteResult: null,
+      stage: "roulette-locked",
+      tableId: "table-roulette-1",
+    });
+  });
+
+  it("accepts the next live event after a snapshot anchor and rejects stale anchors", () => {
+    const snapshot = gameSnapshotV2Schema.parse(rouletteSnapshotRaw);
+    const anchored = projectGameSnapshot(createInitialPresentationState(), snapshot);
+    const spin = parseEvent({
+      ...rouletteSpinStartedRaw,
+      revision: snapshot.revision,
+      roundId: snapshot.round?.roundId,
+      sequence: snapshot.lastSequence + 1,
+      tableId: snapshot.tableId,
+    });
+    const projected = projectGameEvent(anchored, spin);
+
+    expect(projected.stage).toBe("roulette-spinning");
+    expect(projected.lastSequence).toBe(5);
+    expect(projectGameSnapshot(projected, snapshot)).toBe(projected);
   });
 
   it("projects the schema-validated recording without inventing a roulette result", () => {

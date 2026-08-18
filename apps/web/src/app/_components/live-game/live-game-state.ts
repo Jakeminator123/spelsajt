@@ -53,11 +53,16 @@ export function reduceLiveGameState(
     case "command.failed":
       return { ...state, issue: action.issue, pendingCommand: false };
     case "command.finished":
-      return { ...state, issue: null, pendingCommand: false, snapshot: action.snapshot };
+      return {
+        ...state,
+        issue: null,
+        pendingCommand: false,
+        snapshot: newerSnapshot(state.snapshot, action.snapshot),
+      };
     case "connection.changed":
       return { ...state, connection: action.connection };
     case "snapshot.received":
-      return { ...state, snapshot: action.snapshot };
+      return { ...state, snapshot: newerSnapshot(state.snapshot, action.snapshot) };
     case "event.received":
       return {
         ...state,
@@ -66,6 +71,22 @@ export function reduceLiveGameState(
     case "issue.cleared":
       return { ...state, issue: null };
   }
+}
+
+function newerSnapshot(
+  current: GameSnapshotV2 | null,
+  candidate: GameSnapshotV2,
+): GameSnapshotV2 {
+  if (
+    current?.tableId === candidate.tableId
+    && (
+      candidate.lastSequence < current.lastSequence
+      || candidate.revision < current.revision
+    )
+  ) {
+    return current;
+  }
+  return candidate;
 }
 
 export function connectionLabel(status: LiveConnectionStatus): string {

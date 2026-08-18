@@ -94,6 +94,7 @@ export function LiveGameTable({ game }: { game: GameName }) {
           throw new Error("Bordets sparade speltyp matchar inte den här sidan.");
         }
         lastPresentedSequenceRef.current = snapshot?.lastSequence ?? 0;
+        if (snapshot) presentationStore.anchor(snapshot);
         dispatch({ type: "load.succeeded", snapshot });
 
         const realtime = connectGameRealtime(
@@ -107,12 +108,28 @@ export function LiveGameTable({ game }: { game: GameName }) {
             onEvent: (event) => {
               if (!active || event.tableId !== tableId) return;
               if (event.sequence <= lastPresentedSequenceRef.current) return;
+              if (event.sequence !== lastPresentedSequenceRef.current + 1) {
+                dispatch({
+                  type: "command.failed",
+                  issue: "Liveflödet fick ett sekvensgap och inväntar ett nytt snapshot.",
+                });
+                realtimeRef.current?.subscribe(tableId, lastPresentedSequenceRef.current);
+                return;
+              }
+              if (!presentationStore.dispatch(event)) {
+                dispatch({
+                  type: "command.failed",
+                  issue: "Livehändelsen kunde inte förankras i presentationen.",
+                });
+                realtimeRef.current?.subscribe(tableId, lastPresentedSequenceRef.current);
+                return;
+              }
               lastPresentedSequenceRef.current = event.sequence;
-              presentationStore.dispatch(event);
               dispatch({ type: "event.received", event });
             },
             onSnapshot: (nextSnapshot) => {
               if (!active || nextSnapshot.tableId !== tableId || nextSnapshot.game !== game) return;
+              presentationStore.anchor(nextSnapshot);
               lastPresentedSequenceRef.current = Math.max(
                 lastPresentedSequenceRef.current,
                 nextSnapshot.lastSequence,
@@ -192,6 +209,7 @@ export function LiveGameTable({ game }: { game: GameName }) {
             tableId,
           });
           if (snapshot?.game === game) {
+            presentationStore.anchor(snapshot);
             lastPresentedSequenceRef.current = Math.max(
               lastPresentedSequenceRef.current,
               snapshot.lastSequence,
@@ -208,6 +226,13 @@ export function LiveGameTable({ game }: { game: GameName }) {
       if (acknowledgement.snapshot.game !== game) {
         throw new Error("Spelservern svarade med fel speltyp.");
       }
+      if (state.connection !== "live") {
+        presentationStore.anchor(acknowledgement.snapshot);
+        lastPresentedSequenceRef.current = Math.max(
+          lastPresentedSequenceRef.current,
+          acknowledgement.snapshot.lastSequence,
+        );
+      }
       dispatch({ type: "command.finished", snapshot: acknowledgement.snapshot });
       if (!tableExisted) {
         realtimeRef.current?.subscribe(tableId, acknowledgement.snapshot.lastSequence);
@@ -215,7 +240,7 @@ export function LiveGameTable({ game }: { game: GameName }) {
     } catch (error) {
       dispatch({ type: "command.failed", issue: errorMessage(error) });
     }
-  }, [game, state.snapshot]);
+  }, [game, state.connection, state.snapshot]);
 
   const commandBase = useCallback(() => {
     const tableId = tableIdRef.current;

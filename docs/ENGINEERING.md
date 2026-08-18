@@ -50,6 +50,6 @@ En webbranch får aldrig lösa en konflikt genom att skapa parallella eventtyper
 
 - Lokalt: Supabase CLI-konfigurationen under `supabase/` och endast play-money-testdata.
 - Moln: ett dedikerat Supabase-projekt `spelsajt` i teamorganisationen och region `eu-north-1`.
-- Webb: Vercel-projektet `spelsajt-web` under teamscope `jakeminator123s-projects`.
+- Webb: Vercel-projektet `spelsajt` under teamscope `jakeminator123s-projects`, med `https://spelsajt.vercel.app` som kanonisk produktionsadress.
 
 Projekt-ID:n och nycklar injiceras som miljövariabler och är inte dokumentationens source of truth.
