@@ -6,7 +6,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Group } from "three";
 
 import { clamp01, easeOutCubic, lerp } from "./scene/animation";
-import { Croupier, type CroupierVisualPose } from "./scene/croupier";
+import type { CroupierVisualPose } from "./scene/croupier";
 import { DummyHeroCards } from "./scene/dummy-card-decoration";
 import { PlayingCard } from "./scene/playing-card";
 import {
@@ -21,14 +21,14 @@ import { RouletteWheel, type RouletteVisualPhase } from "./scene/roulette-wheel"
 
 const FELT_TOP = 0.1;
 const DEALER_ORIGIN: [number, number, number] = [1.8, FELT_TOP + 0.48, -1];
-const CAMERA_POSITION: [number, number, number] = [0, 9.4, 8.2];
-const CAMERA_TARGET: [number, number, number] = [0, -0.1, -0.35];
+const CAMERA_POSITION: [number, number, number] = [0, 6.6, 9.8];
+const CAMERA_TARGET: [number, number, number] = [0, -0.15, -1.1];
 const DEALER_ZONE_Z = -1.25;
 const PLAYER_ZONE_Z = 1.15;
 
 // Blackjack seating arc: seven player positions curve along the front edge,
 // centred on a point behind the dealer, matching a real live table.
-const SEAT_COUNT = 7;
+const SEAT_COUNT: number = 7;
 const ARC_CENTER_Z = -2.4;
 const ARC_RADIUS = 3.6;
 const ARC_SPREAD = (44 * Math.PI) / 180; // half-angle from centre to outer seat
@@ -159,19 +159,19 @@ function Table() {
 function BettingSpot({ x, z, highlight }: { x: number; z: number; highlight?: boolean }) {
   return (
     <group position={[x, FELT_TOP, z]}>
-      <mesh position={[0, 0.014, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.5, 0.07, 16, 56]} />
+      <mesh position={[0, 0.012, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.42, 0.035, 16, 56]} />
         <meshStandardMaterial
-          color={highlight ? "#c6f24e" : "#ffffff"}
-          emissive={highlight ? "#c6f24e" : "#dfe3ee"}
-          emissiveIntensity={highlight ? 1.9 : 1.6}
-          metalness={0.3}
-          roughness={0.3}
+          color={highlight ? "#c6f24e" : "#e6e9f2"}
+          emissive={highlight ? "#8fd400" : "#5c6178"}
+          emissiveIntensity={highlight ? 0.7 : 0.35}
+          metalness={0.35}
+          roughness={0.4}
         />
       </mesh>
-      <mesh position={[0, 0.008, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[0.48, 44]} />
-        <meshStandardMaterial color="#2a6b47" metalness={0} roughness={0.9} />
+      <mesh position={[0, 0.006, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.4, 44]} />
+        <meshStandardMaterial color="#16402b" metalness={0} roughness={0.95} />
       </mesh>
     </group>
   );
@@ -282,7 +282,6 @@ function Scene({
       ))}
       {showDummyCards ? <DummyHeroCards /> : null}
       {showChips ? <ChipStack position={[1.95, FELT_TOP + 0.03, 0.9]} /> : null}
-      <Croupier pose={croupierVisualPose} position={[1.8, FELT_TOP, -1.15]} reduceMotion={false} />
       <ContactShadows blur={2.8} color="#04060a" far={2.2} opacity={0.5} position={[0, FELT_TOP + 0.001, 0]} resolution={512} scale={12} />
       <Environment resolution={256}>
         <Lightformer color="#ffffff" form="rect" intensity={2} position={[0, 5, -4]} scale={[8, 4, 1]} />
