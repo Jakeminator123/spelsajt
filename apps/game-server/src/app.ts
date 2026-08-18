@@ -3,10 +3,12 @@ import cors from "@fastify/cors";
 import Fastify from "fastify";
 
 import { GameApplication, type GameApplicationOptions } from "./application";
+import { bearerToken, rejectAllAuthVerifier, type AuthVerifier } from "./auth";
 import { InMemoryGameRepository } from "./in-memory-repository";
-import type { GameRepository } from "./repository";
+import { TableOwnershipError, type GameRepository } from "./repository";
 
 export interface BuildAppOptions extends GameApplicationOptions {
+  readonly authVerifier?: AuthVerifier;
   readonly repository?: GameRepository;
 }
 
@@ -37,8 +39,13 @@ export function buildApp(options: BuildAppOptions = {}) {
     origin: process.env.WEB_ORIGIN ?? "http://localhost:3000",
   });
 
-  const repository = options.repository ?? new InMemoryGameRepository();
+  const repository: GameRepository = options.repository ?? new InMemoryGameRepository();
+  const authVerifier = options.authVerifier ?? rejectAllAuthVerifier;
   const application = new GameApplication(repository, options);
+
+  app.addHook("onClose", async () => {
+    await repository.close?.();
+  });
 
   app.get("/health", async () => ({
     service: "game-server",
@@ -60,22 +67,46 @@ export function buildApp(options: BuildAppOptions = {}) {
   app.post<{ Params: { tableId: string } }>(
     "/v2/tables/:tableId/commands",
     async (request, reply) => {
-      const ack = await application.execute(request.params.tableId, request.body);
-      if (ack.status === "rejected") {
-        return reply.code(commandStatusCode(ack.error.code)).send(ack);
+      const token = bearerToken(request.headers.authorization);
+      const userId = token ? await authVerifier.verify(token) : null;
+      if (!userId) {
+        return reply.code(401).send({ error: "UNAUTHENTICATED" });
       }
-      return reply.code(200).send(ack);
+      try {
+        const ack = await application.execute(userId, request.params.tableId, request.body);
+        if (ack.status === "rejected") {
+          return reply.code(commandStatusCode(ack.error.code)).send(ack);
+        }
+        return reply.code(200).send(ack);
+      } catch (error) {
+        if (error instanceof TableOwnershipError) {
+          return reply.code(404).send({ error: "TABLE_NOT_FOUND" });
+        }
+        throw error;
+      }
     },
   );
 
   app.get<{ Params: { tableId: string } }>(
     "/v2/tables/:tableId/snapshot",
     async (request, reply) => {
-      const snapshot = await application.getSnapshot(request.params.tableId);
-      if (!snapshot) {
-        return reply.code(404).send({ error: "TABLE_NOT_FOUND" });
+      const token = bearerToken(request.headers.authorization);
+      const userId = token ? await authVerifier.verify(token) : null;
+      if (!userId) {
+        return reply.code(401).send({ error: "UNAUTHENTICATED" });
       }
-      return reply.code(200).send(snapshot);
+      try {
+        const snapshot = await application.getSnapshot(userId, request.params.tableId);
+        if (!snapshot) {
+          return reply.code(404).send({ error: "TABLE_NOT_FOUND" });
+        }
+        return reply.code(200).send(snapshot);
+      } catch (error) {
+        if (error instanceof TableOwnershipError) {
+          return reply.code(404).send({ error: "TABLE_NOT_FOUND" });
+        }
+        throw error;
+      }
     },
   );
 

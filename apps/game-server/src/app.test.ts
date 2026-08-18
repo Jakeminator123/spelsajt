@@ -2,10 +2,18 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { FairnessSource } from "./application";
 import { buildApp } from "./app";
+import type { AuthVerifier } from "./auth";
 import { InMemoryGameRepository } from "./in-memory-repository";
 
 const openApps: ReturnType<typeof buildApp>[] = [];
 const issuedAt = "2026-08-18T10:00:00.000Z";
+const userOne = "10000000-0000-4000-8000-000000000001";
+const userTwo = "10000000-0000-4000-8000-000000000002";
+const authHeaders = { authorization: "Bearer valid-token" };
+
+const authenticatedAs = (userId: string): AuthVerifier => ({
+  verify: async (token) => token === "valid-token" ? userId : null,
+});
 
 function uuid(value: number): string {
   return `00000000-0000-4000-8000-${String(value).padStart(12, "0")}`;
@@ -76,6 +84,7 @@ describe("game server", () => {
   it("plays blackjack through prepare, bet, hit, stand, replay and reconnect", async () => {
     const repository = new InMemoryGameRepository();
     const app = buildApp({
+      authVerifier: authenticatedAs(userOne),
       clock: () => issuedAt,
       fairness: deterministicFairness,
       idGenerator: sequentialIds(),
@@ -85,6 +94,7 @@ describe("game server", () => {
     const tableId = "table-blackjack-integration";
 
     const prepareResponse = await app.inject({
+      headers: authHeaders,
       method: "POST",
       url: `/v2/tables/${tableId}/commands`,
       payload: {
@@ -117,6 +127,7 @@ describe("game server", () => {
       },
     };
     const betResponse = await app.inject({
+      headers: authHeaders,
       method: "POST",
       url: `/v2/tables/${tableId}/commands`,
       payload: betCommand,
@@ -139,6 +150,7 @@ describe("game server", () => {
     });
 
     const staleResponse = await app.inject({
+      headers: authHeaders,
       method: "POST",
       url: `/v2/tables/${tableId}/commands`,
       payload: {
@@ -155,6 +167,7 @@ describe("game server", () => {
     });
 
     const hitResponse = await app.inject({
+      headers: authHeaders,
       method: "POST",
       url: `/v2/tables/${tableId}/commands`,
       payload: {
@@ -170,6 +183,7 @@ describe("game server", () => {
     });
 
     const standResponse = await app.inject({
+      headers: authHeaders,
       method: "POST",
       url: `/v2/tables/${tableId}/commands`,
       payload: {
@@ -187,20 +201,22 @@ describe("game server", () => {
       },
     });
 
-    const beforeReplay = await repository.read(tableId);
+    const beforeReplay = await repository.read(userOne, tableId);
     const replayResponse = await app.inject({
+      headers: authHeaders,
       method: "POST",
       url: `/v2/tables/${tableId}/commands`,
       payload: betCommand,
     });
     expect(replayResponse.statusCode).toBe(200);
     expect(replayResponse.json()).toMatchObject({ revision: 2, status: "replayed" });
-    const afterReplay = await repository.read(tableId);
+    const afterReplay = await repository.read(userOne, tableId);
     expect(afterReplay?.balance).toBe(beforeReplay?.balance);
     expect(afterReplay?.events).toEqual(beforeReplay?.events);
     expect(afterReplay?.revision).toBe(4);
 
     const conflictResponse = await app.inject({
+      headers: authHeaders,
       method: "POST",
       url: `/v2/tables/${tableId}/commands`,
       payload: {
@@ -216,6 +232,7 @@ describe("game server", () => {
     });
 
     const snapshotResponse = await app.inject({
+      headers: authHeaders,
       method: "GET",
       url: `/v2/tables/${tableId}/snapshot`,
     });
@@ -248,6 +265,7 @@ describe("game server", () => {
   it("plays roulette through open, batched bets, lock, spin and settlement", async () => {
     const repository = new InMemoryGameRepository();
     const app = buildApp({
+      authVerifier: authenticatedAs(userOne),
       clock: () => issuedAt,
       fairness: deterministicFairness,
       idGenerator: sequentialIds(),
@@ -257,6 +275,7 @@ describe("game server", () => {
     const tableId = "table-roulette-integration";
 
     const prepareResponse = await app.inject({
+      headers: authHeaders,
       method: "POST",
       url: `/v2/tables/${tableId}/commands`,
       payload: {
@@ -274,6 +293,7 @@ describe("game server", () => {
     const roundId = prepareAck.snapshot.round.roundId as string;
 
     const betsResponse = await app.inject({
+      headers: authHeaders,
       method: "POST",
       url: `/v2/tables/${tableId}/commands`,
       payload: {
@@ -311,6 +331,7 @@ describe("game server", () => {
       payload: { roundId },
     };
     const spinResponse = await app.inject({
+      headers: authHeaders,
       method: "POST",
       url: `/v2/tables/${tableId}/commands`,
       payload: spinCommand,
@@ -325,7 +346,7 @@ describe("game server", () => {
       status: "accepted",
     });
 
-    const stored = await repository.read(tableId);
+    const stored = await repository.read(userOne, tableId);
     expect(stored?.events.map((event) => event.type)).toEqual([
       "round.prepared",
       "roulette.betting.opened",
@@ -341,20 +362,22 @@ describe("game server", () => {
     ]);
 
     const replayResponse = await app.inject({
+      headers: authHeaders,
       method: "POST",
       url: `/v2/tables/${tableId}/commands`,
       payload: spinCommand,
     });
     expect(replayResponse.statusCode).toBe(200);
     expect(replayResponse.json()).toMatchObject({ revision: 3, status: "replayed" });
-    expect((await repository.read(tableId))?.events).toEqual(stored?.events);
+    expect((await repository.read(userOne, tableId))?.events).toEqual(stored?.events);
   });
 
   it("rejects a command whose body targets another table", async () => {
-    const app = buildApp();
+    const app = buildApp({ authVerifier: authenticatedAs(userOne) });
     openApps.push(app);
 
     const response = await app.inject({
+      headers: authHeaders,
       method: "POST",
       url: "/v2/tables/table-a/commands",
       payload: {
@@ -369,5 +392,103 @@ describe("game server", () => {
       error: { code: "VALIDATION_ERROR" },
       status: "rejected",
     });
+  });
+
+  it("requires a verified bearer token for v2 state", async () => {
+    const app = buildApp({ authVerifier: authenticatedAs(userOne) });
+    openApps.push(app);
+
+    const missing = await app.inject({
+      method: "GET",
+      url: "/v2/tables/private-table/snapshot",
+    });
+    const invalid = await app.inject({
+      headers: { authorization: "Bearer invalid-token" },
+      method: "GET",
+      url: "/v2/tables/private-table/snapshot",
+    });
+
+    expect(missing.statusCode).toBe(401);
+    expect(invalid.statusCode).toBe(401);
+  });
+
+  it("does not reveal a table owned by another authenticated user", async () => {
+    const repository = new InMemoryGameRepository();
+    const ownerApp = buildApp({
+      authVerifier: authenticatedAs(userOne),
+      fairness: deterministicFairness,
+      idGenerator: sequentialIds(),
+      repository,
+    });
+    const otherApp = buildApp({
+      authVerifier: authenticatedAs(userTwo),
+      repository,
+    });
+    openApps.push(ownerApp, otherApp);
+    const tableId = "owner-isolated-table";
+
+    const created = await ownerApp.inject({
+      headers: authHeaders,
+      method: "POST",
+      url: `/v2/tables/${tableId}/commands`,
+      payload: {
+        ...commandBase(401, tableId, 0),
+        type: "PREPARE_ROUND",
+        payload: { game: "blackjack" },
+      },
+    });
+    const hidden = await otherApp.inject({
+      headers: authHeaders,
+      method: "GET",
+      url: `/v2/tables/${tableId}/snapshot`,
+    });
+
+    expect(created.statusCode).toBe(200);
+    expect(hidden.statusCode).toBe(404);
+    expect(hidden.json()).toEqual({ error: "TABLE_NOT_FOUND" });
+  });
+
+  it("rejects commandId reuse on another table without creating state", async () => {
+    const app = buildApp({
+      authVerifier: authenticatedAs(userOne),
+      fairness: deterministicFairness,
+      idGenerator: sequentialIds(),
+    });
+    openApps.push(app);
+    const commandId = 501;
+
+    const first = await app.inject({
+      headers: authHeaders,
+      method: "POST",
+      url: "/v2/tables/idempotency-a/commands",
+      payload: {
+        ...commandBase(commandId, "idempotency-a", 0),
+        type: "PREPARE_ROUND",
+        payload: { game: "blackjack" },
+      },
+    });
+    const conflict = await app.inject({
+      headers: authHeaders,
+      method: "POST",
+      url: "/v2/tables/idempotency-b/commands",
+      payload: {
+        ...commandBase(commandId, "idempotency-b", 0),
+        type: "PREPARE_ROUND",
+        payload: { game: "roulette" },
+      },
+    });
+    const missing = await app.inject({
+      headers: authHeaders,
+      method: "GET",
+      url: "/v2/tables/idempotency-b/snapshot",
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(conflict.statusCode).toBe(409);
+    expect(conflict.json()).toMatchObject({
+      error: { code: "IDEMPOTENCY_CONFLICT" },
+      status: "rejected",
+    });
+    expect(missing.statusCode).toBe(404);
   });
 });

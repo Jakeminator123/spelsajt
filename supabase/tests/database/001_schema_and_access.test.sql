@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public;
 
-select plan(25);
+select plan(33);
 
 select has_schema('game_private', 'server-only schema exists');
 select has_table('public', 'profiles', 'public profile table exists');
@@ -13,6 +13,8 @@ select has_table('game_private', 'game_events', 'game events exist');
 select has_table('game_private', 'fairness_records', 'fairness records exist');
 select has_table('game_private', 'ledger_transactions', 'ledger transactions exist');
 select has_table('game_private', 'ledger_entries', 'ledger entries exist');
+select has_table('game_private', 'game_tables', 'authoritative game tables exist');
+select has_table('game_private', 'game_commands', 'idempotent command receipts exist');
 
 select col_is_pk('public', 'profiles', 'user_id', 'profile identity is the auth user id');
 
@@ -36,11 +38,13 @@ select results_eq(
         'game_events',
         'fairness_records',
         'ledger_transactions',
-        'ledger_entries'
+        'ledger_entries',
+        'game_tables',
+        'game_commands'
       )
       and c.relrowsecurity
   $$,
-  array[6::bigint],
+  array[8::bigint],
   'all server-only tables have RLS enabled'
 );
 
@@ -79,6 +83,22 @@ select ok(
   not has_table_privilege('authenticated', 'public.profiles', 'delete'),
   'authenticated cannot delete profiles directly'
 );
+select ok(
+  not has_table_privilege('anon', 'game_private.game_tables', 'select'),
+  'anon cannot select authoritative table state'
+);
+select ok(
+  not has_table_privilege('authenticated', 'game_private.game_tables', 'select'),
+  'authenticated cannot select authoritative table state directly'
+);
+select ok(
+  not has_table_privilege('anon', 'game_private.game_commands', 'select'),
+  'anon cannot select command receipts'
+);
+select ok(
+  not has_table_privilege('authenticated', 'game_private.game_commands', 'select'),
+  'authenticated cannot select command receipts directly'
+);
 
 select ok(
   to_regclass('game_private.ledger_transactions_round_idx') is not null,
@@ -91,6 +111,14 @@ select ok(
 select ok(
   to_regclass('game_private.ledger_entries_account_created_idx') is not null,
   'ledger account history lookup is indexed'
+);
+select ok(
+  to_regclass('game_private.game_commands_table_created_idx') is not null,
+  'command replay lookup is indexed'
+);
+select ok(
+  to_regclass('game_private.game_events_table_sequence_idx') is not null,
+  'table event replay lookup is indexed'
 );
 
 insert into auth.users (id, email)
