@@ -32,6 +32,7 @@ Se `docs/ENGINEERING.md` för den korta ändringsprocessen.
 - Lägg aldrig hemligheter, service-role/secret keys, databaslösenord eller `.env`-filer i Git.
 - Ändra ett Zod-kontrakt först, kör sedan `pnpm schemas:generate`, uppdatera fixtures och verifiera kompatibilitet.
 - Uppdatera systemmodellens mognadsfält när runtime eller verifiering faktiskt ändras; märk aldrig kontrakterat eller planerat som implementerat.
+- Vid långkörande autonomt arbete: rapportera vid varje grön PR-kontrollpunkt ett tydligt märkt estimat för hela MVP:n och det aktiva spåret, vilken runtime-/testevidens som ändrat eller bevarat estimatet samt de största kvarvarande gapen. Estimatet är kommunikation och får aldrig användas som skäl att höja systemmodellens maturity utan motsvarande runtime och verifiering.
 - Skapa nya Supabase-migrationer med `pnpm supabase migration new <namn>`; hitta inte på filnamn manuellt.
 - Kör `pnpm check` före commit. Vid databasändringar ska även lokal reset, pgTAP och databaslint vara gröna.
 
