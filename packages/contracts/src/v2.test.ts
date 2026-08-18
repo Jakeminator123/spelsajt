@@ -11,6 +11,7 @@ import {
   gameSnapshotV2Schema,
   rouletteBetTypesV2,
   rouletteSelectionV2Schema,
+  serverReadyV2Schema,
   socketAuthV2Schema,
   tableSubscriptionAckV2Schema,
   tableSubscriptionV2Schema,
@@ -73,9 +74,12 @@ describe("v2 network contracts", () => {
     expect(commandAckV2Schema.safeParse(readJson(path)).success).toBe(true);
   });
 
-  it("accepts table subscription fixtures", () => {
+  it("accepts realtime transport fixtures", () => {
     expect(socketAuthV2Schema.safeParse(
       readJson("../fixtures/v2/socket-auth.json"),
+    ).success).toBe(true);
+    expect(serverReadyV2Schema.safeParse(
+      readJson("../fixtures/v2/server-ready.json"),
     ).success).toBe(true);
     expect(tableSubscriptionV2Schema.safeParse(
       readJson("../fixtures/v2/table-subscription.json"),
@@ -88,6 +92,12 @@ describe("v2 network contracts", () => {
   it("rejects unknown table subscription fields", () => {
     const subscription = readJson("../fixtures/v2/table-subscription.json") as object;
     expect(tableSubscriptionV2Schema.safeParse({ ...subscription, accessToken: "secret" }).success)
+      .toBe(false);
+  });
+
+  it("rejects unknown server ready fields", () => {
+    const ready = readJson("../fixtures/v2/server-ready.json") as object;
+    expect(serverReadyV2Schema.safeParse({ ...ready, internalHost: "game-1" }).success)
       .toBe(false);
   });
 

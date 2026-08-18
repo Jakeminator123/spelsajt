@@ -84,6 +84,12 @@ export const socketAuthV2Schema = z.strictObject({
   schemaVersion: z.literal(contractV2SchemaVersion),
 });
 
+export const serverReadyV2Schema = z.strictObject({
+  connectionId: identifierSchema,
+  schemaVersion: z.literal(contractV2SchemaVersion),
+  timestamp: z.iso.datetime(),
+});
+
 export const tableSubscriptionV2Schema = z.strictObject({
   lastSequence: z.int().nonnegative(),
   schemaVersion: z.literal(contractV2SchemaVersion),
@@ -567,5 +573,6 @@ export type RoundSnapshotV2 = z.infer<typeof roundSnapshotV2Schema>;
 export type GameSnapshotV2 = z.infer<typeof gameSnapshotV2Schema>;
 export type CommandAckV2 = z.infer<typeof commandAckV2Schema>;
 export type SocketAuthV2 = z.infer<typeof socketAuthV2Schema>;
+export type ServerReadyV2 = z.infer<typeof serverReadyV2Schema>;
 export type TableSubscriptionV2 = z.infer<typeof tableSubscriptionV2Schema>;
 export type TableSubscriptionAckV2 = z.infer<typeof tableSubscriptionAckV2Schema>;

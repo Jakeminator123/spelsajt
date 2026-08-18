@@ -220,12 +220,12 @@
       "source": "apps/game-server/src/realtime.ts",
       "maturity": {
         "runtime": "implemented",
-        "contract": "ad-hoc",
-        "verification": "none",
+        "contract": "zod-v2",
+        "verification": "direct",
         "lifecycle": "active"
       },
-      "summary": "Bekräftar Socket.IO-anslutningen; är ännu inte Zod-kontrakterad.",
-      "payload": "ServerReady",
+      "summary": "Bekräftar Socket.IO-anslutningen med ett strikt, versionslåst och direkt socket-testat v2-payload.",
+      "payload": "ServerReadyV2",
       "eventTypes": []
     },
     {

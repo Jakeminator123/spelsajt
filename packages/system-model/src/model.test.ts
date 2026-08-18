@@ -310,8 +310,10 @@ describe("play-money system model", () => {
       verification: "direct",
     });
     expect(maturity["realtime.server-ready"]).toMatchObject({
-      contract: "ad-hoc",
+      contract: "zod-v2",
+      lifecycle: "active",
       runtime: "implemented",
+      verification: "direct",
     });
     expect(maturity["realtime.game-event"]).toMatchObject({
       contract: "zod-v2",

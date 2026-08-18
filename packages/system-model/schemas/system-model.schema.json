@@ -224,6 +224,7 @@
                   "GameEvent",
                   "GameSnapshot",
                   "ServerReady",
+                  "ServerReadyV2",
                   "TableSubscriptionV2"
                 ]
               },
