@@ -23,7 +23,7 @@ output/pdf               Delbar projektplan
 
 - Node 24.19.0 och pnpm 11.22.0, automatiskt pinnade via `mise.toml`.
 - Ett Supabase-projekt när auth och databas ska kopplas in.
-- Vercel används för `apps/web`. Spelservern körs lokalt tills en långlivad Node-host väljs.
+- Vercel används för `apps/web`. Spelservern har en verifierad, host-neutral container men ingen produktionshost är vald ännu.
 
 ## Kom igång
 
@@ -65,3 +65,12 @@ pnpm db:verify
 ## Deploy
 
 Webbappen länkas som ett Vercel-projekt med root directory `apps/web`. Koppla därefter GitHub-repot för automatiska previewdeployments på varje pull request. `.vercel/` och alla hemligheter är ignorerade av Git.
+
+Spelserverns produktionsimage byggs från reporoten och kan köras på en valfri långlivad containerhost:
+
+```powershell
+docker build --file apps/game-server/Dockerfile --tag spelsajt-game-server .
+docker run --rm --publish 4000:4000 --env-file apps/game-server/.env.local --env GAME_SERVER_HOST=0.0.0.0 spelsajt-game-server
+```
+
+Imagen kör som en icke-privilegierad användare, lyssnar på `0.0.0.0:4000` och har en `/health`-probe. `NODE_ENV=production` är satt i imagen, så komplett `SUPABASE_URL`, publishable/secret key och `SUPABASE_DATABASE_URL` krävs; produktionsservern startar inte med den tillfälliga minnesadaptern. CI bygger och startprovar imagen, men publicerar eller deployar den inte.
