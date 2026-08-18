@@ -1,0 +1,14 @@
+{
+  "eventId": "33333333-3333-4333-8333-333333333308",
+  "occurredAt": "2026-08-18T00:00:02.000Z",
+  "revision": 3,
+  "roundId": "22222222-2222-4222-8222-222222222222",
+  "schemaVersion": 2,
+  "sequence": 8,
+  "tableId": "table-blackjack-1",
+  "type": "blackjack.hand.split",
+  "payload": {
+    "sourceHandId": "hand-1",
+    "splitHandIds": ["hand-1-left", "hand-1-right"]
+  }
+}

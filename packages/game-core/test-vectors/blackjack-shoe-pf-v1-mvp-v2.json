@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "algorithmId": "pf-v1",
+  "rulesetId": "mvp-v2",
+  "serverSeed": "0000000000000000000000000000000000000000000000000000000000000000",
+  "input": {
+    "clientSeed": "client-seed-example",
+    "game": "blackjack",
+    "nonce": 8,
+    "roundId": "round-golden-2",
+    "rulesetHash": "1b10f9a7d66d5e1f5d39fe96fe95e492003494817521a3708f907b1b91ecb296"
+  },
+  "expected": {
+    "firstCardIds": [
+      "deck-3:diamonds:2",
+      "deck-1:clubs:9",
+      "deck-6:spades:2",
+      "deck-1:clubs:J",
+      "deck-1:spades:A",
+      "deck-2:clubs:A",
+      "deck-1:diamonds:J",
+      "deck-6:hearts:K",
+      "deck-5:spades:8",
+      "deck-4:spades:8",
+      "deck-1:diamonds:2",
+      "deck-4:clubs:J",
+      "deck-1:clubs:8",
+      "deck-5:hearts:Q",
+      "deck-6:diamonds:8",
+      "deck-6:diamonds:7"
+    ],
+    "shuffledShoeSha256": "9cc32c638d1f4103b6d2919d5e1d78bdb852254eec826808051d090fa3795425"
+  }
+}

@@ -1,6 +1,6 @@
-# Ruleset MVP v1
+# Ruleset MVP v1 (historisk)
 
-Detta är den mänskligt läsbara förklaringen av reglerna som påverkar resultat, verifiering och animationer. Den maskinläsbara källan är `packages/config/rulesets/mvp-v1.json`, validerad av JSON Schema och låst med en semantisk hash. Ändringar kräver en ny ruleset-version och nya golden test vectors.
+Detta är den bevarade första regelprofilen. Den maskinläsbara källan är `packages/config/rulesets/mvp-v1.json`, validerad av JSON Schema och låst med en semantisk hash. Profilen ändras inte i efterhand; den aktiva, fullständigare profilen beskrivs i [MVP v2](mvp-v2.md).
 
 ## Gemensamt
 

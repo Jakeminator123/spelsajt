@@ -1,6 +1,11 @@
 import { createHash, createHmac, randomBytes } from "node:crypto";
 
-import { encodeInput, requireServerSeed, type FairnessInput } from "./shared";
+import {
+  encodeInput,
+  mapUint32ToBoundedInteger,
+  requireServerSeed,
+  type FairnessInput,
+} from "./shared";
 
 export { fairnessAlgorithmId, type FairnessInput } from "./shared";
 
@@ -55,17 +60,10 @@ export class FairRandom {
   }
 
   uniformInt(maxExclusive: number): number {
-    if (!Number.isSafeInteger(maxExclusive) || maxExclusive < 1 || maxExclusive > 0x1_0000_0000) {
-      throw new RangeError("maxExclusive must be an integer from 1 through 2^32.");
-    }
-
-    const range = 0x1_0000_0000;
-    const acceptanceLimit = Math.floor(range / maxExclusive) * maxExclusive;
-
     for (;;) {
-      const candidate = this.#nextUint32();
-      if (candidate < acceptanceLimit) {
-        return candidate % maxExclusive;
+      const mapped = mapUint32ToBoundedInteger(this.#nextUint32(), maxExclusive);
+      if (mapped !== null) {
+        return mapped;
       }
     }
   }

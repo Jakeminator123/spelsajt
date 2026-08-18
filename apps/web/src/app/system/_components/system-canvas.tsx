@@ -27,6 +27,7 @@ const contractLabel: Readonly<Record<Maturity["contract"], string>> = {
   "ad-hoc": "Ad hoc",
   none: "Saknas",
   "zod-v1": "Zod v1",
+  "zod-v2": "Zod v2",
 };
 
 const verificationLabel: Readonly<Record<Maturity["verification"], string>> = {

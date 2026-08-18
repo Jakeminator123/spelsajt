@@ -2,7 +2,11 @@ import { existsSync, statSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { gameCommandTypes, gameEventTypes, gameNames } from "@spelsajt/contracts";
+import {
+  gameCommandTypesV2,
+  gameEventTypesV2,
+  gameNamesV2,
+} from "@spelsajt/contracts";
 import { describe, expect, it } from "vitest";
 
 import { systemModel } from "./index";
@@ -29,6 +33,11 @@ describe("play-money system model", () => {
     expectUnique(systemModel.nodes.map(({ id }) => id));
     expectUnique(systemModel.interfaces.map(({ id }) => id));
     expectUnique(systemModel.presentationCues.map(({ id }) => id));
+    expectUnique(systemModel.presentationIgnores.map(({ id }) => id));
+    expectUnique([
+      ...systemModel.presentationCues.map(({ id }) => id),
+      ...systemModel.presentationIgnores.map(({ id }) => id),
+    ]);
     expectUnique(systemModel.scenarios.flatMap(({ steps }) => steps.map(({ id }) => id)));
   });
 
@@ -79,7 +88,7 @@ describe("play-money system model", () => {
     }
   });
 
-  it("covers every exported command and event type exactly once in its transport interfaces", () => {
+  it("covers every v2 command and event discriminant exactly once in transport", () => {
     const commands = systemModel.interfaces.flatMap((interfaceDefinition) =>
       interfaceDefinition.kind === "http" ? interfaceDefinition.accepts : []
     );
@@ -89,8 +98,8 @@ describe("play-money system model", () => {
         : []
     );
 
-    expectExactCoverage(commands, gameCommandTypes, "command interface coverage");
-    expectExactCoverage(events, gameEventTypes, "event interface coverage");
+    expectExactCoverage(commands, gameCommandTypesV2, "v2 command interface coverage");
+    expectExactCoverage(events, gameEventTypesV2, "v2 event interface coverage");
 
     for (const interfaceDefinition of systemModel.interfaces) {
       if (interfaceDefinition.kind === "http" && interfaceDefinition.method === "GET") {
@@ -109,7 +118,25 @@ describe("play-money system model", () => {
     }
   });
 
-  it("gives every GameEvent a realtime producer and presentation consumer", () => {
+  it("routes planned v2 commands and snapshots through versioned paths", () => {
+    const commands = systemModel.interfaces.find(({ id }) => id === "http.commands");
+    const snapshot = systemModel.interfaces.find(({ id }) => id === "http.snapshot");
+
+    expect(commands).toMatchObject({
+      kind: "http",
+      method: "POST",
+      path: "/v2/tables/{tableId}/commands",
+      maturity: { contract: "zod-v2", lifecycle: "planned", runtime: "absent" },
+    });
+    expect(snapshot).toMatchObject({
+      kind: "http",
+      method: "GET",
+      path: "/v2/tables/{tableId}/snapshot",
+      maturity: { contract: "zod-v2", lifecycle: "planned", runtime: "absent" },
+    });
+  });
+
+  it("assigns every v2 GameEvent to a cue or an explicit ignore", () => {
     const gameEventInterface = systemModel.interfaces.find(({ id }) => id === "realtime.game-event");
     expect(gameEventInterface?.kind).toBe("realtime");
     expect(gameEventInterface?.kind === "realtime" ? gameEventInterface.payload : undefined).toBe(
@@ -119,44 +146,54 @@ describe("play-money system model", () => {
     const producedEvents = new Set(
       gameEventInterface?.kind === "realtime" ? gameEventInterface.eventTypes : [],
     );
+    const cueEvents = new Set(systemModel.presentationCues.map(({ eventType }) => eventType));
+    const ignoredEvents = new Set(systemModel.presentationIgnores.map(({ eventType }) => eventType));
     const scenarioEvents = new Set(
       systemModel.scenarios.flatMap(({ steps }) =>
         steps.flatMap((step) => step.kind === "event" ? [step.eventType] : [])
       ),
     );
 
-    expectExactCoverage([...producedEvents], gameEventTypes, "realtime.game-event coverage");
+    expectExactCoverage([...producedEvents], gameEventTypesV2, "realtime.game-event coverage");
+    expectExactCoverage([...cueEvents, ...ignoredEvents], gameEventTypesV2, "presentation handling");
 
-    for (const eventType of gameEventTypes) {
-      expect(producedEvents.has(eventType), `${eventType} has no realtime.game-event producer`).toBe(true);
-      expect(
-        systemModel.presentationCues.some((cue) => cue.eventType === eventType),
-        `${eventType} has no presentation consumer`,
-      ).toBe(true);
+    for (const eventType of cueEvents) {
+      expect(ignoredEvents.has(eventType), `${eventType} cannot be both cued and ignored`).toBe(false);
+    }
+
+    for (const eventType of gameEventTypesV2) {
+      expect(producedEvents.has(eventType), `${eventType} has no realtime producer`).toBe(true);
+      expect(scenarioEvents.has(eventType), `${eventType} has no scenario example`).toBe(true);
     }
 
     for (const cue of systemModel.presentationCues) {
       expect(producedEvents.has(cue.eventType), `${cue.id} consumes an unproduced event`).toBe(true);
-      expect(scenarioEvents.has(cue.eventType), `${cue.id} has no scenario event producer`).toBe(true);
     }
+
+    for (const ignored of systemModel.presentationIgnores) {
+      expect(producedEvents.has(ignored.eventType), `${ignored.id} ignores an unproduced event`).toBe(true);
+      expect(scenarioEvents.has(ignored.eventType), `${ignored.id} has no scenario event`).toBe(true);
+    }
+
+    expect([...producedEvents]).not.toContain("reaction.cue");
+    expect(systemModel.presentationIgnores).toContainEqual(expect.objectContaining({
+      eventType: "blackjack.action.accepted",
+      game: "blackjack",
+    }));
   });
 
-  it("covers every settlement outcome and delegates every reaction actor to its event", () => {
-    for (const game of gameNames) {
-      const gameCues = systemModel.presentationCues.filter((cue) => cue.game === game);
-      const settlementOutcomes = gameCues
-        .filter((cue) => cue.eventType === "round.settled")
+  it("covers all v2 round settlement outcomes, including mixed", () => {
+    for (const game of gameNamesV2) {
+      const settlementOutcomes = systemModel.presentationCues
+        .filter((cue) => cue.game === game && cue.eventType === "round.settled")
         .map((cue) => cue.condition?.path === "payload.outcome" ? cue.condition.equals : undefined)
         .filter((outcome): outcome is string => outcome !== undefined);
-      const reactionCues = gameCues.filter((cue) => cue.eventType === "reaction.cue");
 
-      expectExactCoverage(settlementOutcomes, ["loss", "push", "win"], `${game} settlement outcomes`);
-      expect(reactionCues).toHaveLength(1);
-      expect(reactionCues[0]).toMatchObject({
-        actor: "from-event",
-        clip: "reaction.by-mood",
-      });
-      expect(reactionCues[0]?.condition).toBeUndefined();
+      expectExactCoverage(
+        settlementOutcomes,
+        ["loss", "mixed", "push", "win"],
+        `${game} v2 settlement outcomes`,
+      );
     }
   });
 
@@ -227,8 +264,15 @@ describe("play-money system model", () => {
     });
   });
 
-  it("contains one end-to-end command, event and animation flow per MVP game", () => {
+  it("contains one v2 command, event and animation flow per MVP game", () => {
     expect(systemModel.scenarios.map(({ game }) => game).toSorted()).toEqual(["blackjack", "roulette"]);
+
+    const scenarioCommands = new Set(
+      systemModel.scenarios.flatMap(({ steps }) =>
+        steps.flatMap((step) => step.kind === "command" ? [step.commandType] : [])
+      ),
+    );
+    expect([...scenarioCommands].toSorted()).toEqual([...gameCommandTypesV2].toSorted());
 
     for (const scenario of systemModel.scenarios) {
       const kinds = new Set(scenario.steps.map(({ kind }) => kind));
@@ -238,21 +282,49 @@ describe("play-money system model", () => {
     }
   });
 
-  it("labels current and proposed transports honestly", () => {
+  it("records implemented engines and cross-runtime verification without inventing transport", () => {
     const maturity = Object.fromEntries(systemModel.interfaces.map(({ id, maturity }) => [id, maturity]));
 
     expect(maturity["http.health"]).toMatchObject({ contract: "ad-hoc", runtime: "implemented" });
     expect(maturity["http.status"]).toMatchObject({ contract: "ad-hoc", runtime: "implemented" });
-    expect(maturity["http.commands"]).toMatchObject({ lifecycle: "planned", runtime: "absent" });
-    expect(maturity["realtime.server-ready"]).toMatchObject({ contract: "ad-hoc", runtime: "implemented" });
-    expect(maturity["realtime.game-event"]).toMatchObject({ lifecycle: "planned", runtime: "absent" });
-
-    const webControls = systemModel.nodes.find(({ id }) => id === "node.web-controls");
-    expect(webControls?.maturity).toEqual({
-      contract: "none",
+    expect(maturity["http.commands"]).toMatchObject({
+      contract: "zod-v2",
       lifecycle: "planned",
-      runtime: "partial",
-      verification: "none",
+      runtime: "absent",
     });
+    expect(maturity["realtime.server-ready"]).toMatchObject({
+      contract: "ad-hoc",
+      runtime: "implemented",
+    });
+    expect(maturity["realtime.game-event"]).toMatchObject({
+      contract: "zod-v2",
+      lifecycle: "planned",
+      runtime: "absent",
+    });
+
+    const gameCore = systemModel.nodes.find(({ id }) => id === "node.game-core");
+    expect(gameCore?.maturity).toEqual({
+      contract: "none",
+      lifecycle: "active",
+      runtime: "implemented",
+      verification: "direct",
+    });
+    expect(gameCore?.summary).toMatch(/blackjack.*roulette/i);
+
+    const verifier = systemModel.nodes.find(({ id }) => id === "node.verifier");
+    expect(verifier?.maturity).toEqual({
+      contract: "none",
+      lifecycle: "active",
+      runtime: "implemented",
+      verification: "direct",
+    });
+    expect(verifier?.summary).toMatch(/Web Crypto.*roulettepocket.*blackjackkortordning/i);
+
+    const presentation = systemModel.nodes.find(({ id }) => id === "node.presentation");
+    expect(presentation?.maturity).toMatchObject({
+      contract: "zod-v2",
+      runtime: "absent",
+    });
+    expect(presentation?.summary).toContain("reaction.cue");
   });
 });

@@ -1,9 +1,17 @@
 export {
   buildRulesetJsonSchema,
   canonicalJson,
+  isMvpRuleset,
   mvpRuleset,
   mvpRulesetHash,
+  mvpV1Ruleset,
+  mvpV1RulesetHash,
+  publishedRulesets,
   rulesetSchema,
+  rulesetV1Schema,
+  rulesetV2Schema,
   semanticRulesetValue,
   type Ruleset,
+  type RulesetV1,
+  type RulesetV2,
 } from "./ruleset";

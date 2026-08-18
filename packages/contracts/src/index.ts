@@ -111,3 +111,5 @@ export const snapshotSchema = z.strictObject({
 export type GameCommand = z.infer<typeof gameCommandSchema>;
 export type GameEvent = z.infer<typeof gameEventSchema>;
 export type GameSnapshot = z.infer<typeof snapshotSchema>;
+
+export * from "./v2";

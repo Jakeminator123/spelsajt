@@ -1,0 +1,63 @@
+{
+  "balance": "9900",
+  "game": "blackjack",
+  "lastSequence": 9,
+  "revision": 3,
+  "round": {
+    "fairness": {
+      "algorithm": "pf-v1",
+      "commitment": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "nonce": 0
+    },
+    "revision": 3,
+    "roundId": "22222222-2222-4222-8222-222222222222",
+    "rulesetHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "rulesetId": "mvp-v2",
+    "game": "blackjack",
+    "activeHandId": "hand-1",
+    "dealerCards": [
+      {
+        "faceUp": true,
+        "card": {
+          "cardId": "shoe-1-card-2",
+          "rank": "9",
+          "suit": "hearts"
+        }
+      },
+      {
+        "faceUp": false
+      }
+    ],
+    "hands": [
+      {
+        "allowedActions": ["hit", "stand", "double"],
+        "cards": [
+          {
+            "faceUp": true,
+            "card": {
+              "cardId": "shoe-1-card-1",
+              "rank": "A",
+              "suit": "spades"
+            }
+          },
+          {
+            "faceUp": true,
+            "card": {
+              "cardId": "shoe-1-card-3",
+              "rank": "7",
+              "suit": "diamonds"
+            }
+          }
+        ],
+        "handId": "hand-1",
+        "outcome": null,
+        "payout": null,
+        "status": "active",
+        "wager": "100"
+      }
+    ],
+    "phase": "player"
+  },
+  "schemaVersion": 2,
+  "tableId": "table-blackjack-1"
+}

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "algorithmId": "pf-v1",
+  "serverSeed": "0000000000000000000000000000000000000000000000000000000000000000",
+  "inputs": {
+    "roulette": {
+      "clientSeed": "client-seed-example",
+      "game": "roulette",
+      "nonce": 8,
+      "roundId": "round-golden-2",
+      "rulesetHash": "1b10f9a7d66d5e1f5d39fe96fe95e492003494817521a3708f907b1b91ecb296"
+    },
+    "blackjack": {
+      "clientSeed": "client-seed-example",
+      "game": "blackjack",
+      "nonce": 8,
+      "roundId": "round-golden-2",
+      "rulesetHash": "1b10f9a7d66d5e1f5d39fe96fe95e492003494817521a3708f907b1b91ecb296"
+    }
+  },
+  "expected": {
+    "rouletteBlock0Hex": "9d72a5a98097846751ef173f54fb069cacadd066a999626058be955a81a03042",
+    "blackjackBlock0Hex": "c4461f064f67113008bea777c33355d8c775e049f1814fef30229b60943f6651",
+    "commitment": "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+    "roulettePockets": [13, 15, 32, 18, 17, 20, 13, 25, 12, 10, 36, 15, 0, 31, 27, 17],
+    "blackjackShuffle": [2, 9, 10, 0, 15, 12, 11, 5, 14, 8, 4, 1, 3, 13, 7, 6]
+  }
+}

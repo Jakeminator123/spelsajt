@@ -56,7 +56,8 @@ pnpm db:verify
 
 - [System canvas – börja här för arkitektur och integrationsstatus](docs/SYSTEM_CANVAS.md)
 - [MVP-plan](docs/MVP_PLAN.md)
-- [MVP-regler](docs/rulesets/mvp-v1.md)
+- [Aktiva MVP-regler v2](docs/rulesets/mvp-v2.md)
+- [Historiska MVP-regler v1](docs/rulesets/mvp-v1.md)
 - [Engineeringavtal och source of truth](docs/ENGINEERING.md)
 - [Spelmotor, 3D-avatarer och AI](docs/PRESENTATION_AI.md)
 - Den delbara PDF-versionen genereras i `output/pdf/`.
