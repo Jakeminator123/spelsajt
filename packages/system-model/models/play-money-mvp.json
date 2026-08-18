@@ -187,7 +187,7 @@
         "verification": "direct",
         "lifecycle": "active"
       },
-      "summary": "Trafikberedskap som kräver en svarande Postgres-repository och ett aktivt committed-event-relä; förlorad relay gör instansen oreado och kopplar ned dess sockets tills en ny LISTEN-session har etablerats.",
+      "summary": "Trafikberedskap som kräver det migrerade privata Postgres-spelschemat och ett aktivt committed-event-relä; förlorad relay gör instansen oreado och kopplar ned dess sockets tills en ny LISTEN-session har etablerats.",
       "accepts": [],
       "returns": "ReadinessResponse"
     },

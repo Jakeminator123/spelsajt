@@ -15,9 +15,14 @@ import {
 export interface PostgresGameEventBusOptions extends ClientConfig {
   readonly connectionString: string;
   readonly clientFactory?: (config: ClientConfig) => Client;
+  readonly closeTimeoutMs?: number;
   readonly onError?: (error: unknown) => void;
   readonly reconnectDelayMs?: number;
 }
+
+const defaultPostgresConnectionTimeoutMs = 5_000;
+const defaultPostgresOperationTimeoutMs = 10_000;
+const defaultPostgresRelayCloseTimeoutMs = 5_000;
 
 /**
  * Cross-process relay for events whose NOTIFY is committed with the event row.
@@ -27,6 +32,7 @@ export interface PostgresGameEventBusOptions extends ClientConfig {
 export class PostgresGameEventBus implements GameEventBusPort {
   readonly #clientConfig: ClientConfig;
   readonly #createClient: (config: ClientConfig) => Client;
+  readonly #closeTimeoutMs: number;
   readonly #local = new GameEventBus();
   readonly #lastSequence = new Map<string, number>();
   readonly #onError: (error: unknown) => void;
@@ -39,23 +45,29 @@ export class PostgresGameEventBus implements GameEventBusPort {
   #pending: Promise<void> = Promise.resolve();
   #ready = false;
   #reconnectTimer: NodeJS.Timeout | null = null;
-  #startPromise: Promise<void> | null = null;
 
   constructor(options: PostgresGameEventBusOptions) {
     const {
       clientFactory,
+      closeTimeoutMs = defaultPostgresRelayCloseTimeoutMs,
       onError,
       reconnectDelayMs = 1_000,
       ...clientConfig
     } = options;
+    if (!Number.isSafeInteger(closeTimeoutMs) || closeTimeoutMs <= 0) {
+      throw new Error("closeTimeoutMs must be a positive safe integer.");
+    }
     if (!Number.isSafeInteger(reconnectDelayMs) || reconnectDelayMs <= 0) {
       throw new Error("reconnectDelayMs must be a positive safe integer.");
     }
     this.#clientConfig = {
-      connectionTimeoutMillis: 5_000,
+      connectionTimeoutMillis: defaultPostgresConnectionTimeoutMs,
+      query_timeout: defaultPostgresOperationTimeoutMs,
+      statement_timeout: defaultPostgresOperationTimeoutMs,
       ...clientConfig,
     };
     this.#createClient = clientFactory ?? ((config) => new Client(config));
+    this.#closeTimeoutMs = closeTimeoutMs;
     this.#onError = onError ?? ((error) => {
       process.emitWarning(error instanceof Error ? error : String(error));
     });
@@ -64,8 +76,8 @@ export class PostgresGameEventBus implements GameEventBusPort {
 
   start(): Promise<void> {
     if (this.#closed) return Promise.reject(new Error("The Postgres event bus is closed."));
-    this.#startPromise ??= this.#connect();
-    return this.#startPromise;
+    if (this.#ready) return Promise.resolve();
+    return this.#connect();
   }
 
   isReady(): boolean {
@@ -101,17 +113,12 @@ export class PostgresGameEventBus implements GameEventBusPort {
     if (this.#reconnectTimer) clearTimeout(this.#reconnectTimer);
     this.#reconnectTimer = null;
     this.#setReady(false);
-    await this.#pending;
-    if (this.#connecting) {
-      try {
-        await this.#connecting;
-      } catch {
-        // Preserve the startup error already reported by the caller.
-      }
-    }
     const client = this.#client;
     this.#client = null;
-    if (client) await endClient(client);
+    const cleanup = [this.#pending];
+    if (this.#connecting) cleanup.push(this.#connecting);
+    if (client) cleanup.push(endClient(client));
+    await settleWithin(Promise.allSettled(cleanup), this.#closeTimeoutMs);
   }
 
   #connect(): Promise<void> {
@@ -212,6 +219,7 @@ export class PostgresGameEventBus implements GameEventBusPort {
         where table_id = $1 and sequence = $2`,
       [notification.tableId, notification.sequence],
     );
+    if (this.#closed || this.#client !== client || !this.#ready) return;
     const stored = result.rows[0]?.event;
     if (!stored) {
       throw new Error(
@@ -220,6 +228,17 @@ export class PostgresGameEventBus implements GameEventBusPort {
     }
     this.publish([gameEventV2Schema.parse(stored)]);
   }
+}
+
+async function settleWithin(operation: Promise<unknown>, timeoutMs: number): Promise<void> {
+  let timer: NodeJS.Timeout | null = null;
+  await Promise.race([
+    operation,
+    new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, timeoutMs);
+    }),
+  ]);
+  if (timer) clearTimeout(timer);
 }
 
 async function endClient(client: Client): Promise<void> {
