@@ -39,7 +39,7 @@ V2 har inget `reaction.cue`-domänevent. Reaction Planner härleder deterministi
 
 ## Reaction Planner är ett frontendlager
 
-Reaction Planner ska vara en ren, uttömmande funktion. Samma event och samma presentationsinställningar ska ge samma basintention. Den får använda speltyp, eventtyp, publika payloadfält, reduced-motion och lokala tillgänglighetsinställningar; den får inte gissa dold state eller räkna om motorns beslut.
+Reaction Planner är en ren, uttömmande funktion. Samma event och samma presentationsinställningar ger samma basintention. Den får använda speltyp, eventtyp, publika payloadfält, reduced-motion och lokala tillgänglighetsinställningar; den får inte gissa dold state eller räkna om motorns beslut.
 
 En lokal intention kan exempelvis se ut så här:
 
@@ -143,9 +143,8 @@ Presentationstester ska återspela v2-fixtures och låsa att:
 
 ## Nästa vertikala slice
 
-1. Bygg en liten, uttömmande Reaction Planner mot v2-fixtures för `blackjack.card.dealt`, `blackjack.card.revealed`, `blackjack.turn.changed`, `roulette.spin.started`, `roulette.result` och settlement.
-2. Spela samma fixtures i en text/debug-renderer och verifiera ordning, replay, sekvensgap och reduced motion.
-3. Rigga en enkel placeholder-dealer med `idle`, `deal`, `reveal`, `collect`, `celebrate` och `sympathize` och låt Animation Director konsumera lokala intents.
-4. Koppla den planerade `/v2`-serveradaptern, atomiska persistensen och realtime-strömmen till exakt samma fixtures och presentationsflöde.
-5. Lägg till en deterministisk frasbank.
-6. Koppla in OpenAI server-side först när hela flödet fungerar korrekt utan AI.
+1. Koppla den planerade `/v2`-serveradaptern, atomiska persistensen och realtime-strömmen till den befintliga projektorn och samma schema-validerade presentationsflöde.
+2. Utöka den nuvarande text-/3D-renderingen så varje cue har en tydlig reduced-motion-fallback och en godkänd visuell presentation eller explicit no-op.
+3. Ersätt placeholder-dealern med en riggad avatar med `idle`, `deal`, `reveal`, `collect`, `celebrate` och `sympathize` utan att ändra eventkontraktet.
+4. Lägg till en deterministisk frasbank.
+5. Koppla in OpenAI server-side först när hela flödet fungerar korrekt utan AI.

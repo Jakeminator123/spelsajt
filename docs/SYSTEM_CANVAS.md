@@ -24,8 +24,8 @@ flowchart LR
     FAIR["Fairness-kärna"]
     TX["Serveradapter + atomisk PLAY-ledger (planerade)"]
     EVENTS["Sekvensnumrerad v2-eventström (planerad)"]
-    PLAN["Reaction Planner (planerad frontend)"]
-    SCENE["Text, 2D eller 3D-scen"]
+    PLAN["Reaction Planner (implementerad frontend)"]
+    SCENE["Eventstyrd text/3D-scen (delvis implementerad)"]
     VERIFY["Fairness-verifierare"]
 
     UI -->|"GameCommandV2"| API
@@ -55,7 +55,7 @@ Backend avgör alltid state, utfall, payout och saldo. Frontend skickar endast s
 | Serveradapter för v2 | Planerad | Mappning mellan transportsträngar/metadata och motorns numeriska domäntyper finns inte ännu. |
 | Atomisk command- och settlementtjänst | Planerad | Databasschema, grants och RLS finns, men idempotent command, motortransition och ledgercommit binds ännu inte ihop i en transaktion. |
 | `game.event` och snapshots över realtime | Planerade | V2-format finns, men sekvenslagring, återläsning och Socket.IO-leverans saknas. |
-| Webbpresentation | Delvis implementerad | En responsiv 3D-scaffold finns; en uttömmande Reaction Planner för v2-events återstår. |
+| Webbpresentation | Delvis implementerad | En uttömmande, direkt testad v2-projektor driver den responsiva 3D-scenen från ett schema-validerat demotranscript. Serverns liveleverans återstår. |
 | `/system` | Dokumentationsyta | Visar den validerade systemmodellen; den är inte ett spel eller driftbevis. |
 
 ## V2-transporten vi bygger mot
@@ -153,7 +153,7 @@ Payoutmultiplikatorerna kommer från `mvp-v2`, och alla outside bets förlorar p
 
 ## Event till animation och AI
 
-Animationer reagerar på `GameEventV2`, inte på en endpoint per animation. Frontendens Reaction Planner ska göra en uttömmande, deterministisk mappning från event till lokala presentation intents. Några exempel:
+Animationer reagerar på `GameEventV2`, inte på en endpoint per animation. Frontendens Reaction Planner gör en uttömmande, deterministisk mappning från event till lokala presentation intents. Några exempel:
 
 | Källevent | Tillåten lokal intention | Förbjudet |
 | --- | --- | --- |
@@ -181,7 +181,7 @@ Emils utseendebranch kan normalt ändra `apps/web/src/**`, `apps/web/public/**`,
 - Bygg serveradaptern mellan transportkontrakten, fairness, de två state-machinerna och ledger intents.
 - Kör command, state, fairnessmetadata, ledger och eventsekvens atomiskt i Supabase.
 - Persistiera och leverera `game.event` samt `table.snapshot`, inklusive reconnect från senaste sekvensnummer.
-- Implementera frontendens uttömmande Reaction Planner och testa den mot v2-fixtures med text- och reduced-motion-fallback.
+- Koppla serverns livelevererade v2-events till den befintliga projektorn och färdigställ text-, reduced-motion- och 3D-presentation för samtliga cues.
 
 Ett gap löses först i den auktoritativa källan, med schema-/fixtureuppdatering och tester. En kompatibilitetsbrytning kräver en ny schema-, ruleset- eller algoritmversion; den får inte döljas i UI-kod eller dokumentation.
 
