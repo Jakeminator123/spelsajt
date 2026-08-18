@@ -31,6 +31,12 @@ import {
   initialLiveGameState,
   reduceLiveGameState,
 } from "./live-game-state";
+import {
+  appendRoundEvent,
+  evidenceForSnapshot,
+  persistFairnessEvidence,
+  restoreFairnessEvidence,
+} from "./fairness-evidence-store";
 import { FairnessPanel } from "./fairness-panel";
 import styles from "./live-game.module.css";
 
@@ -62,6 +68,7 @@ export function LiveGameTable({ game }: { game: GameName }) {
   const tableIdRef = useRef<string | null>(null);
   const realtimeRef = useRef<GameRealtimeConnection | null>(null);
   const lastPresentedSequenceRef = useRef(0);
+  const roundEventsRef = useRef<readonly GameEventV2[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -96,7 +103,9 @@ export function LiveGameTable({ game }: { game: GameName }) {
         }
         lastPresentedSequenceRef.current = snapshot?.lastSequence ?? 0;
         if (snapshot) presentationStore.anchor(snapshot);
-        dispatch({ type: "load.succeeded", snapshot });
+        const restoredEvents = snapshot ? restoreFairnessEvidence(snapshot) : [];
+        roundEventsRef.current = restoredEvents;
+        dispatch({ roundEvents: restoredEvents, type: "load.succeeded", snapshot });
 
         const realtime = connectGameRealtime(
           configuration.gameServerUrl,
@@ -126,6 +135,9 @@ export function LiveGameTable({ game }: { game: GameName }) {
                 return;
               }
               lastPresentedSequenceRef.current = event.sequence;
+              const roundEvents = appendRoundEvent(roundEventsRef.current, event);
+              roundEventsRef.current = roundEvents;
+              persistFairnessEvidence(tableId, roundEvents);
               dispatch({ type: "event.received", event });
             },
             onSnapshot: (nextSnapshot) => {
@@ -135,7 +147,9 @@ export function LiveGameTable({ game }: { game: GameName }) {
                 lastPresentedSequenceRef.current,
                 nextSnapshot.lastSequence,
               );
-              dispatch({ type: "snapshot.received", snapshot: nextSnapshot });
+              const roundEvents = evidenceForSnapshot(nextSnapshot, roundEventsRef.current);
+              roundEventsRef.current = roundEvents;
+              dispatch({ roundEvents, type: "snapshot.received", snapshot: nextSnapshot });
             },
             onStatus: (connection) => {
               if (!active) return;
@@ -172,6 +186,7 @@ export function LiveGameTable({ game }: { game: GameName }) {
       realtimeRef.current = null;
       accessTokenRef.current = null;
       tableIdRef.current = null;
+      roundEventsRef.current = [];
       presentationStore.reset();
     };
   }, [game]);
@@ -215,7 +230,9 @@ export function LiveGameTable({ game }: { game: GameName }) {
               lastPresentedSequenceRef.current,
               snapshot.lastSequence,
             );
-            dispatch({ type: "snapshot.received", snapshot });
+            const roundEvents = evidenceForSnapshot(snapshot, roundEventsRef.current);
+            roundEventsRef.current = roundEvents;
+            dispatch({ roundEvents, type: "snapshot.received", snapshot });
           }
         }
         dispatch({

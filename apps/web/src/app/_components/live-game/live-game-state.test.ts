@@ -94,7 +94,7 @@ describe("live game state", () => {
     expect(state.roundEvents).toHaveLength(10);
   });
 
-  it("keeps the complete current-round transcript and clears it on snapshot re-anchoring", () => {
+  it("keeps the complete current-round transcript and restores it on snapshot re-anchoring", () => {
     const loaded = reduceLiveGameState(initialLiveGameState, {
       snapshot,
       type: "load.succeeded",
@@ -110,10 +110,17 @@ describe("live game state", () => {
     expect(afterCommand.roundEvents).toEqual([event]);
 
     const reanchored = reduceLiveGameState(afterCommand, {
+      roundEvents: [event],
       snapshot: commandSnapshot,
       type: "snapshot.received",
     });
-    expect(reanchored.roundEvents).toEqual([]);
+    expect(reanchored.roundEvents).toEqual([event]);
+
+    const unavailable = reduceLiveGameState(afterCommand, {
+      snapshot: commandSnapshot,
+      type: "snapshot.received",
+    });
+    expect(unavailable.roundEvents).toEqual([]);
   });
 
   it("stops loading with an actionable configuration error", () => {

@@ -30,7 +30,7 @@ export async function verifySettledRound(
   ));
   if (!settlement) {
     return unavailable(
-      "Fairness-revealen saknas i den här webbläsarsessionen. Spela nästa runda utan att lämna sidan och verifiera direkt efter settlement.",
+      "Den validerade fairness-revealen finns inte sparad för den här rundan. Spela en ny runda med liveanslutning och verifiera efter settlement.",
     );
   }
 
@@ -114,7 +114,7 @@ export async function verifySettledRound(
   const dealtCardIds = blackjackDrawOrder(events, round.roundId);
   if (!dealtCardIds) {
     return unavailable(
-      "Den kompletta, sammanhängande korttranskriptionen finns inte längre i sessionen. Verifiera nästa blackjackrunda direkt efter settlement.",
+      "Den kompletta, sammanhängande korttranskriptionen finns inte sparad för den här rundan. Spela en ny blackjackrunda med liveanslutning.",
       baseEvidence,
     );
   }
