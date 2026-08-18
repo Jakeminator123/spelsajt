@@ -25,7 +25,7 @@ output/pdf               Delbar projektplan
 
 - Node 24.19.0 och pnpm 11.22.0, automatiskt pinnade via `mise.toml`.
 - Ett Supabase-projekt när auth och databas ska kopplas in.
-- Vercel används för `apps/web`. Spelservern har en verifierad, host-neutral container men ingen produktionshost är vald ännu.
+- Vercel används för `apps/web`. Spelservern har en verifierad, host-neutral container och en Fly.io-konfiguration för en separat långlivad process.
 
 ## Kom igång
 
@@ -76,6 +76,8 @@ Spelserverns produktionsimage byggs från reporoten och kan köras på en valfri
 docker build --file apps/game-server/Dockerfile --tag spelsajt-game-server .
 docker run --rm --publish 4000:4000 --env-file apps/game-server/.env.local --env GAME_SERVER_HOST=0.0.0.0 spelsajt-game-server
 ```
+
+Den granskade Fly.io-konfigurationen finns i `fly.toml`. Den använder region Stockholm (`arn`), 512 MB minne, anslutningsbaserad concurrency för WebSocket och automatisk start/stopp med noll alltid aktiva maskiner. Innan första deploy ska `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` och den långlivade session-pooleranslutningen sättas som Fly-secrets; inga av värdena hör hemma i Git. Produktionsorigin är låst till `https://spelsajt.vercel.app`.
 
 Imagen kör som en icke-privilegierad användare, lyssnar på `0.0.0.0:4000` och har `/health` för processhälsa samt `/ready` för migrerat Postgres-schema och eventreläberedskap. `NODE_ENV=production` är satt i imagen, så komplett `SUPABASE_URL`, publishable/secret key och `SUPABASE_DATABASE_URL` krävs; produktionsservern startar inte med den tillfälliga minnesadaptern. CI bygger och health-startprovar imagen mot en isolerad tom Postgres och verifierar att `/ready` svarar 503 där; databasjobbet verifierar 200 och relayåterhämtning mot det migrerade schemat. Imagen publiceras eller deployas inte.
 
