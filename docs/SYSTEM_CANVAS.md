@@ -19,11 +19,11 @@ Direkta motortester bevisar motorbeteende, inte serverorkestrering. En kontrakte
 ```mermaid
 flowchart LR
     UI["Spelyta och kontroller"]
-    API["Command API /v2 (planerat)"]
+    API["Command API /v2 (implementerat, processlokalt)"]
     CORE["Blackjack + roulette TS state machines (implementerade)"]
     FAIR["Fairness-kärna"]
-    TX["Serveradapter + atomisk PLAY-ledger (planerade)"]
-    EVENTS["Sekvensnumrerad v2-eventström (planerad)"]
+    TX["Serveradapter + processlokal atomisk PLAY-ledger (delvis implementerade)"]
+    EVENTS["Sekvensnumrerade v2-events (delvis implementerade)"]
     PLAN["Reaction Planner (implementerad frontend)"]
     SCENE["Eventstyrd text/3D-scen (delvis implementerad)"]
     VERIFY["Fairness-verifierare"]
@@ -47,25 +47,25 @@ Backend avgör alltid state, utfall, payout och saldo. Frontend skickar endast s
 | Ruleset `mvp-v2` | Implementerad och aktiv | Fryst JSON, schema, semantisk hash och golden vectors finns. `mvp-v1` är historisk. |
 | Blackjackmotor | Implementerad och direkt testad | Ren TypeScript-state-machine i `packages/game-core`; stödjer satsning, deal, peek, hit, stand, double, split, dealerupplösning och settlement. |
 | Roulettemotor | Implementerad och direkt testad | Ren TypeScript-state-machine i `packages/game-core`; stödjer hela rundlivscykeln, alla tio bettyper och settlement för 0–36. |
-| Fairness | Implementerad kärna | Deterministisk byte-stream, rejection sampling, shuffle och Node/Web Crypto-golden vectors finns. Rundorkestrering återstår. |
+| Fairness | Implementerad kärna och processlokal orkestrering | Deterministisk byte-stream, rejection sampling, shuffle och Node/Web Crypto-golden vectors finns. Application service äger seed, commitment, nonce, shuffle och pocket; hållbar fairness-post återstår. |
 | V2 commands, events, snapshots och ack | Kontrakterade och fixture-testade | Zod finns i `packages/contracts/src/v2.ts`; genererade scheman och fixtures finns under respektive `v2`-katalog. |
 | `GET /health` | Implementerad | Ad hoc-svar i `apps/game-server/src/app.ts`, med servertest. |
 | `GET /v1/status` | Implementerad | Det äldre status-URL:et publicerar nu projektioner från aktivt `mvp-v2`; det är inte v2 commandtransport. |
 | Socket.IO `server.ready` | Implementerad | Bekräftar anslutning men är ännu inte Zod-kontrakterad. |
-| Serveradapter för v2 | Planerad | Mappning mellan transportsträngar/metadata och motorns numeriska domäntyper finns inte ännu. |
-| Atomisk command- och settlementtjänst | Planerad | Databasschema, grants och RLS finns, men idempotent command, motortransition och ledgercommit binds ännu inte ihop i en transaktion. |
-| `game.event` och snapshots över realtime | Planerade | V2-format finns, men sekvenslagring, återläsning och Socket.IO-leverans saknas. |
+| Serveradapter för v2 | Implementerad och direkt testad | `apps/game-server/src/application.ts` mappar båda spelens v2-commands till motortransitioner, ledger intents, validerade events, ack och snapshots. |
+| Atomisk command- och settlementtjänst | Delvis implementerad | Repository-port och låst in-memory-adapter ger atomisk command/state/ledger/event/receipt under processens livstid. Hållbar Supabase-transaktion och auth återstår. |
+| `game.event` och snapshots över realtime | Delvis implementerade | Sekvensnumrerade events lagras processlokalt och HTTP-snapshot kan återläsas. Socket.IO-leverans och hållbar eventlagring saknas. |
 | Webbpresentation | Delvis implementerad | En uttömmande, direkt testad v2-projektor driver den responsiva 3D-scenen från ett schema-validerat demotranscript. Serverns liveleverans återstår. |
 | `/system` | Dokumentationsyta | Visar den validerade systemmodellen; den är inte ett spel eller driftbevis. |
 
-## V2-transporten vi bygger mot
+## V2-transporten
 
-De två HTTP-routes som ska bära speltrafik ligger under `/v2`. De är kontrakterade men ännu inte implementerade:
+De två HTTP-routes som bär speltrafik ligger under `/v2`. De är implementerade mot repository-portens processlokala adapter:
 
 | Gränssnitt | Syfte | Status |
 | --- | --- | --- |
-| `POST /v2/tables/{tableId}/commands` | Gemensam, idempotent ingress för `GameCommandV2`. | Planerad; command- och ack-scheman finns. |
-| `GET /v2/tables/{tableId}/snapshot` | Auktoritativ återställning vid anslutning eller sekvensgap. | Planerad; fullständiga snapshots finns. |
+| `POST /v2/tables/{tableId}/commands` | Gemensam, idempotent ingress för `GameCommandV2`. | Implementerad och route-testad mot processlokal repository-adapter; auth och Supabase-persistence återstår. |
+| `GET /v2/tables/{tableId}/snapshot` | Auktoritativ återställning vid anslutning eller sekvensgap. | Implementerad och route-testad mot processlokal repository-adapter. |
 | Socket.IO `game.event` | En kanal för sekvensnumrerade `GameEventV2`. | Planerad; eventunionen finns. |
 | Socket.IO `table.snapshot` | V2-snapshot vid reconnect eller saknade events. | Planerad; payload finns, transporten saknas. |
 
@@ -81,7 +81,7 @@ De historiska v1-kontrakten och fixtures ligger kvar för kompatibilitet och reg
 | `ROULETTE_PLACE_BETS` | Placera en eller flera strukturerade roulettebets för rundan. |
 | `ROULETTE_SPIN` | Lås och avgör den befintliga rundan; klienten skickar aldrig önskad pocket. |
 
-Varje command har `commandId`, `expectedRevision`, `issuedAt`, `schemaVersion: 2` och `tableId`. Acknowledgement skiljer explicit mellan `accepted`, `replayed` och `rejected`. Idempotens är kontrakterad men blir inte verklig förrän server och databas implementerar den.
+Varje command har `commandId`, `expectedRevision`, `issuedAt`, `schemaVersion: 2` och `tableId`. Acknowledgement skiljer explicit mellan `accepted`, `replayed` och `rejected`. Application service lagrar command-receipts och replayar samma `commandId` utan nya events eller saldoeffekter. Garantin gäller nu inom in-memory-adapterns processlivstid; motsvarande hållbara garanti återstår i Supabase-adaptern.
 
 ### Exakta semantiska v2-events
 
@@ -114,7 +114,7 @@ Blackjacksnapshoten beskriver faserna `prepared`, `player`, `dealer` och `settle
 
 V2:s dolda blackjackkort är säkert genom en discriminated union. När `faceUp` är `false` finns inget `card`, inget `cardId`, ingen rank och ingen suit i eventet eller den publika spelar-snapshoten. Kortet blir publikt först via `blackjack.card.revealed` eller en senare fas där alla kort är synliga. V1:s osäkra form är historisk och får inte användas för ny speltransport.
 
-Fixtures för hela unionen finns i [`packages/contracts/fixtures/v2`](../packages/contracts/fixtures/v2). Emil kan bygga och testa presentationen mot dem innan servertransporten finns.
+Fixtures för hela unionen finns i [`packages/contracts/fixtures/v2`](../packages/contracts/fixtures/v2). Presentationen kan fortsätta testas isolerat mot dem tills liveleveransen kopplats in.
 
 ## Blackjackmotorn
 
@@ -129,7 +129,7 @@ stateDiagram-v2
 
 State-machinen är implementerad som rena transitioner i `packages/game-core`. Den muterar inte indata och tar en injicerad sko; den skapar inte själv slump eller saldo. Den aktiva `mvp-v2`-profilen låser bland annat sex kortlekar, American hole card med peek, S17, 3:2, double after split, högst en split, ett kort på splittade ess och att split-21 inte är blackjack.
 
-Motorn producerar ny state, domänevents och ledger intents. Den planerade serveradaptern ska validera `GameCommandV2`, kontrollera behörighet/saldo/idempotens, tillföra fairnessdata, anropa transitionen och först efter databascommit omsluta eventen med `eventId`, `sequence`, `revision` och tid.
+Motorn producerar ny state, domänevents och ledger intents. Den implementerade application service validerar `GameCommandV2`, kontrollerar saldo/idempotens/revision, tillför fairnessdata, anropar transitionen och omsluter eventen med `eventId`, `sequence`, `revision` och tid inom repository-transaktionen. Behörighetskontroll och motsvarande hållbara Supabase-commit återstår.
 
 ## Roulettemotorn
 
@@ -175,11 +175,10 @@ Temat hör enbart hemma i presentationslagret. `packages/game-core`, `packages/c
 
 Emils utseendebranch kan normalt ändra `apps/web/src/**`, `apps/web/public/**`, webbspecifika tester och små presentationsanteckningar. Den ska konsumera `@spelsajt/contracts`, `@spelsajt/system-model` och v2-fixtures utan att ändra deras format. Ett kontraktsgap löses i en separat, gemensamt granskad ändring.
 
-## Kvar innan en spelbar server
+## Kvar innan en produktionsnära spelbar server
 
-- Implementera `/v2` command- och snapshot-routes med autentisering, validering, revisionskontroll och idempotent replay.
-- Bygg serveradaptern mellan transportkontrakten, fairness, de två state-machinerna och ledger intents.
-- Kör command, state, fairnessmetadata, ledger och eventsekvens atomiskt i Supabase.
+- Koppla autentiserad spelare och bordsbehörighet till de implementerade `/v2`-routesen.
+- Implementera repository-porten som en atomisk Supabase-transaktion för command, state, fairnessmetadata, ledger, receipt och eventsekvens.
 - Persistiera och leverera `game.event` samt `table.snapshot`, inklusive reconnect från senaste sekvensnummer.
 - Koppla serverns livelevererade v2-events till den befintliga projektorn och färdigställ text-, reduced-motion- och 3D-presentation för samtliga cues.
 

@@ -118,7 +118,7 @@ describe("play-money system model", () => {
     }
   });
 
-  it("routes planned v2 commands and snapshots through versioned paths", () => {
+  it("routes implemented v2 commands and snapshots through versioned paths", () => {
     const commands = systemModel.interfaces.find(({ id }) => id === "http.commands");
     const snapshot = systemModel.interfaces.find(({ id }) => id === "http.snapshot");
 
@@ -126,13 +126,23 @@ describe("play-money system model", () => {
       kind: "http",
       method: "POST",
       path: "/v2/tables/{tableId}/commands",
-      maturity: { contract: "zod-v2", lifecycle: "planned", runtime: "absent" },
+      maturity: {
+        contract: "zod-v2",
+        lifecycle: "active",
+        runtime: "implemented",
+        verification: "direct",
+      },
     });
     expect(snapshot).toMatchObject({
       kind: "http",
       method: "GET",
       path: "/v2/tables/{tableId}/snapshot",
-      maturity: { contract: "zod-v2", lifecycle: "planned", runtime: "absent" },
+      maturity: {
+        contract: "zod-v2",
+        lifecycle: "active",
+        runtime: "implemented",
+        verification: "direct",
+      },
     });
   });
 
@@ -282,15 +292,22 @@ describe("play-money system model", () => {
     }
   });
 
-  it("records implemented engines and cross-runtime verification without inventing transport", () => {
+  it("records implemented HTTP transport without inventing realtime delivery", () => {
     const maturity = Object.fromEntries(systemModel.interfaces.map(({ id, maturity }) => [id, maturity]));
 
     expect(maturity["http.health"]).toMatchObject({ contract: "ad-hoc", runtime: "implemented" });
     expect(maturity["http.status"]).toMatchObject({ contract: "ad-hoc", runtime: "implemented" });
     expect(maturity["http.commands"]).toMatchObject({
       contract: "zod-v2",
-      lifecycle: "planned",
-      runtime: "absent",
+      lifecycle: "active",
+      runtime: "implemented",
+      verification: "direct",
+    });
+    expect(maturity["http.snapshot"]).toMatchObject({
+      contract: "zod-v2",
+      lifecycle: "active",
+      runtime: "implemented",
+      verification: "direct",
     });
     expect(maturity["realtime.server-ready"]).toMatchObject({
       contract: "ad-hoc",
