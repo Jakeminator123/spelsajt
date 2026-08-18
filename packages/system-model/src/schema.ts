@@ -55,7 +55,13 @@ const realtimeInterfaceSchema = z.strictObject({
   source: sourcePathSchema,
   maturity: maturitySchema,
   summary: z.string().min(1),
-  payload: z.enum(["GameEvent", "GameSnapshot", "ServerReady", "TableSubscriptionV2"]),
+  payload: z.enum([
+    "GameEvent",
+    "GameSnapshot",
+    "ServerReady",
+    "ServerReadyV2",
+    "TableSubscriptionV2",
+  ]),
   eventTypes: z.array(eventTypeSchema),
 });
 
