@@ -32,13 +32,31 @@ jobs:
             exit 1
           fi
 
+      - name: Start smoke-test Postgres
+        run: |
+          docker network create spelsajt-game-server-smoke
+          docker run --detach \
+            --name spelsajt-postgres-smoke \
+            --network spelsajt-game-server-smoke \
+            --env POSTGRES_HOST_AUTH_METHOD=trust \
+            postgres:17.10-bookworm
+          for attempt in {1..30}; do
+            if docker exec spelsajt-postgres-smoke pg_isready --username postgres; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs spelsajt-postgres-smoke
+          exit 1
+
       - name: Start configured game-server image
         run: |
           docker run --detach \
             --name spelsajt-game-server-smoke \
+            --network spelsajt-game-server-smoke \
             --env SUPABASE_URL=http://127.0.0.1:54321 \
             --env SUPABASE_PUBLISHABLE_KEY=container-smoke-key \
-            --env SUPABASE_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres \
+            --env SUPABASE_DATABASE_URL=postgresql://postgres@spelsajt-postgres-smoke:5432/postgres \
             spelsajt-game-server:ci
 
       - name: Verify game-server health
@@ -58,9 +76,16 @@ jobs:
           docker logs spelsajt-game-server-smoke
           exit 1
 
+      - name: Verify game-server readiness
+        run: |
+          docker exec spelsajt-game-server-smoke node -e \
+            "fetch('http://127.0.0.1:4000/ready').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));"
+
       - name: Clean up game-server container
         if: always()
-        run: docker rm --force spelsajt-game-server-smoke || true
+        run: |
+          docker rm --force spelsajt-game-server-smoke spelsajt-postgres-smoke || true
+          docker network rm spelsajt-game-server-smoke || true
 
   verify:
     runs-on: ubuntu-latest
@@ -126,4 +151,4 @@ jobs:
       - name: Test durable game repository
         env:
           SUPABASE_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
-        run: pnpm --filter @spelsajt/game-server test -- postgres-repository.integration.test.ts
+        run: pnpm --filter @spelsajt/game-server test -- postgres-repository.integration.test.ts postgres-realtime.integration.test.ts

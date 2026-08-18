@@ -26,8 +26,10 @@ process.on("SIGINT", () => void shutdown("SIGINT"));
 process.on("SIGTERM", () => void shutdown("SIGTERM"));
 
 try {
+  await app.gameServices.eventBus.start?.();
   await app.listen({ host, port });
 } catch (error) {
   app.log.error(error);
+  await app.close();
   process.exit(1);
 }
