@@ -50,11 +50,12 @@ Backend avgör alltid state, utfall, payout och saldo. Frontend skickar endast s
 | Fairness | Implementerad kärna och hållbar orkestrering | Deterministisk byte-stream, rejection sampling, shuffle och Node/Web Crypto-golden vectors finns. Application service äger seed, commitment, nonce, shuffle och pocket; privat commitment/seed/reveal persisteras atomiskt med rundan. |
 | V2 commands, events, snapshots och ack | Kontrakterade och fixture-testade | Zod finns i `packages/contracts/src/v2.ts`; genererade scheman och fixtures finns under respektive `v2`-katalog. |
 | `GET /health` | Implementerad och driftprobad | Fastify-route i `apps/game-server/src/app.ts`, med servertest och healthcheck mot den byggda produktionscontainern i CI. |
+| `GET /ready` | Implementerad och driftprobad | Returnerar 200 först när Postgres svarar och committed-event-reläet lyssnar; verifieras både negativt i servertest och positivt mot container + Postgres i CI. |
 | `GET /v1/status` | Implementerad | Det äldre status-URL:et publicerar nu projektioner från aktivt `mvp-v2`; det är inte v2 commandtransport. |
 | Socket.IO `server.ready` | Implementerad | Bekräftar anslutning men är ännu inte Zod-kontrakterad. |
 | Serveradapter för v2 | Implementerad och direkt testad | `apps/game-server/src/application.ts` mappar båda spelens v2-commands till motortransitioner, ledger intents, validerade events, ack och snapshots. |
 | Atomisk command- och settlementtjänst | Implementerad och direkt integrationstestad | Supabase Auth verifierar bearer-token; användare isoleras per bord och Postgres-adaptern committar wallet, state, fairness, ledger intents, events och command receipt i en låst transaktion. In-memory-adaptern finns kvar för test/utveckling. |
-| `game.event` och snapshots över realtime | Implementerade och direkt testade | En verifierad socket prenumererar med `table.subscribe`, får ett validerat snapshot som sekvensankare och därefter endast events som publicerats efter repository-commit. Reconnect återställer från hållbar Postgres-state. |
+| `game.event` och snapshots över realtime | Implementerade och direkt testade | En verifierad socket prenumererar med `table.subscribe`, får ett validerat snapshot som sekvensankare och därefter endast events som publicerats efter repository-commit. Transaktionell Postgres `NOTIFY` med återläsning av den privata eventraden levererar även när command och socket ligger på olika serverinstanser. Reconnect återställer från hållbar Postgres-state. |
 | Webbpresentation | Delvis implementerad | En uttömmande, direkt testad v2-projektor driver den responsiva 3D-scenen från ett schema-validerat demotranscript. Serverns liveleverans återstår. |
 | `/system` | Dokumentationsyta | Visar den validerade systemmodellen; den är inte ett spel eller driftbevis. |
 
@@ -67,7 +68,7 @@ De två HTTP-routes som bär speltrafik ligger under `/v2`. I konfigurerad runti
 | `POST /v2/tables/{tableId}/commands` | Gemensam, idempotent ingress för `GameCommandV2`. | Implementerad med bearer-auth, ägarisolering, atomisk Postgres-persistens och restart/replay-test. |
 | `GET /v2/tables/{tableId}/snapshot` | Auktoritativ återställning vid anslutning eller sekvensgap. | Implementerad med bearer-auth och hållbar Postgres-state. |
 | Socket.IO `table.subscribe` | Prenumerera på ett ägarisolerat bord med klientens senaste sekvens. | Implementerad med Supabase-token i socket-handshake och Zod-validerat subscription/ack. |
-| Socket.IO `game.event` | En kanal för sekvensnumrerade `GameEventV2`. | Implementerad; nya accepterade commands publiceras först efter commit och replay återutsänder inget. |
+| Socket.IO `game.event` | En kanal för sekvensnumrerade `GameEventV2`. | Implementerad över flera serverinstanser; nya accepterade commands publiceras först efter commit och replay återutsänder inget. |
 | Socket.IO `table.snapshot` | V2-snapshot vid reconnect eller saknade events. | Implementerad som första sekvensankare vid varje godkänd subscription. |
 
 De historiska v1-kontrakten och fixtures ligger kvar för kompatibilitet och regression. Någon `/v1/tables/...`-speltransport ska inte byggas nu.
