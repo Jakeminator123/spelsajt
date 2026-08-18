@@ -18,19 +18,19 @@ function RouletteWheel({ reduceMotion }: { reduceMotion: boolean }) {
     <group ref={group} rotation={[Math.PI / 2, 0, 0]} position={[1.65, 0.55, -0.1]}>
       <mesh>
         <cylinderGeometry args={[1.08, 1.08, 0.18, 37]} />
-        <meshStandardMaterial color="#caa55f" metalness={0.78} roughness={0.22} />
+        <meshStandardMaterial color="#c9ccd8" metalness={0.92} roughness={0.18} />
       </mesh>
       <mesh position={[0, 0.12, 0]}>
         <cylinderGeometry args={[0.84, 0.84, 0.12, 37]} />
-        <meshStandardMaterial color="#101914" metalness={0.3} roughness={0.48} />
+        <meshStandardMaterial color="#14161f" metalness={0.4} roughness={0.42} />
       </mesh>
       <mesh position={[0, 0.2, 0]}>
         <torusGeometry args={[0.61, 0.055, 16, 74]} />
-        <meshStandardMaterial color="#ab2938" metalness={0.25} roughness={0.35} />
+        <meshStandardMaterial color="#7c5cff" metalness={0.4} roughness={0.3} emissive="#4a30c0" emissiveIntensity={0.4} />
       </mesh>
       <mesh position={[0, 0.31, 0]}>
         <sphereGeometry args={[0.11, 24, 24]} />
-        <meshStandardMaterial color="#f8f0da" roughness={0.15} />
+        <meshStandardMaterial color="#f2f3f7" roughness={0.12} metalness={0.3} />
       </mesh>
     </group>
   );
@@ -58,11 +58,11 @@ function TableScene({ reduceMotion }: { reduceMotion: boolean }) {
     <group rotation={[0.08, -0.23, 0]} position={[0, -0.55, 0]}>
       <mesh receiveShadow>
         <cylinderGeometry args={[3.65, 3.75, 0.3, 64]} />
-        <meshStandardMaterial color="#0d3a2a" roughness={0.82} />
+        <meshStandardMaterial color="#12141c" roughness={0.85} />
       </mesh>
       <mesh position={[0, 0.17, 0]}>
         <torusGeometry args={[3.15, 0.1, 18, 96]} />
-        <meshStandardMaterial color="#d4b272" metalness={0.7} roughness={0.3} />
+        <meshStandardMaterial color="#c6f24e" metalness={0.6} roughness={0.32} emissive="#87a828" emissiveIntensity={0.35} />
       </mesh>
       <Card position={[-1.45, 0.38, 0.2]} rotation={0.1} />
       <Card position={[-0.68, 0.42, -0.05]} rotation={-0.12} />
@@ -89,11 +89,12 @@ export function CasinoScene() {
       frameloop={reduceMotion ? "demand" : "always"}
       gl={{ antialias: true, powerPreference: "high-performance" }}
     >
-      <color attach="background" args={["#08120e"]} />
-      <fog attach="fog" args={["#08120e", 7, 14]} />
-      <ambientLight intensity={0.8} />
-      <directionalLight color="#fff4d8" intensity={3.2} position={[-3, 6, 5]} />
-      <pointLight color="#40e28c" intensity={17} position={[3, 2.5, 1]} />
+      <color attach="background" args={["#0a0b10"]} />
+      <fog attach="fog" args={["#0a0b10", 7, 14]} />
+      <ambientLight intensity={0.75} />
+      <directionalLight color="#f4f2ff" intensity={3} position={[-3, 6, 5]} />
+      <pointLight color="#c6f24e" intensity={16} position={[3, 2.5, 1]} />
+      <pointLight color="#7c5cff" intensity={14} position={[-3, 2, 2.5]} />
       <TableScene reduceMotion={reduceMotion} />
     </Canvas>
   );

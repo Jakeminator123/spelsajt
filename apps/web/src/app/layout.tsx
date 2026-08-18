@@ -1,16 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Sora } from "next/font/google";
+import { Bricolage_Grotesque, Inter_Tight } from "next/font/google";
 import type { ReactNode } from "react";
 
 import "./globals.css";
 
-const inter = Inter({
+const interTight = Inter_Tight({
   subsets: ["latin"],
   variable: "--font-sans",
+  weight: ["400", "500", "600", "700"],
   display: "swap",
 });
 
-const sora = Sora({
+const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
   variable: "--font-display",
   weight: ["500", "600", "700", "800"],
@@ -25,12 +26,12 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   colorScheme: "dark",
-  themeColor: "#060f0b",
+  themeColor: "#08090c",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="sv" className={`${inter.variable} ${sora.variable}`}>
+    <html lang="sv" className={`${interTight.variable} ${bricolage.variable}`}>
       <body>{children}</body>
     </html>
   );

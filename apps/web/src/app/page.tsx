@@ -92,9 +92,36 @@ const sportsEvents = [
 ];
 
 const perks = [
-  { title: "Provably fair", copy: "Varje utfall signeras med HMAC-SHA256 och kan verifieras i efterhand." },
-  { title: "Realtidsmotor", copy: "Fastify och Socket.IO driver bordet — utfallet syns direkt i 3D-världen." },
-  { title: "100% play money", copy: "Spela riskfritt. Inga insättningar, inga uttag, bara ren speldesign." },
+  {
+    title: "Provably fair",
+    copy: "Varje utfall signeras med HMAC-SHA256 och kan verifieras i efterhand.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+        <path d="m9 12 2 2 4-4" />
+      </svg>
+    ),
+  },
+  {
+    title: "Realtidsmotor",
+    copy: "Fastify och Socket.IO driver bordet — utfallet syns direkt i 3D-världen.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z" />
+      </svg>
+    ),
+  },
+  {
+    title: "100% play money",
+    copy: "Spela riskfritt. Inga insättningar, inga uttag, bara ren speldesign.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M14.5 9a2.5 2.5 0 0 0-2.5-1.5c-1.4 0-2.5.8-2.5 2s1 1.7 2.5 2 2.5.9 2.5 2-1.1 2-2.5 2A2.5 2.5 0 0 1 9.5 15" />
+        <path d="M12 6v1.5M12 16.5V18" />
+      </svg>
+    ),
+  },
 ];
 
 export default function HomePage() {
@@ -273,7 +300,7 @@ export default function HomePage() {
         <div className="perks-grid">
           {perks.map((perk, index) => (
             <Reveal className="perk-card" as="div" key={perk.title} from="up" delay={index * 100}>
-              <span className="perk-index">{String(index + 1).padStart(2, "0")}</span>
+              <span className="perk-icon">{perk.icon}</span>
               <h3>{perk.title}</h3>
               <p>{perk.copy}</p>
             </Reveal>
