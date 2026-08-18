@@ -86,7 +86,7 @@
         "verification": "direct",
         "lifecycle": "active"
       },
-      "summary": "Application service lagrar validerade v2-events med stigande tabellsekvens i Postgres och publicerar dem efter commit till autentiserade Socket.IO-prenumeranter."
+      "summary": "Application service lagrar validerade v2-events med stigande tabellsekvens i Postgres; transaktionell NOTIFY och återläsning av den committade raden levererar dem till autentiserade Socket.IO-prenumeranter över flera serverinstanser."
     },
     {
       "id": "node.presentation",
@@ -176,6 +176,22 @@
       "returns": "ServiceStatus"
     },
     {
+      "id": "http.ready",
+      "kind": "http",
+      "method": "GET",
+      "path": "/ready",
+      "source": "apps/game-server/src/app.ts",
+      "maturity": {
+        "runtime": "implemented",
+        "contract": "ad-hoc",
+        "verification": "direct",
+        "lifecycle": "active"
+      },
+      "summary": "Trafikberedskap som kräver en svarande Postgres-repository och ett aktivt committed-event-relä.",
+      "accepts": [],
+      "returns": "ReadinessResponse"
+    },
+    {
       "id": "http.commands",
       "kind": "http",
       "method": "POST",
@@ -254,7 +270,7 @@
         "verification": "direct",
         "lifecycle": "active"
       },
-      "summary": "Enda livekanalen för committade sekvensnumrerade v2-domänevents; presentation intents härleds i frontend.",
+      "summary": "Enda livekanalen för committade sekvensnumrerade v2-domänevents; Postgres-reläet levererar över serverinstanser och presentation intents härleds i frontend.",
       "payload": "GameEvent",
       "eventTypes": [
         "round.prepared",
