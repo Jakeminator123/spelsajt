@@ -49,7 +49,7 @@ Backend avgör alltid state, utfall, payout och saldo. Frontend skickar endast s
 | Roulettemotor | Implementerad och direkt testad | Ren TypeScript-state-machine i `packages/game-core`; stödjer hela rundlivscykeln, alla tio bettyper och settlement för 0–36. |
 | Fairness | Implementerad kärna och hållbar orkestrering | Deterministisk byte-stream, rejection sampling, shuffle och Node/Web Crypto-golden vectors finns. Application service äger seed, commitment, nonce, shuffle och pocket; privat commitment/seed/reveal persisteras atomiskt med rundan. |
 | V2 commands, events, snapshots och ack | Kontrakterade och fixture-testade | Zod finns i `packages/contracts/src/v2.ts`; genererade scheman och fixtures finns under respektive `v2`-katalog. |
-| `GET /health` | Implementerad | Ad hoc-svar i `apps/game-server/src/app.ts`, med servertest. |
+| `GET /health` | Implementerad och driftprobad | Fastify-route i `apps/game-server/src/app.ts`, med servertest och healthcheck mot den byggda produktionscontainern i CI. |
 | `GET /v1/status` | Implementerad | Det äldre status-URL:et publicerar nu projektioner från aktivt `mvp-v2`; det är inte v2 commandtransport. |
 | Socket.IO `server.ready` | Implementerad | Bekräftar anslutning men är ännu inte Zod-kontrakterad. |
 | Serveradapter för v2 | Implementerad och direkt testad | `apps/game-server/src/application.ts` mappar båda spelens v2-commands till motortransitioner, ledger intents, validerade events, ack och snapshots. |
