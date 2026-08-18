@@ -1,6 +1,6 @@
 "use client";
 
-import { ContactShadows, Environment, Lightformer, RoundedBox } from "@react-three/drei";
+import { ContactShadows, Environment, Lightformer, Line, RoundedBox } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Group } from "three";
@@ -21,10 +21,27 @@ import { RouletteWheel, type RouletteVisualPhase } from "./scene/roulette-wheel"
 
 const FELT_TOP = 0.1;
 const DEALER_ORIGIN: [number, number, number] = [1.8, FELT_TOP + 0.48, -1];
-const CAMERA_POSITION: [number, number, number] = [0.1, 8.6, 12.2];
-const CAMERA_TARGET: [number, number, number] = [-0.2, -0.1, 0];
-const DEALER_ZONE_Z = -0.7;
-const PLAYER_ZONE_Z = 1.05;
+const CAMERA_POSITION: [number, number, number] = [0, 9.4, 8.2];
+const CAMERA_TARGET: [number, number, number] = [0, -0.1, -0.35];
+const DEALER_ZONE_Z = -1.25;
+const PLAYER_ZONE_Z = 1.15;
+
+// Blackjack seating arc: seven player positions curve along the front edge,
+// centred on a point behind the dealer, matching a real live table.
+const SEAT_COUNT = 7;
+const ARC_CENTER_Z = -2.4;
+const ARC_RADIUS = 3.6;
+const ARC_SPREAD = (44 * Math.PI) / 180; // half-angle from centre to outer seat
+
+function seatTransform(seatIndex: number): { x: number; z: number; angle: number } {
+  const t = SEAT_COUNT === 1 ? 0 : seatIndex / (SEAT_COUNT - 1) - 0.5; // -0.5..0.5
+  const angle = t * 2 * ARC_SPREAD;
+  return {
+    x: Math.sin(angle) * ARC_RADIUS,
+    z: ARC_CENTER_Z + Math.cos(angle) * ARC_RADIUS,
+    angle,
+  };
+}
 
 const STAGE_LABELS: Record<PresentationStage, string> = {
   idle: "Väntar på V2-event",
@@ -137,31 +154,61 @@ function Table() {
   );
 }
 
-// A flat outlined rectangle painted onto the felt marking where a hand is dealt.
-function HandZone({ position }: { position: [number, number, number] }) {
-  const width = 2.5;
-  const depth = 1.4;
-  const border = 0.05;
+// A player betting spot: a glowing ring with a recessed felt centre, matching
+// the numbered positions printed around a live blackjack table.
+function BettingSpot({ x, z, highlight }: { x: number; z: number; highlight?: boolean }) {
   return (
-    <group position={position}>
-      {/* Accent frame */}
-      <RoundedBox args={[width, 0.008, depth]} position={[0, 0.006, 0]} radius={0.08} smoothness={4}>
-        <meshStandardMaterial color="#7c5cff" emissive="#5a3ff0" emissiveIntensity={0.35} metalness={0.2} roughness={0.5} />
-      </RoundedBox>
-      {/* Felt-colored interior sits above the frame so only the rim shows */}
-      <RoundedBox args={[width - border * 2, 0.008, depth - border * 2]} position={[0, 0.02, 0]} radius={0.06} smoothness={4}>
-        <meshStandardMaterial color="#18291f" metalness={0} roughness={0.98} />
-      </RoundedBox>
+    <group position={[x, FELT_TOP, z]}>
+      <mesh position={[0, 0.014, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.5, 0.07, 16, 56]} />
+        <meshStandardMaterial
+          color={highlight ? "#c6f24e" : "#ffffff"}
+          emissive={highlight ? "#c6f24e" : "#dfe3ee"}
+          emissiveIntensity={highlight ? 1.9 : 1.6}
+          metalness={0.3}
+          roughness={0.3}
+        />
+      </mesh>
+      <mesh position={[0, 0.008, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.48, 44]} />
+        <meshStandardMaterial color="#2a6b47" metalness={0} roughness={0.9} />
+      </mesh>
     </group>
   );
 }
 
-function HandZones() {
+// The curved printed bet line the seats sit on (e.g. "BLACKJACK PAYS 3 TO 2").
+// Drawn as an explicit polyline through the same arc the seats follow so it
+// always hugs the front edge of the felt.
+function ArcLine({ radius, color, width }: { radius: number; color: string; width: number }) {
+  const steps = 64;
+  const points: [number, number, number][] = Array.from({ length: steps + 1 }, (_, i) => {
+    const phi = (i / steps - 0.5) * 2 * ARC_SPREAD;
+    return [Math.sin(phi) * radius, FELT_TOP + 0.03, ARC_CENTER_Z + Math.cos(phi) * radius];
+  });
+  return <Line points={points} color={color} lineWidth={width} />;
+}
+
+function BlackjackLayout() {
+  const seats = Array.from({ length: SEAT_COUNT }, (_, index) => seatTransform(index));
+  const centerSeat = (SEAT_COUNT - 1) / 2;
   return (
-    <>
-      <HandZone position={[0, FELT_TOP, DEALER_ZONE_Z]} />
-      <HandZone position={[0, FELT_TOP, PLAYER_ZONE_Z]} />
-    </>
+    <group>
+      {/* Two concentric arc lines mimic the printed rules band on the felt */}
+      <ArcLine radius={ARC_RADIUS - 0.6} color="#d8c37a" width={3.5} />
+      <ArcLine radius={ARC_RADIUS + 0.7} color="#7c5cff" width={3.5} />
+
+      {/* Seven player betting positions along the arc */}
+      {seats.map((seat, index) => (
+        <BettingSpot key={index} x={seat.x} z={seat.z} highlight={index === centerSeat} />
+      ))}
+
+      {/* Dealer card area at the back centre, in front of the shoe */}
+      <mesh position={[0, FELT_TOP + 0.004, DEALER_ZONE_Z]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[2.4, 1.1]} />
+        <meshStandardMaterial color="#0f2417" metalness={0} roughness={0.97} transparent opacity={0.55} />
+      </mesh>
+    </group>
   );
 }
 
@@ -214,7 +261,7 @@ function Scene({
   return (
     <>
       <CameraRig />
-      <ambientLight intensity={0.5} />
+      <ambientLight intensity={0.75} />
       <directionalLight color="#fbf7ff" intensity={2.4} position={[-4, 7, 5]} />
       <pointLight color="#c6f24e" distance={14} intensity={14} position={[3.5, 3, 2]} />
       <pointLight color="#7c5cff" distance={14} intensity={13} position={[-4.5, 2.5, 3]} />
@@ -228,7 +275,7 @@ function Scene({
           visualPhase={roulettePhase}
         />
       ) : (
-        <HandZones />
+        <BlackjackLayout />
       )}
       {cards.map((card, index) => (
         <DealtCard card={card} cards={cards} index={index} key={card.visualId} reduceMotion={false} />
@@ -351,7 +398,7 @@ export function CasinoScene({ game, source = "recorded-demo" }: {
         gl={{ antialias: true, powerPreference: "high-performance" }}
       >
         <color attach="background" args={["#0a0b10"]} />
-        <fog attach="fog" args={["#0a0b10", 9, 18]} />
+        <fog attach="fog" args={["#0a0b10", 20, 40]} />
         <Scene
           cards={presentation.cards}
           croupierVisualPose={croupierPose(presentation.activeCue?.cueId ?? null)}
