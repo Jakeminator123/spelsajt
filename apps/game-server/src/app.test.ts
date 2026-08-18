@@ -63,6 +63,33 @@ describe("game server", () => {
       service: "game-server",
       status: "ok",
     });
+
+    const ready = await app.inject({ method: "GET", url: "/ready" });
+    expect(ready.statusCode).toBe(200);
+    expect(ready.json()).toMatchObject({
+      service: "game-server",
+      status: "ready",
+    });
+  });
+
+  it("stays alive but rejects readiness while a durable dependency is unavailable", async () => {
+    class UnavailableRepository extends InMemoryGameRepository {
+      override async ping(): Promise<void> {
+        throw new Error("database unavailable");
+      }
+    }
+    const app = buildApp({ repository: new UnavailableRepository() });
+    openApps.push(app);
+
+    const health = await app.inject({ method: "GET", url: "/health" });
+    const ready = await app.inject({ method: "GET", url: "/ready" });
+
+    expect(health.statusCode).toBe(200);
+    expect(ready.statusCode).toBe(503);
+    expect(ready.json()).toMatchObject({
+      service: "game-server",
+      status: "not-ready",
+    });
   });
 
   it("publishes the frozen MVP rulesets", async () => {

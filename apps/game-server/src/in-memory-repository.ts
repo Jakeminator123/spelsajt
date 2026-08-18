@@ -15,6 +15,8 @@ export class InMemoryGameRepository implements GameRepository {
   readonly #locks = new Map<string, Promise<void>>();
   readonly #tables = new Map<string, { readonly table: StoredTable; readonly userId: string }>();
 
+  async ping(): Promise<void> {}
+
   async read(userId: string, tableId: string): Promise<StoredTable | null> {
     const owned = this.#tables.get(tableId);
     if (!owned) return null;

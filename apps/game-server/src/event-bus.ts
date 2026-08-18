@@ -2,9 +2,21 @@ import { gameEventV2Schema, type GameEventV2 } from "@spelsajt/contracts";
 
 export type GameEventListener = (events: readonly GameEventV2[]) => void;
 
-/** Process-local fan-out after the durable repository transaction commits. */
-export class GameEventBus {
+export interface GameEventBusPort {
+  close?(): Promise<void>;
+  isReady?(): boolean;
+  publish(events: readonly GameEventV2[]): void;
+  start?(): Promise<void>;
+  subscribe(tableId: string, listener: GameEventListener): () => void;
+}
+
+/** Process-local adapter used by tests and as the relay's socket-facing fan-out. */
+export class GameEventBus implements GameEventBusPort {
   readonly #listeners = new Map<string, Set<GameEventListener>>();
+
+  isReady(): boolean {
+    return true;
+  }
 
   publish(events: readonly GameEventV2[]): void {
     const byTable = new Map<string, GameEventV2[]>();

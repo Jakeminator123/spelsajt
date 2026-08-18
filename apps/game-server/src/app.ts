@@ -4,20 +4,20 @@ import Fastify from "fastify";
 
 import { GameApplication, type GameApplicationOptions } from "./application";
 import { bearerToken, rejectAllAuthVerifier, type AuthVerifier } from "./auth";
-import { GameEventBus } from "./event-bus";
+import { GameEventBus, type GameEventBusPort } from "./event-bus";
 import { InMemoryGameRepository } from "./in-memory-repository";
 import { TableOwnershipError, type GameRepository } from "./repository";
 
 export interface BuildAppOptions extends GameApplicationOptions {
   readonly authVerifier?: AuthVerifier;
-  readonly eventBus?: GameEventBus;
+  readonly eventBus?: GameEventBusPort;
   readonly repository?: GameRepository;
 }
 
 export interface GameServerServices {
   readonly application: GameApplication;
   readonly authVerifier: AuthVerifier;
-  readonly eventBus: GameEventBus;
+  readonly eventBus: GameEventBusPort;
   readonly repository: GameRepository;
 }
 
@@ -56,11 +56,12 @@ export function buildApp(options: BuildAppOptions = {}) {
 
   const repository: GameRepository = options.repository ?? new InMemoryGameRepository();
   const authVerifier = options.authVerifier ?? rejectAllAuthVerifier;
-  const eventBus = options.eventBus ?? new GameEventBus();
+  const eventBus: GameEventBusPort = options.eventBus ?? new GameEventBus();
   const application = new GameApplication(repository, options);
   app.decorate("gameServices", { application, authVerifier, eventBus, repository });
 
   app.addHook("onClose", async () => {
+    await eventBus.close?.();
     await repository.close?.();
   });
 
@@ -69,6 +70,27 @@ export function buildApp(options: BuildAppOptions = {}) {
     status: "ok",
     timestamp: new Date().toISOString(),
   }));
+
+  app.get("/ready", async (request, reply) => {
+    try {
+      if (eventBus.isReady?.() === false) {
+        throw new Error("The committed-event relay is not ready.");
+      }
+      await repository.ping?.();
+      return reply.code(200).send({
+        service: "game-server",
+        status: "ready",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      request.log.warn({ err: error }, "Game server readiness check failed");
+      return reply.code(503).send({
+        service: "game-server",
+        status: "not-ready",
+        timestamp: new Date().toISOString(),
+      });
+    }
+  });
 
   app.get("/v1/status", async () => ({
     games: {

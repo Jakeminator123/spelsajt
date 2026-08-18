@@ -1,9 +1,12 @@
 import { SupabaseAuthVerifier, type AuthVerifier } from "./auth";
+import type { GameEventBusPort } from "./event-bus";
+import { PostgresGameEventBus } from "./postgres-event-bus";
 import { PostgresGameRepository } from "./postgres-repository";
 import type { GameRepository } from "./repository";
 
 export interface RuntimeDependencies {
   readonly authVerifier?: AuthVerifier;
+  readonly eventBus?: GameEventBusPort;
   readonly repository?: GameRepository;
 }
 
@@ -28,6 +31,7 @@ export function runtimeDependencies(
   }
   return {
     authVerifier: new SupabaseAuthVerifier(url, key),
+    eventBus: new PostgresGameEventBus({ connectionString: databaseUrl }),
     repository: new PostgresGameRepository({ connectionString: databaseUrl }),
   };
 }
