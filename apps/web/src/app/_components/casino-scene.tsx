@@ -1,78 +1,221 @@
 "use client";
 
-import { Float } from "@react-three/drei";
+import { ContactShadows, Environment, Lightformer, RoundedBox } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useEffect, useRef, useState } from "react";
-import type { Group } from "three";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { type Group, Vector3 } from "three";
 
-function RouletteWheel({ reduceMotion }: { reduceMotion: boolean }) {
+import { clamp01, easeOutCubic, lerp } from "./scene/animation";
+import { Croupier, type CroupierVisualPose } from "./scene/croupier";
+import { PlayingCard } from "./scene/playing-card";
+import {
+  type PresentationCard,
+  type PresentationCueId,
+  type PresentationStage,
+  presentationStore,
+  recordedRouletteDemo,
+  usePresentationState,
+} from "./scene/presentation";
+import { RouletteWheel, type RouletteVisualPhase } from "./scene/roulette-wheel";
+
+const FELT_TOP = 0.1;
+const DEALER_ORIGIN: [number, number, number] = [1.8, FELT_TOP + 0.48, -1];
+
+const STAGE_LABELS: Record<PresentationStage, string> = {
+  idle: "Väntar på V2-event",
+  prepared: "Rundan är förberedd",
+  active: "Rundan är aktiv",
+  "roulette-betting": "Insatserna är öppna",
+  "roulette-locked": "Inga fler insatser",
+  "roulette-spinning": "Bollen rullar",
+  "roulette-result": "Det inspelade resultatet visas",
+  settling: "Insatserna avgörs",
+  settled: "Rundan är klar",
+};
+
+const ROULETTE_COLOUR_LABELS = {
+  black: "svart",
+  green: "grön",
+  red: "röd",
+} as const;
+
+function cardTarget(cards: readonly PresentationCard[], index: number): {
+  position: [number, number, number];
+  rotationY: number;
+} {
+  const card = cards[index];
+  const recipient = card?.recipient ?? "player";
+  const laneIndex = cards.slice(0, index).filter((candidate) => candidate.recipient === recipient).length;
+  if (recipient === "dealer") {
+    return {
+      position: [0.15 + laneIndex * 0.62, FELT_TOP + 0.14, -0.35 + laneIndex * 0.08],
+      rotationY: 0.12 - laneIndex * 0.08,
+    };
+  }
+  return {
+    position: [0.05 + laneIndex * 0.65, FELT_TOP + 0.16, 1.05 - laneIndex * 0.1],
+    rotationY: 0.24 - laneIndex * 0.18,
+  };
+}
+
+function DealtCard({
+  card,
+  cards,
+  index,
+  reduceMotion,
+}: {
+  card: PresentationCard;
+  cards: readonly PresentationCard[];
+  index: number;
+  reduceMotion: boolean;
+}) {
   const group = useRef<Group>(null);
+  const elapsed = useRef(0);
+  const target = cardTarget(cards, index);
 
   useFrame((_state, delta) => {
-    if (!reduceMotion && group.current) {
-      group.current.rotation.z -= delta * 0.32;
+    if (!group.current) {
+      return;
     }
+    elapsed.current += delta;
+    const progress = reduceMotion ? 1 : easeOutCubic(clamp01(elapsed.current / 0.85));
+    const [tx, ty, tz] = target.position;
+    group.current.position.set(
+      lerp(DEALER_ORIGIN[0], tx, progress),
+      lerp(DEALER_ORIGIN[1], ty, progress) + Math.sin(progress * Math.PI) * 0.4,
+      lerp(DEALER_ORIGIN[2], tz, progress),
+    );
+    group.current.rotation.y = lerp(0, target.rotationY, progress);
   });
 
   return (
-    <group ref={group} rotation={[Math.PI / 2, 0, 0]} position={[1.65, 0.55, -0.1]}>
-      <mesh>
-        <cylinderGeometry args={[1.08, 1.08, 0.18, 37]} />
-        <meshStandardMaterial color="#caa55f" metalness={0.78} roughness={0.22} />
-      </mesh>
-      <mesh position={[0, 0.12, 0]}>
-        <cylinderGeometry args={[0.84, 0.84, 0.12, 37]} />
-        <meshStandardMaterial color="#101914" metalness={0.3} roughness={0.48} />
-      </mesh>
-      <mesh position={[0, 0.2, 0]}>
-        <torusGeometry args={[0.61, 0.055, 16, 74]} />
-        <meshStandardMaterial color="#ab2938" metalness={0.25} roughness={0.35} />
-      </mesh>
-      <mesh position={[0, 0.31, 0]}>
-        <sphereGeometry args={[0.11, 24, 24]} />
-        <meshStandardMaterial color="#f8f0da" roughness={0.15} />
+    <group ref={group}>
+      {card.faceUp ? (
+        <PlayingCard card={card.card} faceUp reduceMotion={reduceMotion} />
+      ) : (
+        <PlayingCard faceUp={false} reduceMotion={reduceMotion} />
+      )}
+    </group>
+  );
+}
+
+function ChipStack({ position }: { position: [number, number, number] }) {
+  const colors = ["#7c5cff", "#c6f24e", "#f4f5f8", "#7c5cff", "#c6f24e"];
+  return (
+    <group position={position}>
+      {colors.map((color, index) => (
+        <mesh key={`${color}-${index}`} castShadow position={[0, index * 0.05, 0]}>
+          <cylinderGeometry args={[0.19, 0.19, 0.05, 32]} />
+          <meshStandardMaterial color={color} metalness={0.3} roughness={0.45} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function Table() {
+  return (
+    <group>
+      <RoundedBox args={[8.4, 0.5, 4.8]} position={[0, -0.15, 0]} radius={0.28} receiveShadow smoothness={4}>
+        <meshStandardMaterial color="#0d0e13" metalness={0.4} roughness={0.5} />
+      </RoundedBox>
+      <RoundedBox args={[7.8, 0.18, 4.2]} position={[0, 0.01, 0]} radius={0.16} receiveShadow smoothness={4}>
+        <meshStandardMaterial color="#15251f" metalness={0} roughness={0.98} />
+      </RoundedBox>
+      <mesh position={[0, 0.101, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[3.55, 3.62, 96]} />
+        <meshStandardMaterial color="#7c5cff" emissive="#5a3ff0" emissiveIntensity={0.4} metalness={0.3} roughness={0.4} />
       </mesh>
     </group>
   );
 }
 
-function Card({ position, rotation = 0 }: { position: [number, number, number]; rotation?: number }) {
+function CameraRig() {
+  const target = useMemo(() => new Vector3(-0.3, 0.15, -0.1), []);
+  useFrame((state) => {
+    const time = state.clock.elapsedTime;
+    state.camera.position.set(0.2 + Math.sin(time * 0.16) * 0.4, 5.3 + Math.sin(time * 0.22) * 0.14, 6.7);
+    state.camera.lookAt(target);
+  });
+  return null;
+}
+
+function croupierPose(cueId: PresentationCueId | null): CroupierVisualPose {
+  switch (cueId) {
+    case "blackjack.deal-card": return "deal";
+    case "blackjack.reveal-card": return "reveal";
+    case "roulette.bets-locked":
+    case "roulette.spin-started":
+    case "roulette.bet-settled": return "present";
+    case "blackjack.settled-win":
+    case "roulette.settled-win": return "celebrate";
+    case "blackjack.settled-loss":
+    case "roulette.settled-loss": return "sympathetic";
+    default: return "rest";
+  }
+}
+
+function Scene({
+  cards,
+  croupierVisualPose,
+  resultPocket,
+  roulettePhase,
+  rouletteTransitionKey,
+  showChips,
+}: {
+  cards: readonly PresentationCard[];
+  croupierVisualPose: CroupierVisualPose;
+  resultPocket: number | null;
+  roulettePhase: RouletteVisualPhase;
+  rouletteTransitionKey: string;
+  showChips: boolean;
+}) {
   return (
-    <Float speed={1.2} floatIntensity={0.1} rotationIntensity={0.08}>
-      <group position={position} rotation={[0, rotation, 0]}>
-        <mesh>
-          <boxGeometry args={[0.72, 0.035, 1.05]} />
-          <meshStandardMaterial color="#eee7d8" roughness={0.36} />
-        </mesh>
-        <mesh position={[0, 0.025, 0]}>
-          <boxGeometry args={[0.56, 0.01, 0.89]} />
-          <meshStandardMaterial color="#15241c" roughness={0.55} />
-        </mesh>
-      </group>
-    </Float>
+    <>
+      <CameraRig />
+      <ambientLight intensity={0.5} />
+      <directionalLight color="#fbf7ff" intensity={2.4} position={[-4, 7, 5]} />
+      <pointLight color="#c6f24e" distance={14} intensity={14} position={[3.5, 3, 2]} />
+      <pointLight color="#7c5cff" distance={14} intensity={13} position={[-4.5, 2.5, 3]} />
+      <Table />
+      <RouletteWheel
+        position={[-2.2, FELT_TOP, 0.05]}
+        reduceMotion={false}
+        resultPocket={resultPocket}
+        transitionKey={rouletteTransitionKey}
+        visualPhase={roulettePhase}
+      />
+      {cards.map((card, index) => (
+        <DealtCard card={card} cards={cards} index={index} key={card.visualId} reduceMotion={false} />
+      ))}
+      {showChips ? <ChipStack position={[1.95, FELT_TOP + 0.03, 0.9]} /> : null}
+      <Croupier pose={croupierVisualPose} position={[1.8, FELT_TOP, -1.15]} reduceMotion={false} />
+      <ContactShadows blur={2.8} color="#04060a" far={2.2} opacity={0.5} position={[0, FELT_TOP + 0.001, 0]} resolution={512} scale={12} />
+      <Environment resolution={256}>
+        <Lightformer color="#ffffff" form="rect" intensity={2} position={[0, 5, -4]} scale={[8, 4, 1]} />
+        <Lightformer color="#c6f24e" form="rect" intensity={1.6} position={[5, 2, 3]} scale={[3, 4, 1]} />
+        <Lightformer color="#7c5cff" form="rect" intensity={1.4} position={[-5, 2, 2]} scale={[3, 4, 1]} />
+      </Environment>
+    </>
   );
 }
 
-function TableScene({ reduceMotion }: { reduceMotion: boolean }) {
-  return (
-    <group rotation={[0.08, -0.23, 0]} position={[0, -0.55, 0]}>
-      <mesh receiveShadow>
-        <cylinderGeometry args={[3.65, 3.75, 0.3, 64]} />
-        <meshStandardMaterial color="#0d3a2a" roughness={0.82} />
-      </mesh>
-      <mesh position={[0, 0.17, 0]}>
-        <torusGeometry args={[3.15, 0.1, 18, 96]} />
-        <meshStandardMaterial color="#d4b272" metalness={0.7} roughness={0.3} />
-      </mesh>
-      <Card position={[-1.45, 0.38, 0.2]} rotation={0.1} />
-      <Card position={[-0.68, 0.42, -0.05]} rotation={-0.12} />
-      <RouletteWheel reduceMotion={reduceMotion} />
-    </group>
-  );
+function demoDelay(eventType: string): number {
+  if (eventType === "roulette.spin.started") return 3600;
+  if (eventType === "roulette.result") return 2600;
+  if (eventType === "round.settled") return 3200;
+  return 1200;
+}
+
+function stageDataPhase(stage: PresentationStage): string {
+  if (stage === "roulette-spinning") return "ball_in_motion";
+  if (stage === "roulette-locked") return "no_more_bets";
+  return stage;
 }
 
 export function CasinoScene() {
-  const [reduceMotion, setReduceMotion] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState<boolean | null>(null);
+  const presentation = usePresentationState();
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -82,19 +225,92 @@ export function CasinoScene() {
     return () => mediaQuery.removeEventListener("change", syncPreference);
   }, []);
 
+  useEffect(() => {
+    if (reduceMotion === null) {
+      return;
+    }
+    presentationStore.reset();
+    if (reduceMotion) {
+      for (const event of recordedRouletteDemo.events) {
+        presentationStore.dispatch(event);
+      }
+      return;
+    }
+
+    let cancelled = false;
+    let eventIndex = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const playNext = () => {
+      if (cancelled) return;
+      const event = recordedRouletteDemo.events[eventIndex];
+      if (!event) {
+        presentationStore.reset();
+        eventIndex = 0;
+        timer = setTimeout(playNext, 900);
+        return;
+      }
+      presentationStore.dispatch(event);
+      eventIndex += 1;
+      timer = setTimeout(playNext, demoDelay(event.type));
+    };
+    playNext();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [reduceMotion]);
+
+  const result = presentation.rouletteResult;
+  const roulettePhase: RouletteVisualPhase = result
+    ? "result"
+    : presentation.stage === "roulette-spinning" ? "spinning" : "idle";
+  const rouletteTransitionKey = result
+    ? `result-${presentation.roundId}-${result.pocket}`
+    : roulettePhase === "spinning"
+      ? `spin-${presentation.roundId}-${presentation.transitionId}`
+      : `idle-${presentation.roundId ?? "none"}`;
+  const status = result
+    ? `${STAGE_LABELS[presentation.stage]} · ${result.pocket} ${ROULETTE_COLOUR_LABELS[result.colour]}`
+    : STAGE_LABELS[presentation.stage];
+  const fallback = presentation.activeCue?.reducedMotionText ?? status;
+
+  if (reduceMotion === null) {
+    return <div className="scene-loading">Läser rörelseinställning...</div>;
+  }
+
+  if (reduceMotion) {
+    return (
+      <div className="scene-stage">
+        <div aria-live="polite" className="scene-loading" role="status">
+          Inspelad demo · {fallback}{result ? ` Vinnande nummer: ${result.pocket}.` : ""}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <Canvas
-      camera={{ fov: 36, position: [0, 4.8, 7.2] }}
-      dpr={[1, 1.6]}
-      frameloop={reduceMotion ? "demand" : "always"}
-      gl={{ antialias: true, powerPreference: "high-performance" }}
-    >
-      <color attach="background" args={["#08120e"]} />
-      <fog attach="fog" args={["#08120e", 7, 14]} />
-      <ambientLight intensity={0.8} />
-      <directionalLight color="#fff4d8" intensity={3.2} position={[-3, 6, 5]} />
-      <pointLight color="#40e28c" intensity={17} position={[3, 2.5, 1]} />
-      <TableScene reduceMotion={reduceMotion} />
-    </Canvas>
+    <div className="scene-stage">
+      <Canvas
+        aria-hidden="true"
+        camera={{ fov: 32, position: [0.6, 4.5, 6.9] }}
+        dpr={[1, 1.75]}
+        gl={{ antialias: true, powerPreference: "high-performance" }}
+      >
+        <color attach="background" args={["#0a0b10"]} />
+        <fog attach="fog" args={["#0a0b10", 9, 18]} />
+        <Scene
+          cards={presentation.cards}
+          croupierVisualPose={croupierPose(presentation.activeCue?.cueId ?? null)}
+          resultPocket={result?.pocket ?? null}
+          roulettePhase={roulettePhase}
+          rouletteTransitionKey={rouletteTransitionKey}
+          showChips={presentation.rouletteBets.length > 0}
+        />
+      </Canvas>
+      <div className="scene-phase">
+        <span className="scene-phase-dot" data-phase={stageDataPhase(presentation.stage)} />
+        <span className="scene-phase-label">{status}</span>
+      </div>
+    </div>
   );
 }

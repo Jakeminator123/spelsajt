@@ -323,7 +323,8 @@ describe("play-money system model", () => {
     const presentation = systemModel.nodes.find(({ id }) => id === "node.presentation");
     expect(presentation?.maturity).toMatchObject({
       contract: "zod-v2",
-      runtime: "absent",
+      runtime: "implemented",
+      verification: "direct",
     });
     expect(presentation?.summary).toContain("reaction.cue");
   });
