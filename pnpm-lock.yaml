@@ -29,6 +29,9 @@ importers:
       '@fastify/cors':
         specifier: 11.3.0
         version: 11.3.0
+      '@spelsajt/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@spelsajt/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts

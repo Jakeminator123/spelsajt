@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@spelsajt/config": "workspace:*",
     "@spelsajt/contracts": "workspace:*",
     "@spelsajt/fairness": "workspace:*",
     "@spelsajt/game-core": "workspace:*",

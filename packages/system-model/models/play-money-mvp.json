@@ -23,14 +23,14 @@
       "label": "Command API",
       "lane": "server",
       "owner": "backend",
-      "source": "docs/SYSTEM_CANVAS.md",
+      "source": "apps/game-server/src/app.ts",
       "maturity": {
-        "runtime": "absent",
+        "runtime": "implemented",
         "contract": "zod-v2",
-        "verification": "fixture-only",
-        "lifecycle": "planned"
+        "verification": "direct",
+        "lifecycle": "active"
       },
-      "summary": "Planerad idempotent ingress för revisionslåsta v2 GameCommand-payloads."
+      "summary": "Validerad, idempotent ingress för revisionslåsta v2 GameCommand-payloads; nuvarande repository-adapter är processlokal och saknar ännu auth."
     },
     {
       "id": "node.game-core",
@@ -72,7 +72,7 @@
         "verification": "partial",
         "lifecycle": "active"
       },
-      "summary": "Databasschemat och RLS finns; tjänsten som applicerar motorernas ledger intents atomiskt återstår."
+      "summary": "Databasschemat och RLS finns och application service applicerar ledger intents atomiskt i processminnet; den hållbara Supabase-transaktionen återstår."
     },
     {
       "id": "node.event-stream",
@@ -81,12 +81,12 @@
       "owner": "shared",
       "source": "packages/contracts/src/v2.ts",
       "maturity": {
-        "runtime": "absent",
+        "runtime": "partial",
         "contract": "zod-v2",
-        "verification": "fixture-only",
-        "lifecycle": "planned"
+        "verification": "direct",
+        "lifecycle": "active"
       },
-      "summary": "Planerad v2 GameEvent-ström med revision, stigande sekvensnummer och reconnect från snapshot."
+      "summary": "Application service producerar och lagrar validerade v2-events med stigande sekvensnummer i processminnet; hållbar lagring och realtime-leverans återstår."
     },
     {
       "id": "node.presentation",
@@ -180,14 +180,14 @@
       "kind": "http",
       "method": "POST",
       "path": "/v2/tables/{tableId}/commands",
-      "source": "docs/SYSTEM_CANVAS.md",
+      "source": "apps/game-server/src/app.ts",
       "maturity": {
-        "runtime": "absent",
+        "runtime": "implemented",
         "contract": "zod-v2",
-        "verification": "fixture-only",
-        "lifecycle": "planned"
+        "verification": "direct",
+        "lifecycle": "active"
       },
-      "summary": "Planerad gemensam ingress för v2 commands; ingen endpoint per animation eller spelhandling.",
+      "summary": "Gemensam ingress för v2 commands med validering, revision, idempotent replay och en processlokal atomisk repository-adapter.",
       "accepts": [
         "PREPARE_ROUND",
         "BLACKJACK_PLACE_BET",
@@ -202,14 +202,14 @@
       "kind": "http",
       "method": "GET",
       "path": "/v2/tables/{tableId}/snapshot",
-      "source": "docs/SYSTEM_CANVAS.md",
+      "source": "apps/game-server/src/app.ts",
       "maturity": {
-        "runtime": "absent",
+        "runtime": "implemented",
         "contract": "zod-v2",
-        "verification": "fixture-only",
-        "lifecycle": "planned"
+        "verification": "direct",
+        "lifecycle": "active"
       },
-      "summary": "Planerad reconnect-yta för ett auktoritativt v2-bordssnapshot.",
+      "summary": "Reconnect-yta för ett validerat auktoritativt v2-bordssnapshot från nuvarande repository-adapter.",
       "accepts": [],
       "returns": "GameSnapshotV2"
     },
@@ -516,7 +516,7 @@
       "id": "scenario.blackjack-basic",
       "game": "blackjack",
       "label": "Blackjack: förberedelse till verifierat split-resultat",
-      "summary": "V2-flöde där motorn avgör två händer. Transport och ledgerkoppling är planerade; presentationen kan verifieras mot inspelade, schema-validerade events.",
+      "summary": "V2-flöde där application service, in-memory-ledger och motorn driver blackjack från prepare till settlement; hållbar Supabase-transaktion och livepresentation återstår.",
       "steps": [
         {
           "id": "blackjack.command-prepare",
@@ -558,7 +558,7 @@
           "kind": "system",
           "nodeId": "node.ledger",
           "label": "Insatsen reserveras",
-          "detail": "Den planerade servertjänsten ska applicera motorns debit-intent i samma transaktion som rundan."
+          "detail": "Application service applicerar motorns debit-intent i samma processlokala transaktion som rundan; Supabase-commit återstår."
         },
         {
           "id": "blackjack.event-round-started",
@@ -741,7 +741,7 @@
       "id": "scenario.roulette-basic",
       "game": "roulette",
       "label": "Roulette: bets till verifierat blandat resultat",
-      "summary": "V2-flöde för flera strukturerade bets där motorn avgör pocket och payouts men transport och presentation fortfarande är planerade.",
+      "summary": "V2-flöde där application service buntar validerade bets och driver lock, serverägd spin och settlement; hållbar Supabase-transaktion och livepresentation återstår.",
       "steps": [
         {
           "id": "roulette.command-prepare",
@@ -800,7 +800,7 @@
           "kind": "system",
           "nodeId": "node.ledger",
           "label": "Insatser reserveras",
-          "detail": "Den planerade servertransaktionen ska debitera accepterade bets idempotent."
+          "detail": "Application service debiterar accepterade bets idempotent i repository-transaktionen; Supabase-commit återstår."
         },
         {
           "id": "roulette.event-bet-placed",
@@ -932,7 +932,7 @@
           "kind": "system",
           "nodeId": "node.ledger",
           "label": "Payout bokförs",
-          "detail": "Den planerade servertjänsten ska committa motorresultatet och nytt PLAY-saldo atomiskt."
+          "detail": "Application service committar motorresultatet och nytt PLAY-saldo atomiskt i processminnet; Supabase-commit återstår."
         },
         {
           "id": "roulette.event-settled",
