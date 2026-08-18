@@ -179,7 +179,8 @@ Emils utseendebranch kan normalt ändra `apps/web/src/**`, `apps/web/public/**`,
 
 ## Kvar innan en produktionsnära spelbar server
 
-- Koppla serverns livelevererade v2-events till den befintliga projektorn och färdigställ text-, reduced-motion- och 3D-presentation för samtliga cues.
+- Driftsätt den verifierade game-server-containern hos en långlivad värd, koppla webbens publika server-URL och kör det hostade end-to-end-flödet för båda spelen inklusive reconnect.
+- Färdigställ cue-specifik visuell polish för text-, reduced-motion- och 3D-presentationen.
 
 Ett gap löses först i den auktoritativa källan, med schema-/fixtureuppdatering och tester. En kompatibilitetsbrytning kräver en ny schema-, ruleset- eller algoritmversion; den får inte döljas i UI-kod eller dokumentation.
 
