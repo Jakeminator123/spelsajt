@@ -7,6 +7,7 @@ import {
   gameEventV2Schema,
   gameSnapshotV2Schema,
   rouletteBetV2Schema,
+  serverReadyV2Schema,
   socketAuthV2Schema,
   tableSubscriptionAckV2Schema,
   tableSubscriptionV2Schema,
@@ -66,6 +67,12 @@ const definitions = [
     id: "https://schemas.spelsajt.local/v2/socket-auth.schema.json",
     schema: socketAuthV2Schema,
     title: "Spelsajt Socket.IO auth v2",
+  },
+  {
+    fileName: "v2/server-ready.schema.json",
+    id: "https://schemas.spelsajt.local/v2/server-ready.schema.json",
+    schema: serverReadyV2Schema,
+    title: "Spelsajt server ready v2",
   },
   {
     fileName: "v2/table-subscription.schema.json",
