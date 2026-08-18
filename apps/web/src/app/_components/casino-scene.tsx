@@ -21,8 +21,8 @@ import { RouletteWheel, type RouletteVisualPhase } from "./scene/roulette-wheel"
 
 const FELT_TOP = 0.1;
 const DEALER_ORIGIN: [number, number, number] = [1.8, FELT_TOP + 0.48, -1];
-const CAMERA_POSITION: [number, number, number] = [0.2, 5.3, 6.7];
-const CAMERA_TARGET: [number, number, number] = [-0.3, 0.15, -0.1];
+const CAMERA_POSITION: [number, number, number] = [0.1, 7.2, 10.4];
+const CAMERA_TARGET: [number, number, number] = [-0.2, 0.05, -0.05];
 
 const STAGE_LABELS: Record<PresentationStage, string> = {
   idle: "Väntar på V2-event",
@@ -125,10 +125,6 @@ function Table() {
       <RoundedBox args={[7.8, 0.18, 4.2]} position={[0, 0.01, 0]} radius={0.16} receiveShadow smoothness={4}>
         <meshStandardMaterial color="#15251f" metalness={0} roughness={0.98} />
       </RoundedBox>
-      <mesh position={[0, 0.101, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[3.55, 3.62, 96]} />
-        <meshStandardMaterial color="#7c5cff" emissive="#5a3ff0" emissiveIntensity={0.4} metalness={0.3} roughness={0.4} />
-      </mesh>
     </group>
   );
 }
@@ -312,7 +308,7 @@ export function CasinoScene({ game, source = "recorded-demo" }: {
     <div className="scene-stage">
       <Canvas
         aria-hidden="true"
-        camera={{ fov: 32, position: CAMERA_POSITION }}
+        camera={{ fov: 38, position: CAMERA_POSITION }}
         dpr={[1, 1.75]}
         gl={{ antialias: true, powerPreference: "high-performance" }}
       >
