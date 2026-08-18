@@ -9,7 +9,10 @@ class FakeClient extends EventEmitter {
   readonly queries: string[] = [];
   ended = false;
 
-  constructor(readonly connectError?: Error) {
+  constructor(
+    readonly connectError?: Error,
+    readonly stallEventQueries = false,
+  ) {
     super();
   }
 
@@ -24,6 +27,9 @@ class FakeClient extends EventEmitter {
 
   async query(text: string): Promise<QueryResult<Record<string, unknown>>> {
     this.queries.push(text);
+    if (this.stallEventQueries && text.includes("from game_private.game_events")) {
+      return new Promise(() => undefined);
+    }
     return {
       command: "SELECT",
       fields: [],
@@ -99,10 +105,57 @@ describe("Postgres game event bus", () => {
     expect(bus.isReady()).toBe(false);
   });
 
+  it("can be started again after an initial transient connection failure", async () => {
+    const failed = new FakeClient(new Error("database unavailable"));
+    const recovered = new FakeClient();
+    const bus = new PostgresGameEventBus({
+      clientFactory: clientFactory([failed, recovered]),
+      connectionString: "postgresql://example.invalid/postgres",
+      onError: () => undefined,
+    });
+
+    await expect(bus.start()).rejects.toThrow("database unavailable");
+    expect(bus.isReady()).toBe(false);
+    await expect(bus.start()).resolves.toBeUndefined();
+    expect(bus.isReady()).toBe(true);
+
+    await bus.close();
+  });
+
+  it("bounds shutdown while a notification query is still pending", async () => {
+    const client = new FakeClient(undefined, true);
+    const bus = new PostgresGameEventBus({
+      clientFactory: clientFactory([client]),
+      closeTimeoutMs: 10,
+      connectionString: "postgresql://example.invalid/postgres",
+      onError: () => undefined,
+    });
+    await bus.start();
+
+    client.emit("notification", {
+      channel: "spelsajt_game_events_v2",
+      payload: JSON.stringify({ schemaVersion: 1, sequence: 1, tableId: "table-a" }),
+      processId: 1,
+    });
+    await expect.poll(() => client.queries.length).toBe(2);
+
+    const startedAt = Date.now();
+    await expect(bus.close()).resolves.toBeUndefined();
+    expect(Date.now() - startedAt).toBeLessThan(1_000);
+    expect(bus.isReady()).toBe(false);
+  });
+
   it("rejects an invalid reconnect delay before opening a client", () => {
     expect(() => new PostgresGameEventBus({
       connectionString: "postgresql://example.invalid/postgres",
       reconnectDelayMs: 0,
     })).toThrow("reconnectDelayMs must be a positive safe integer");
+  });
+
+  it("rejects an invalid close timeout before opening a client", () => {
+    expect(() => new PostgresGameEventBus({
+      closeTimeoutMs: 0,
+      connectionString: "postgresql://example.invalid/postgres",
+    })).toThrow("closeTimeoutMs must be a positive safe integer");
   });
 });

@@ -58,6 +58,14 @@ afterAll(async () => {
 });
 
 databaseDescribe("Postgres game repository", () => {
+  it("reports readiness for the fully migrated private game schema", async () => {
+    if (!databaseUrl) throw new Error("SUPABASE_DATABASE_URL is required.");
+    const repository = new PostgresGameRepository({ connectionString: databaseUrl });
+
+    await expect(repository.ping()).resolves.toBeUndefined();
+    await repository.close();
+  });
+
   it("persists an idempotent blackjack command, state, fairness, events and ledger atomically", async () => {
     if (!admin) throw new Error("Database pool is unavailable.");
     const userId = randomUUID();

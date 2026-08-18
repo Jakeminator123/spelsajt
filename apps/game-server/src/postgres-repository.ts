@@ -23,6 +23,8 @@ import {
 } from "./postgres-event-notification";
 
 const startingBalance = Number(mvpRuleset.currency.startingBalance);
+const defaultPostgresConnectionTimeoutMs = 5_000;
+const defaultPostgresOperationTimeoutMs = 10_000;
 
 interface TableRow {
   readonly game: "blackjack" | "roulette" | null;
@@ -48,7 +50,12 @@ export class PostgresGameRepository implements GameRepository {
   readonly #pool: Pool;
 
   constructor(options: PostgresGameRepositoryOptions) {
-    this.#pool = new Pool(options);
+    this.#pool = new Pool({
+      connectionTimeoutMillis: defaultPostgresConnectionTimeoutMs,
+      query_timeout: defaultPostgresOperationTimeoutMs,
+      statement_timeout: defaultPostgresOperationTimeoutMs,
+      ...options,
+    });
   }
 
   async close(): Promise<void> {
@@ -56,7 +63,74 @@ export class PostgresGameRepository implements GameRepository {
   }
 
   async ping(): Promise<void> {
-    await this.#pool.query("select 1");
+    const result = await this.#pool.query<{ readonly ready: boolean }>(
+      `with required_columns (table_name, column_name) as (
+         values
+           ('game_tables', 'table_id'),
+           ('game_tables', 'user_id'),
+           ('game_tables', 'game'),
+           ('game_tables', 'revision'),
+           ('game_tables', 'last_sequence'),
+           ('game_tables', 'next_nonce'),
+           ('game_tables', 'round_state'),
+           ('game_commands', 'command_id'),
+           ('game_commands', 'table_id'),
+           ('game_commands', 'user_id'),
+           ('game_commands', 'fingerprint'),
+           ('game_commands', 'ack'),
+           ('game_events', 'event_id'),
+           ('game_events', 'table_id'),
+           ('game_events', 'round_id'),
+           ('game_events', 'sequence'),
+           ('game_events', 'revision'),
+           ('game_events', 'event_type'),
+           ('game_events', 'payload'),
+           ('game_events', 'occurred_at'),
+           ('game_events', 'event'),
+           ('game_rounds', 'id'),
+           ('game_rounds', 'table_id'),
+           ('game_rounds', 'user_id'),
+           ('game_rounds', 'game'),
+           ('game_rounds', 'ruleset_version'),
+           ('game_rounds', 'status'),
+           ('game_rounds', 'wager'),
+           ('game_rounds', 'payout'),
+           ('game_rounds', 'outcome'),
+           ('fairness_records', 'round_id'),
+           ('fairness_records', 'commitment'),
+           ('fairness_records', 'server_seed'),
+           ('fairness_records', 'client_seed'),
+           ('fairness_records', 'nonce'),
+           ('fairness_records', 'algorithm'),
+           ('fairness_records', 'revealed_at'),
+           ('wallet_accounts', 'id'),
+           ('wallet_accounts', 'user_id'),
+           ('wallet_accounts', 'currency'),
+           ('wallet_accounts', 'balance'),
+           ('ledger_transactions', 'id'),
+           ('ledger_transactions', 'user_id'),
+           ('ledger_transactions', 'round_id'),
+           ('ledger_transactions', 'transaction_type'),
+           ('ledger_transactions', 'idempotency_key'),
+           ('ledger_transactions', 'metadata'),
+           ('ledger_entries', 'id'),
+           ('ledger_entries', 'transaction_id'),
+           ('ledger_entries', 'account_id'),
+           ('ledger_entries', 'amount'),
+           ('ledger_entries', 'entry_index'),
+           ('ledger_entries', 'entry_type'),
+           ('ledger_entries', 'metadata')
+       )
+       select count(columns.column_name) = (select count(*) from required_columns) as ready
+         from required_columns required
+         left join information_schema.columns columns
+           on columns.table_schema = 'game_private'
+          and columns.table_name = required.table_name
+          and columns.column_name = required.column_name`,
+    );
+    if (result.rows[0]?.ready !== true) {
+      throw new Error("The Postgres game schema is not fully migrated.");
+    }
   }
 
   async read(userId: string, tableId: string): Promise<StoredTable | null> {
