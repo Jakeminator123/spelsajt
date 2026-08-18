@@ -241,6 +241,19 @@ export class GameApplication {
     return buildSnapshot(table);
   }
 
+  async getEvents(
+    userId: string,
+    tableId: string,
+    firstSequence: number,
+    lastSequence: number,
+  ): Promise<readonly GameEventV2[]> {
+    const table = await this.#repository.read(userId, tableId);
+    if (!table) return [];
+    return table.events.filter(
+      (event) => event.sequence >= firstSequence && event.sequence <= lastSequence,
+    );
+  }
+
   #apply(current: StoredTable, command: GameCommandV2): AppliedCommand {
     switch (command.type) {
       case "PREPARE_ROUND":
