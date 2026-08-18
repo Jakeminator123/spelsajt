@@ -52,6 +52,7 @@ function commandBase(commandId: string, tableId: string, expectedRevision: numbe
 interface CreateServerOptions {
   readonly applicationName?: string;
   readonly onRelayError?: (error: unknown) => void;
+  readonly reconnectDelayMs?: number;
 }
 
 async function createServer(userId: string, options: CreateServerOptions = {}) {
@@ -60,6 +61,7 @@ async function createServer(userId: string, options: CreateServerOptions = {}) {
     application_name: options.applicationName,
     connectionString: databaseUrl,
     onError: options.onRelayError,
+    reconnectDelayMs: options.reconnectDelayMs,
   });
   const app = buildApp({
     authVerifier: authenticatedAs(userId),
@@ -231,7 +233,7 @@ databaseDescribe("Postgres realtime relay", () => {
     unsubscribeLocal();
   });
 
-  it("fails closed when the Postgres relay connection is lost and recovers via another server", async () => {
+  it("fails closed and restores cross-instance delivery after reconnecting the same relay", async () => {
     if (!admin) throw new Error("Database pool is unavailable.");
     const userId = randomUUID();
     const tableId = `db-relay-failure-${randomUUID()}`;
@@ -244,6 +246,7 @@ databaseDescribe("Postgres realtime relay", () => {
     const failedServer = await createServer(userId, {
       applicationName,
       onRelayError: (error) => relayErrors.push(error),
+      reconnectDelayMs: 750,
     });
     const prepare = await failedServer.app.inject({
       headers: authHeaders,
@@ -256,6 +259,7 @@ databaseDescribe("Postgres realtime relay", () => {
       },
     });
     expect(prepare.statusCode).toBe(200);
+    const roundId = prepare.json().snapshot.round.roundId as string;
 
     const failedSocket = await connect(failedServer.address);
     const initialSnapshotPromise = snapshotOnce(failedSocket);
@@ -284,10 +288,52 @@ databaseDescribe("Postgres realtime relay", () => {
     const unavailable = await eventOnce(refused, "connect_error") as Error;
     expect(unavailable.message).toBe("SERVER_UNAVAILABLE");
 
-    const healthyServer = await createServer(userId);
-    const recoveredSocket = await connect(healthyServer.address);
+    await expect.poll(() => failedServer.eventBus.isReady(), {
+      interval: 50,
+      timeout: 5_000,
+    }).toBe(true);
+    expect((await failedServer.app.inject({ method: "GET", url: "/ready" })).statusCode).toBe(200);
+
+    const recoveredSocket = await connect(failedServer.address);
     const recoveredSnapshotPromise = snapshotOnce(recoveredSocket);
     expect(await subscribe(recoveredSocket, tableId)).toMatchObject({ status: "accepted", tableId });
     expect(await recoveredSnapshotPromise).toMatchObject({ lastSequence: 1, revision: 1, tableId });
+
+    const relayedEvents: GameEventV2[] = [];
+    const relayedTurnChanged = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error("Timed out waiting for events after relay recovery.")),
+        5_000,
+      );
+      recoveredSocket.on("game.event", (payload: unknown) => {
+        const event = gameEventV2Schema.parse(payload);
+        relayedEvents.push(event);
+        if (event.type === "blackjack.turn.changed") {
+          clearTimeout(timer);
+          resolve();
+        }
+      });
+    });
+    const writerServer = await createServer(userId);
+    const bet = await writerServer.app.inject({
+      headers: authHeaders,
+      method: "POST",
+      url: `/v2/tables/${tableId}/commands`,
+      payload: {
+        ...commandBase(randomUUID(), tableId, 1),
+        type: "BLACKJACK_PLACE_BET",
+        payload: {
+          amount: "100",
+          clientSeed: "postgres-relay-recovery-seed",
+          currency: "PLAY",
+          roundId,
+        },
+      },
+    });
+    expect(bet.statusCode).toBe(200);
+    await relayedTurnChanged;
+    expect(relayedEvents.map((event) => event.sequence)).toEqual(
+      relayedEvents.map((_, index) => index + 2),
+    );
   });
 });
