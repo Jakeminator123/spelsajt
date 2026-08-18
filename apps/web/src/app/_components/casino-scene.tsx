@@ -19,7 +19,7 @@ import {
 } from "./scene/presentation";
 import { RouletteWheel, type RouletteVisualPhase } from "./scene/roulette-wheel";
 
-const FELT_TOP = 0.1;
+const FELT_TOP = 0.13;
 const DEALER_ORIGIN: [number, number, number] = [1.8, FELT_TOP + 0.48, -1];
 const CAMERA_POSITION: [number, number, number] = [0, 6.6, 9.8];
 const CAMERA_TARGET: [number, number, number] = [0, -0.15, -1.1];
@@ -144,12 +144,23 @@ function ChipStack({ position }: { position: [number, number, number] }) {
 function Table() {
   return (
     <group>
-      <RoundedBox args={[8.4, 0.5, 4.8]} position={[0, -0.15, 0]} radius={0.28} receiveShadow smoothness={4}>
+      {/* Dark outer cabinet */}
+      <RoundedBox args={[8.4, 0.5, 4.8]} position={[0, -0.25, 0]} radius={0.24} receiveShadow smoothness={4}>
         <meshStandardMaterial color="#0d0e13" metalness={0.4} roughness={0.5} />
       </RoundedBox>
-      <RoundedBox args={[7.8, 0.18, 4.2]} position={[0, 0.01, 0]} radius={0.16} receiveShadow smoothness={4}>
-        <meshStandardMaterial color="#15251f" metalness={0} roughness={0.98} />
+      {/* Padded armrest rail around the felt, dark mahogany */}
+      <RoundedBox args={[8.0, 0.22, 4.4]} position={[0, -0.06, 0]} radius={0.09} receiveShadow smoothness={4}>
+        <meshStandardMaterial color="#3a2118" metalness={0.25} roughness={0.55} />
       </RoundedBox>
+      {/* Main casino felt, a richer readable green, raised proud of the rail */}
+      <RoundedBox args={[7.4, 0.24, 3.8]} position={[0, 0.0, 0]} radius={0.08} receiveShadow smoothness={4}>
+        <meshStandardMaterial color="#1f6b45" metalness={0} roughness={0.95} />
+      </RoundedBox>
+      {/* Subtle darker inlay to add depth to the felt */}
+      <mesh position={[0, FELT_TOP + 0.002, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[7.0, 3.4]} />
+        <meshStandardMaterial color="#1a5c3a" metalness={0} roughness={0.97} />
+      </mesh>
     </group>
   );
 }
@@ -212,6 +223,58 @@ function BlackjackLayout() {
   );
 }
 
+// An oval outline drawn on the felt, echoing a real roulette "racetrack".
+function OvalLine({
+  rx,
+  rz,
+  cz,
+  color,
+  width,
+}: {
+  rx: number;
+  rz: number;
+  cz: number;
+  color: string;
+  width: number;
+}) {
+  const steps = 96;
+  const points: [number, number, number][] = Array.from({ length: steps + 1 }, (_, i) => {
+    const t = (i / steps) * Math.PI * 2;
+    return [Math.cos(t) * rx, FELT_TOP + 0.03, cz + Math.sin(t) * rz];
+  });
+  return <Line points={points} color={color} lineWidth={width} />;
+}
+
+function RouletteLayout({
+  resultPocket,
+  rouletteTransitionKey,
+  roulettePhase,
+}: {
+  resultPocket: number | null;
+  rouletteTransitionKey: string;
+  roulettePhase: RouletteVisualPhase;
+}) {
+  return (
+    <group>
+      {/* Decorative racetrack ovals framing the wheel */}
+      <OvalLine rx={2.9} rz={1.55} cz={-0.3} color="#d8c37a" width={2.5} />
+      <OvalLine rx={3.15} rz={1.75} cz={-0.3} color="#7c5cff" width={2.5} />
+      <RouletteWheel
+        position={[0, FELT_TOP, -0.3]}
+        reduceMotion={false}
+        resultPocket={resultPocket}
+        transitionKey={rouletteTransitionKey}
+        visualPhase={roulettePhase}
+      />
+      {/* Chip tray marker in the front betting area */}
+      <mesh position={[0, FELT_TOP + 0.004, 1.5]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[4.4, 0.9]} />
+        <meshStandardMaterial color="#123a26" metalness={0} roughness={0.96} transparent opacity={0.6} />
+      </mesh>
+    </group>
+  );
+}
+
 function CameraRig() {
   const camera = useThree((state) => state.camera);
 
@@ -261,18 +324,18 @@ function Scene({
   return (
     <>
       <CameraRig />
-      <ambientLight intensity={0.75} />
-      <directionalLight color="#fbf7ff" intensity={2.4} position={[-4, 7, 5]} />
-      <pointLight color="#c6f24e" distance={14} intensity={14} position={[3.5, 3, 2]} />
-      <pointLight color="#7c5cff" distance={14} intensity={13} position={[-4.5, 2.5, 3]} />
+      <ambientLight intensity={1.0} />
+      <directionalLight color="#fff6ea" intensity={2.8} position={[0, 8, 4]} castShadow />
+      <directionalLight color="#eef2ff" intensity={1.1} position={[-5, 5, -3]} />
+      {/* Colored accents kept subtle so the green felt reads true */}
+      <pointLight color="#c6f24e" distance={12} intensity={5} position={[3.8, 3, 2.5]} />
+      <pointLight color="#7c5cff" distance={12} intensity={5} position={[-4.5, 3, 2.5]} />
       <Table />
       {showRouletteWheel ? (
-        <RouletteWheel
-          position={[-2.2, FELT_TOP, 0.05]}
-          reduceMotion={false}
+        <RouletteLayout
           resultPocket={resultPocket}
-          transitionKey={rouletteTransitionKey}
-          visualPhase={roulettePhase}
+          rouletteTransitionKey={rouletteTransitionKey}
+          roulettePhase={roulettePhase}
         />
       ) : (
         <BlackjackLayout />
