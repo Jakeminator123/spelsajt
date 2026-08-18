@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public;
 
-select plan(33);
+select plan(35);
 
 select has_schema('game_private', 'server-only schema exists');
 select has_table('public', 'profiles', 'public profile table exists');
@@ -119,6 +119,14 @@ select ok(
 select ok(
   to_regclass('game_private.game_events_table_sequence_idx') is not null,
   'table event replay lookup is indexed'
+);
+select ok(
+  to_regclass('game_private.game_commands_user_idx') is not null,
+  'command owner foreign key is indexed'
+);
+select ok(
+  to_regclass('game_private.game_events_round_idx') is not null,
+  'event round foreign key is indexed'
 );
 
 insert into auth.users (id, email)

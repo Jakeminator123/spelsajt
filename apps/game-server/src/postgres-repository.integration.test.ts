@@ -221,4 +221,79 @@ databaseDescribe("Postgres game repository", () => {
     });
     expect(fairness.rows[0]?.revealed_at).toBeInstanceOf(Date);
   });
+
+  it("does not reset a shared wallet when the user prepares a second table", async () => {
+    if (!admin) throw new Error("Database pool is unavailable.");
+    const userId = randomUUID();
+    const firstTableId = `db-wallet-a-${randomUUID()}`;
+    const secondTableId = `db-wallet-b-${randomUUID()}`;
+    await admin.query(
+      "insert into auth.users (id, email) values ($1, $2)",
+      [userId, `${userId}@example.test`],
+    );
+    const app = createApp(userId);
+
+    const firstPrepare = await app.inject({
+      headers: authHeaders,
+      method: "POST",
+      url: `/v2/tables/${firstTableId}/commands`,
+      payload: {
+        ...commandBase(randomUUID(), firstTableId, 0),
+        type: "PREPARE_ROUND",
+        payload: { game: "blackjack" },
+      },
+    });
+    const roundId = firstPrepare.json().snapshot.round.roundId as string;
+    const wager = await app.inject({
+      headers: authHeaders,
+      method: "POST",
+      url: `/v2/tables/${firstTableId}/commands`,
+      payload: {
+        ...commandBase(randomUUID(), firstTableId, 1),
+        type: "BLACKJACK_PLACE_BET",
+        payload: {
+          amount: "100",
+          clientSeed: "multi-table-wallet",
+          currency: "PLAY",
+          roundId,
+        },
+      },
+    });
+    const secondPrepare = await app.inject({
+      headers: authHeaders,
+      method: "POST",
+      url: `/v2/tables/${secondTableId}/commands`,
+      payload: {
+        ...commandBase(randomUUID(), secondTableId, 0),
+        type: "PREPARE_ROUND",
+        payload: { game: "roulette" },
+      },
+    });
+    const firstSnapshot = await app.inject({
+      headers: authHeaders,
+      method: "GET",
+      url: `/v2/tables/${firstTableId}/snapshot`,
+    });
+    const persisted = await admin.query<{
+      readonly balance: string;
+      readonly grant_count: string;
+    }>(
+      `select w.balance,
+              (select count(*)
+                 from game_private.ledger_entries le
+                 join game_private.ledger_transactions lt on lt.id = le.transaction_id
+                where lt.user_id = w.user_id
+                  and le.entry_type = 'play-money.initial-grant') grant_count
+         from game_private.wallet_accounts w
+        where w.user_id = $1 and w.currency = 'PLAY'`,
+      [userId],
+    );
+
+    expect(firstPrepare.statusCode).toBe(200);
+    expect(wager.json().snapshot.balance).toBe("9900");
+    expect(secondPrepare.statusCode).toBe(200);
+    expect(secondPrepare.json().snapshot.balance).toBe("9900");
+    expect(firstSnapshot.json().balance).toBe("9900");
+    expect(persisted.rows[0]).toEqual({ balance: "9900", grant_count: "1" });
+  });
 });

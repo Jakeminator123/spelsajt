@@ -491,4 +491,64 @@ describe("game server", () => {
     });
     expect(missing.statusCode).toBe(404);
   });
+
+  it("preserves one shared PLAY balance when the same user opens another table", async () => {
+    const app = buildApp({
+      authVerifier: authenticatedAs(userOne),
+      fairness: deterministicFairness,
+      idGenerator: sequentialIds(),
+    });
+    openApps.push(app);
+    const firstTableId = "shared-wallet-a";
+    const secondTableId = "shared-wallet-b";
+
+    const firstPrepare = await app.inject({
+      headers: authHeaders,
+      method: "POST",
+      url: `/v2/tables/${firstTableId}/commands`,
+      payload: {
+        ...commandBase(601, firstTableId, 0),
+        type: "PREPARE_ROUND",
+        payload: { game: "blackjack" },
+      },
+    });
+    const roundId = firstPrepare.json().snapshot.round.roundId as string;
+    const wager = await app.inject({
+      headers: authHeaders,
+      method: "POST",
+      url: `/v2/tables/${firstTableId}/commands`,
+      payload: {
+        ...commandBase(602, firstTableId, 1),
+        type: "BLACKJACK_PLACE_BET",
+        payload: {
+          amount: "100",
+          clientSeed: "shared-wallet-test",
+          currency: "PLAY",
+          roundId,
+        },
+      },
+    });
+    const secondPrepare = await app.inject({
+      headers: authHeaders,
+      method: "POST",
+      url: `/v2/tables/${secondTableId}/commands`,
+      payload: {
+        ...commandBase(603, secondTableId, 0),
+        type: "PREPARE_ROUND",
+        payload: { game: "roulette" },
+      },
+    });
+    const firstSnapshot = await app.inject({
+      headers: authHeaders,
+      method: "GET",
+      url: `/v2/tables/${firstTableId}/snapshot`,
+    });
+
+    expect(firstPrepare.statusCode).toBe(200);
+    expect(wager.statusCode).toBe(200);
+    expect(wager.json().snapshot.balance).toBe("9900");
+    expect(secondPrepare.statusCode).toBe(200);
+    expect(secondPrepare.json().snapshot.balance).toBe("9900");
+    expect(firstSnapshot.json().balance).toBe("9900");
+  });
 });

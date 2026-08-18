@@ -11,6 +11,7 @@ function clone<T>(value: T): T {
 
 /** Test/development adapter. Process restarts intentionally discard all state. */
 export class InMemoryGameRepository implements GameRepository {
+  readonly #balances = new Map<string, number>();
   readonly #locks = new Map<string, Promise<void>>();
   readonly #tables = new Map<string, { readonly table: StoredTable; readonly userId: string }>();
 
@@ -18,14 +19,20 @@ export class InMemoryGameRepository implements GameRepository {
     const owned = this.#tables.get(tableId);
     if (!owned) return null;
     if (owned.userId !== userId) throw new TableOwnershipError(tableId);
-    return clone(owned.table);
+    return {
+      ...clone(owned.table),
+      balance: this.#balances.get(userId) ?? owned.table.balance,
+    };
   }
 
   async transact<T>(
     userId: string,
     tableId: string,
     commandId: string,
-    operation: (current: StoredTable | null) => RepositoryMutation<T>,
+    operation: (
+      current: StoredTable | null,
+      currentBalance: number | null,
+    ) => RepositoryMutation<T>,
   ): Promise<T> {
     // A single process-local lock also makes commandId uniqueness atomic across tables.
     const lockKey = "repository";
@@ -49,7 +56,12 @@ export class InMemoryGameRepository implements GameRepository {
           );
         }
       }
-      const mutation = operation(owned ? clone(owned.table) : null);
+      const currentBalance = this.#balances.get(userId) ?? owned?.table.balance ?? null;
+      const current = owned
+        ? { ...clone(owned.table), balance: currentBalance ?? owned.table.balance }
+        : null;
+      const mutation = operation(current, currentBalance);
+      this.#balances.set(userId, mutation.next.balance);
       this.#tables.set(tableId, { table: clone(mutation.next), userId });
       return mutation.result;
     } finally {

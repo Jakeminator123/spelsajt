@@ -156,8 +156,8 @@ export class GameApplication {
 
     const fingerprint = canonicalJson(command);
     try {
-      return await this.#repository.transact(userId, pathTableId, command.commandId, (stored) => {
-        const current = stored ?? emptyTable(pathTableId);
+      return await this.#repository.transact(userId, pathTableId, command.commandId, (stored, currentBalance) => {
+        const current = stored ?? emptyTable(pathTableId, currentBalance ?? startingBalance);
         const receipt = current.receipts[command.commandId];
         if (receipt) {
           if (receipt.fingerprint !== fingerprint) {
@@ -503,9 +503,9 @@ export class GameApplication {
   }
 }
 
-function emptyTable(tableId: string): StoredTable {
+function emptyTable(tableId: string, balance = startingBalance): StoredTable {
   return {
-    balance: startingBalance,
+    balance,
     events: [],
     game: null,
     lastSequence: 0,

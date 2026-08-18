@@ -76,7 +76,10 @@ export class PostgresGameRepository implements GameRepository {
     userId: string,
     tableId: string,
     commandId: string,
-    operation: (current: StoredTable | null) => RepositoryMutation<T>,
+    operation: (
+      current: StoredTable | null,
+      currentBalance: number | null,
+    ) => RepositoryMutation<T>,
   ): Promise<T> {
     const client = await this.#pool.connect();
     try {
@@ -88,6 +91,8 @@ export class PostgresGameRepository implements GameRepository {
       const table = await selectTable(client, tableId);
       if (table) assertOwner(table, userId);
       const current = table ? await hydrateTable(client, table, true) : null;
+      const currentBalance = current?.balance
+        ?? safeInteger((await ensureWallet(client, userId, false))?.balance ?? startingBalance, "wallet balance");
 
       const usedCommand = await client.query<{ readonly table_id: string }>(
         `select table_id
@@ -100,7 +105,7 @@ export class PostgresGameRepository implements GameRepository {
         throw new CommandIdConflictError(commandId, current);
       }
 
-      const mutation = operation(current);
+      const mutation = operation(current, currentBalance);
       assertMutation(tableId, current, mutation.next);
       await persistMutation(client, userId, current, mutation);
       await client.query("commit");

@@ -87,6 +87,9 @@ export interface GameRepository {
     userId: string,
     tableId: string,
     commandId: string,
-    operation: (current: StoredTable | null) => RepositoryMutation<T>,
+    operation: (
+      current: StoredTable | null,
+      currentBalance: number | null,
+    ) => RepositoryMutation<T>,
   ): Promise<T>;
 }
