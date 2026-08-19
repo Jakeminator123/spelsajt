@@ -1,3 +1,7 @@
+import { mvpRuleset } from "@spelsajt/config";
+import type { AccountSummaryV2 } from "@spelsajt/contracts";
+
+import { summarizeAccountRounds, type SettledAccountRound } from "./account-summary";
 import type {
   GameRepository,
   RepositoryMutation,
@@ -13,9 +17,18 @@ function clone<T>(value: T): T {
 export class InMemoryGameRepository implements GameRepository {
   readonly #balances = new Map<string, number>();
   readonly #locks = new Map<string, Promise<void>>();
+  readonly #settledRounds = new Map<string, SettledAccountRound & { readonly userId: string }>();
   readonly #tables = new Map<string, { readonly table: StoredTable; readonly userId: string }>();
 
   async ping(): Promise<void> {}
+
+  async readAccountSummary(userId: string): Promise<AccountSummaryV2> {
+    const rounds = [...this.#settledRounds.values()]
+      .filter((round) => round.userId === userId)
+      .map(({ userId: _userId, ...round }) => round);
+    const balance = this.#balances.get(userId) ?? Number(mvpRuleset.currency.startingBalance);
+    return summarizeAccountRounds(balance, rounds);
+  }
 
   async read(userId: string, tableId: string): Promise<StoredTable | null> {
     const owned = this.#tables.get(tableId);
@@ -85,6 +98,18 @@ export class InMemoryGameRepository implements GameRepository {
       const mutation = operation(current, currentBalance);
       this.#balances.set(userId, mutation.next.balance);
       this.#tables.set(tableId, { table: clone(mutation.next), userId });
+      for (const event of mutation.next.events) {
+        if (event.type !== "round.settled") continue;
+        this.#settledRounds.set(event.roundId, {
+          game: event.payload.game,
+          outcome: event.payload.outcome,
+          payout: event.payload.totalPayout,
+          roundId: event.roundId,
+          settledAt: event.occurredAt,
+          userId,
+          wager: event.payload.totalWager,
+        });
+      }
       return mutation.result;
     } finally {
       release();

@@ -28,8 +28,17 @@ import {
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkeleton } from "three/addons/utils/SkeletonUtils.js";
 
+import { PlayingCard } from "../scene/playing-card";
+import type { PresentationState } from "../scene/presentation";
 import { RouletteWheel } from "../scene/roulette-wheel";
-import { sceneVisualIntents } from "../scene/visual-intents";
+import {
+  cardTarget,
+  idleSceneVisualIntent,
+  SCENE_ACCENT_COLOURS,
+  sceneVisualIntent,
+  sceneVisualIntents,
+  type SceneVisualIntent,
+} from "../scene/visual-intents";
 import {
   formatBytes,
   friendlyAnimationName,
@@ -38,10 +47,28 @@ import {
   runtimeAnimationName,
 } from "./dealer-lab-utils";
 import type { LabAsset } from "./lab-assets";
+import {
+  createLabEventPlayback,
+  inspectLabEventTimeline,
+  replayLabEvents,
+  resetLabEventPlayback,
+  stepLabEventBackward,
+  stepLabEventForward,
+} from "./lab-event-controller";
+import { LabEventInspector } from "./lab-event-inspector";
+import {
+  getLabEventScenario,
+  labEventScenarios,
+  type LabScenarioId,
+} from "./lab-event-scenarios";
+import {
+  LabEventTimeline,
+  type LabTimelineMode,
+} from "./lab-event-timeline";
 import styles from "./dealer-lab.module.css";
 
 type CameraPreset = "full-body" | "gameplay" | "hands";
-type RoomMode = "blackjack" | "neutral" | "roulette";
+type RoomMode = "blackjack" | "dealer" | "roulette";
 
 interface AnimationSummary {
   duration: number;
@@ -111,8 +138,19 @@ const CAMERA_PRESETS: Record<CameraPreset, {
 };
 
 const DEFAULT_TARGET_HEIGHT = 1.72;
+const EVENT_STEP_MS = 1_500;
 const NO_EXTRA_ANIMATIONS: readonly string[] = [];
 const TABLE_HEIGHT = 0.9;
+
+const SCENARIO_BY_ROOM: Record<Exclude<RoomMode, "dealer">, LabScenarioId> = {
+  blackjack: "blackjack-basic",
+  roulette: "roulette-basic",
+};
+
+function prefersReducedMotion(): boolean {
+  return typeof window !== "undefined"
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
 
 class ModelErrorBoundary extends Component<ModelErrorBoundaryProps, ModelErrorBoundaryState> {
   state: ModelErrorBoundaryState = { error: null };
@@ -322,18 +360,87 @@ function CameraRig({ preset }: { preset: CameraPreset }) {
   );
 }
 
-function ReferenceTable({ roomMode }: { roomMode: Exclude<RoomMode, "neutral"> }) {
+function BlackjackReferenceCards({
+  presentation,
+  reduceMotion,
+}: {
+  presentation: PresentationState;
+  reduceMotion: boolean;
+}) {
+  return (
+    <group>
+      {presentation.cards.map((card, index) => {
+        const target = cardTarget(presentation.cards, index);
+        const isActive = card.recipient === "player"
+          && presentation.activeHandId === card.handId;
+        const position: [number, number, number] = [
+          target.position[0] * 0.47,
+          TABLE_HEIGHT + 0.055 + index * 0.001,
+          target.position[2] * 0.32 - 0.12,
+        ];
+
+        return (
+          <group
+            key={card.visualId}
+            position={position}
+            rotation={[0, target.rotationY, 0]}
+            scale={0.23}
+          >
+            {isActive ? (
+              <mesh position={[0, -0.08, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                <ringGeometry args={[0.72, 0.82, 48]} />
+                <meshBasicMaterial color="#c6f24e" transparent opacity={0.82} />
+              </mesh>
+            ) : null}
+            {card.faceUp ? (
+              <PlayingCard card={card.card} faceUp reduceMotion={reduceMotion} />
+            ) : (
+              <PlayingCard faceUp={false} reduceMotion={reduceMotion} />
+            )}
+          </group>
+        );
+      })}
+    </group>
+  );
+}
+
+function ReferenceTable({
+  presentation,
+  reduceMotion,
+  roomMode,
+  visualIntent,
+}: {
+  presentation: PresentationState;
+  reduceMotion: boolean;
+  roomMode: Exclude<RoomMode, "dealer">;
+  visualIntent: SceneVisualIntent;
+}) {
   const felt = roomMode === "blackjack" ? "#15382c" : "#211d3d";
+  const accent = SCENE_ACCENT_COLOURS[visualIntent.accent];
+  const roulettePhase = presentation.stage === "roulette-spinning"
+    ? "spinning"
+    : presentation.rouletteResult ? "result" : "idle";
 
   return (
     <group position={[0, 0, 0.18]}>
+      <pointLight
+        color={accent}
+        intensity={visualIntent.focus === "result" || visualIntent.focus === "wheel" ? 15 : 5}
+        position={[0, 1.7, 0.2]}
+      />
       <mesh castShadow position={[0, TABLE_HEIGHT - 0.06, 0]} receiveShadow>
         <boxGeometry args={[2.45, 0.12, 1.25]} />
         <meshStandardMaterial color="#171922" metalness={0.35} roughness={0.54} />
       </mesh>
       <mesh position={[0, TABLE_HEIGHT + 0.006, 0]} receiveShadow>
         <boxGeometry args={[2.28, 0.018, 1.08]} />
-        <meshStandardMaterial color={felt} metalness={0.02} roughness={0.94} />
+        <meshStandardMaterial
+          color={felt}
+          emissive={accent}
+          emissiveIntensity={visualIntent.focus === "result" ? 0.18 : 0.035}
+          metalness={0.02}
+          roughness={0.94}
+        />
       </mesh>
       {[-0.95, 0.95].map((x) => (
         <mesh castShadow key={x} position={[x, 0.43, 0]}>
@@ -342,17 +449,31 @@ function ReferenceTable({ roomMode }: { roomMode: Exclude<RoomMode, "neutral"> }
         </mesh>
       ))}
       {roomMode === "blackjack" ? (
-        <group position={[0, TABLE_HEIGHT + 0.02, 0.13]}>
-          {[-0.62, 0, 0.62].map((x) => (
-            <mesh key={x} position={[x, 0, 0.26]} rotation={[-Math.PI / 2, 0, 0]}>
-              <ringGeometry args={[0.14, 0.15, 40]} />
-              <meshBasicMaterial color="#c6f24e" transparent opacity={0.58} />
-            </mesh>
-          ))}
-        </group>
+        <>
+          <group position={[0, TABLE_HEIGHT + 0.02, 0.13]}>
+            {[-0.62, 0, 0.62].map((x) => (
+              <mesh key={x} position={[x, 0, 0.26]} rotation={[-Math.PI / 2, 0, 0]}>
+                <ringGeometry args={[0.14, 0.15, 40]} />
+                <meshBasicMaterial color={accent} transparent opacity={0.58} />
+              </mesh>
+            ))}
+          </group>
+          <BlackjackReferenceCards presentation={presentation} reduceMotion={reduceMotion} />
+        </>
       ) : (
         <group position={[-0.58, TABLE_HEIGHT + 0.03, 0]} scale={0.32}>
-          <RouletteWheel reduceMotion visualPhase="idle" />
+          <RouletteWheel
+            reduceMotion={reduceMotion}
+            resultPocket={presentation.rouletteResult?.pocket ?? null}
+            transitionKey={`lab-${presentation.lastSequence}-${roulettePhase}`}
+            visualPhase={roulettePhase}
+          />
+          {presentation.rouletteResult ? (
+            <mesh position={[0, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+              <ringGeometry args={[2.15, 2.28, 72]} />
+              <meshBasicMaterial color={accent} transparent opacity={0.9} />
+            </mesh>
+          ) : null}
         </group>
       )}
     </group>
@@ -361,6 +482,7 @@ function ReferenceTable({ roomMode }: { roomMode: Exclude<RoomMode, "neutral"> }
 
 function DealerModel({
   animationName,
+  animationTrigger,
   animationUrls = NO_EXTRA_ANIMATIONS,
   normalizeScale,
   onReady,
@@ -372,6 +494,7 @@ function DealerModel({
   url,
 }: {
   animationName: string | null;
+  animationTrigger: string;
   animationUrls?: readonly string[];
   normalizeScale: boolean;
   onReady: (stats: ModelStats) => void;
@@ -458,7 +581,7 @@ function DealerModel({
     return () => {
       action.fadeOut(0.2);
     };
-  }, [actions, animationName]);
+  }, [actions, animationName, animationTrigger]);
 
   useEffect(() => () => skeleton.dispose(), [skeleton]);
 
@@ -478,6 +601,7 @@ function DealerModel({
 
 function LabScene({
   animationName,
+  animationTrigger,
   animationUrls = NO_EXTRA_ANIMATIONS,
   cameraPreset,
   modelUrl,
@@ -485,13 +609,17 @@ function LabScene({
   onModelReady,
   playing,
   playbackRate,
+  presentation,
+  reduceMotion,
   roomMode,
   rotationY,
   showGrid,
   showSkeleton,
   targetHeightM,
+  visualIntent,
 }: {
   animationName: string | null;
+  animationTrigger: string;
   animationUrls?: readonly string[];
   cameraPreset: CameraPreset;
   modelUrl: string | null;
@@ -499,13 +627,16 @@ function LabScene({
   onModelReady: (stats: ModelStats) => void;
   playing: boolean;
   playbackRate: number;
+  presentation: PresentationState;
+  reduceMotion: boolean;
   roomMode: RoomMode;
   rotationY: number;
   showGrid: boolean;
   showSkeleton: boolean;
   targetHeightM: number;
+  visualIntent: SceneVisualIntent;
 }) {
-  const neutralLighting = roomMode === "neutral";
+  const neutralLighting = roomMode === "dealer";
 
   return (
     <Canvas
@@ -562,7 +693,14 @@ function LabScene({
         />
       ) : null}
       <axesHelper args={[1]} position={[-1.45, 0.01, 0.8]} />
-      {roomMode === "neutral" ? null : <ReferenceTable roomMode={roomMode} />}
+      {roomMode === "dealer" ? null : (
+        <ReferenceTable
+          presentation={presentation}
+          reduceMotion={reduceMotion}
+          roomMode={roomMode}
+          visualIntent={visualIntent}
+        />
+      )}
 
       {modelUrl ? (
         <Suspense
@@ -570,6 +708,7 @@ function LabScene({
         >
           <DealerModel
             animationName={animationName}
+            animationTrigger={animationTrigger}
             animationUrls={animationUrls}
             key={`${modelUrl}|${animationUrls.join("|")}`}
             normalizeScale={normalizeScale}
@@ -620,23 +759,24 @@ export function DealerLab({ assets }: { assets: readonly LabAsset[] }) {
   const objectUrl = useRef<string | null>(null);
   const [animationName, setAnimationName] = useState<string | null>(null);
   const [cameraPreset, setCameraPreset] = useState<CameraPreset>("gameplay");
+  const [eventPlayback, setEventPlayback] = useState(createLabEventPlayback);
   const [fileSize, setFileSize] = useState<number | null>(initialAsset?.fileSize ?? null);
   const [modelName, setModelName] = useState(initialAsset?.label ?? "Ingen modell vald");
   const [modelStats, setModelStats] = useState<ModelStats | null>(null);
   const [modelUrl, setModelUrl] = useState<string | null>(initialAsset?.modelUrl ?? null);
   const [normalizeScale, setNormalizeScale] = useState(true);
-  const [playing, setPlaying] = useState(() => (
-    typeof window === "undefined"
-      || !window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  ));
+  const [playing, setPlaying] = useState(() => !prefersReducedMotion());
   const [playbackRate, setPlaybackRate] = useState(1);
   const [roomMode, setRoomMode] = useState<RoomMode>("blackjack");
+  const [timelinePlaying, setTimelinePlaying] = useState(false);
+  const [timelineRate, setTimelineRate] = useState(1);
   const [rotationY, setRotationY] = useState(0);
   const [selectedAssetId, setSelectedAssetId] = useState<string>(initialAsset?.id ?? "local");
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const [showGrid, setShowGrid] = useState(true);
   const [showSkeleton, setShowSkeleton] = useState(false);
   const [targetHeightM, setTargetHeightM] = useState(initialAsset?.targetHeightM ?? DEFAULT_TARGET_HEIGHT);
+  const [reduceMotion] = useState(prefersReducedMotion);
 
   const handleModelReady = useCallback((stats: ModelStats) => {
     setModelStats(stats);
@@ -697,9 +837,6 @@ export function DealerLab({ assets }: { assets: readonly LabAsset[] }) {
     }
   }, []);
 
-  const selectedAnimation = modelStats?.animations.find(
-    (animation) => animation.name === animationName,
-  ) ?? null;
   const poseMappings = useMemo(
     () => resolveDealerLabPoseMappings(
       modelStats?.animations.map((animation) => animation.name) ?? [],
@@ -710,6 +847,76 @@ export function DealerLab({ assets }: { assets: readonly LabAsset[] }) {
     ? modelStats.rigHeight / modelStats.dimensions.height
     : null;
   const selectedAsset = assets.find((asset) => asset.id === selectedAssetId) ?? null;
+  const scenarioId = roomMode === "dealer" ? null : SCENARIO_BY_ROOM[roomMode];
+  const scenario = scenarioId ? getLabEventScenario(scenarioId) : null;
+  const timelineRows = useMemo(
+    () => inspectLabEventTimeline(
+      scenario?.events ?? [],
+      eventPlayback.cursor,
+      modelStats?.animations.map((animation) => animation.name) ?? [],
+    ),
+    [eventPlayback.cursor, modelStats, scenario],
+  );
+  const activeInspection = eventPlayback.cursor > 0
+    ? timelineRows[eventPlayback.cursor - 1] ?? null
+    : null;
+  const activeVisualIntent = eventPlayback.presentation.activeCue
+    ? sceneVisualIntent(eventPlayback.presentation.activeCue.cueId)
+    : idleSceneVisualIntent;
+  const activePoseMapping = poseMappings.find(
+    (mapping) => mapping.pose === activeVisualIntent.pose,
+  ) ?? null;
+  const renderedClipName = activePoseMapping?.clipName ?? null;
+  const controlledAnimationName = roomMode === "dealer" ? animationName : renderedClipName;
+  const controlledPlaying = roomMode === "dealer"
+    ? playing
+    : Boolean(renderedClipName) && !reduceMotion;
+  const selectedAnimation = modelStats?.animations.find(
+    (animation) => animation.name === controlledAnimationName,
+  ) ?? null;
+  const timelineMode: LabTimelineMode = scenarioId ?? "dealer";
+  const scenarioStepCounts = useMemo(() => ({
+    dealer: 0,
+    ...Object.fromEntries(labEventScenarios.map((candidate) => [
+      candidate.id,
+      candidate.events.length,
+    ])),
+  }), []);
+
+  const changeRoomMode = useCallback((nextMode: RoomMode) => {
+    setRoomMode(nextMode);
+    setTimelinePlaying(false);
+    setEventPlayback(resetLabEventPlayback());
+    if (nextMode !== "dealer") {
+      setCameraPreset("gameplay");
+    }
+  }, []);
+
+  const handleTimelineModeChange = useCallback((nextMode: LabTimelineMode) => {
+    changeRoomMode(
+      nextMode === "dealer"
+        ? "dealer"
+        : nextMode === "blackjack-basic" ? "blackjack" : "roulette",
+    );
+  }, [changeRoomMode]);
+
+  useEffect(() => {
+    if (!timelinePlaying || !scenario) {
+      return;
+    }
+    if (eventPlayback.cursor >= scenario.events.length) {
+      return;
+    }
+
+    const reachesEnd = eventPlayback.cursor + 1 >= scenario.events.length;
+    const timer = window.setTimeout(() => {
+      setEventPlayback((current) => stepLabEventForward(current, scenario.events));
+      if (reachesEnd) {
+        setTimelinePlaying(false);
+      }
+    }, EVENT_STEP_MS / timelineRate);
+    return () => window.clearTimeout(timer);
+  }, [eventPlayback.cursor, scenario, timelinePlaying, timelineRate]);
 
   return (
     <section className={styles.lab} aria-label="3D-labb för avatarer">
@@ -719,24 +926,30 @@ export function DealerLab({ assets }: { assets: readonly LabAsset[] }) {
             <span className={styles.liveDot} />
             LOKALT ASSET-LABB
           </div>
-          <span>{roomMode === "neutral" ? "Neutral studio" : `${roomMode}-referens`}</span>
+          <span>{roomMode === "dealer" ? "Dealerstudio" : scenario?.label}</span>
         </div>
         <div className={styles.canvasWrap}>
           <ModelErrorBoundary resetKey={modelUrl ?? "empty"}>
             <LabScene
-              animationName={animationName}
+              animationName={controlledAnimationName}
+              animationTrigger={roomMode === "dealer"
+                ? animationName ?? "bind-pose"
+                : `timeline-${eventPlayback.presentation.transitionId}`}
               animationUrls={selectedAsset?.animationUrls ?? NO_EXTRA_ANIMATIONS}
               cameraPreset={cameraPreset}
               modelUrl={modelUrl}
               normalizeScale={normalizeScale}
               onModelReady={handleModelReady}
-              playing={playing}
+              playing={controlledPlaying}
               playbackRate={playbackRate}
+              presentation={eventPlayback.presentation}
+              reduceMotion={reduceMotion}
               roomMode={roomMode}
               rotationY={rotationY}
               showGrid={showGrid}
               showSkeleton={showSkeleton}
               targetHeightM={targetHeightM}
+              visualIntent={activeVisualIntent}
             />
           </ModelErrorBoundary>
           {!modelUrl ? (
@@ -753,51 +966,75 @@ export function DealerLab({ assets }: { assets: readonly LabAsset[] }) {
         </div>
         <div className={styles.eventDock} aria-label="Spelhändelser och animationer">
           <div className={styles.eventDockHeading}>
-            <strong>Spelhändelser</strong>
-            <span>Testknappar · påverkar aldrig spelutfallet</span>
+            <strong>{roomMode === "dealer" ? "Manuella poser" : "Aktiv eventkedja"}</strong>
+            <span>{roomMode === "dealer"
+              ? "Testknappar · påverkar aldrig spelutfallet"
+              : "Fixture → cue → visuell intention → GLB/fallback"}</span>
           </div>
-          <div className={styles.eventDockGrid}>
-            <button
-              aria-pressed={animationName === null}
-              className={styles.eventButton}
-              data-status="neutral"
-              onClick={() => {
-                setAnimationName(null);
-                setPlaying(false);
-              }}
-              type="button"
-            >
-              <strong>Neutral pose</strong>
-              <span>Bind pose</span>
-            </button>
-            {poseMappings.map((mapping) => {
-              const matchingCues = Object.entries(sceneVisualIntents)
-                .filter(([, intent]) => intent.pose === mapping.pose);
-              const isActive = mapping.clipName !== null && mapping.clipName === animationName;
-              const statusLabel = mapping.status === "ready"
-                ? "Godkänd"
-                : mapping.status === "temporary" ? "Testklipp" : "Saknas";
+          {roomMode === "dealer" ? (
+            <div className={styles.eventDockGrid}>
+              <button
+                aria-pressed={animationName === null}
+                className={styles.eventButton}
+                data-status="neutral"
+                onClick={() => {
+                  setAnimationName(null);
+                  setPlaying(false);
+                }}
+                type="button"
+              >
+                <strong>Neutral pose</strong>
+                <span>Bind pose</span>
+              </button>
+              {poseMappings.map((mapping) => {
+                const matchingCues = Object.entries(sceneVisualIntents)
+                  .filter(([, intent]) => intent.pose === mapping.pose);
+                const isActive = mapping.clipName !== null && mapping.clipName === animationName;
+                const statusLabel = mapping.status === "ready"
+                  ? "Godkänd"
+                  : mapping.status === "temporary" ? "Testklipp" : "Saknas";
 
-              return (
-                <button
-                  aria-pressed={isActive}
-                  className={styles.eventButton}
-                  data-status={mapping.status}
-                  disabled={!mapping.clipName}
-                  key={mapping.pose}
-                  onClick={() => {
-                    setAnimationName(mapping.clipName);
-                    setPlaying(true);
-                  }}
-                  title={matchingCues.map(([cueId]) => cueId).join("\n")}
-                  type="button"
-                >
-                  <strong>{mapping.label}</strong>
-                  <span>{statusLabel}</span>
-                </button>
-              );
-            })}
-          </div>
+                return (
+                  <button
+                    aria-pressed={isActive}
+                    className={styles.eventButton}
+                    data-status={mapping.status}
+                    disabled={!mapping.clipName}
+                    key={mapping.pose}
+                    onClick={() => {
+                      setAnimationName(mapping.clipName);
+                      setPlaying(true);
+                    }}
+                    title={matchingCues.map(([cueId]) => cueId).join("\n")}
+                    type="button"
+                  >
+                    <strong>{mapping.label}</strong>
+                    <span>{statusLabel}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className={styles.eventSummaryGrid} aria-live="polite">
+              <article>
+                <small>EVENT</small>
+                <strong>{activeInspection?.event.type ?? "Väntar på första event"}</strong>
+                <span>{activeInspection ? `Sekvens #${activeInspection.event.sequence}` : scenario?.summary}</span>
+              </article>
+              <article>
+                <small>CUE</small>
+                <strong>{activeInspection?.plan.kind === "cue"
+                  ? activeInspection.plan.cueId
+                  : activeInspection?.plan.ignoreId ?? "–"}</strong>
+                <span>{activeVisualIntent.label}</span>
+              </article>
+              <article data-status={activePoseMapping?.status ?? "missing"}>
+                <small>GLB / FALLBACK</small>
+                <strong>{renderedClipName ?? "Text och säker pose"}</strong>
+                <span>{activePoseMapping?.status ?? "Väntar"}</span>
+              </article>
+            </div>
+          )}
         </div>
         <div className={styles.stageFooter}>
           <span>X <i className={styles.axisX} /> Y <i className={styles.axisY} /> Z <i className={styles.axisZ} /></span>
@@ -855,10 +1092,10 @@ export function DealerLab({ assets }: { assets: readonly LabAsset[] }) {
           </div>
           <label className={styles.field}>
             <span>Rum</span>
-            <select value={roomMode} onChange={(event) => setRoomMode(event.target.value as RoomMode)}>
+            <select value={roomMode} onChange={(event) => changeRoomMode(event.target.value as RoomMode)}>
+              <option value="dealer">Dealerstudio</option>
               <option value="blackjack">Blackjackreferens</option>
               <option value="roulette">Roulettereferens</option>
-              <option value="neutral">Neutral studio</option>
             </select>
           </label>
           <div className={styles.segmented} aria-label="Kameravinkel">
@@ -913,9 +1150,9 @@ export function DealerLab({ assets }: { assets: readonly LabAsset[] }) {
           <label className={styles.field}>
             <span>Aktivt klipp</span>
             <select
-              disabled={!modelStats?.animations.length}
+              disabled={roomMode !== "dealer" || !modelStats?.animations.length}
               onChange={(event) => setAnimationName(event.target.value || null)}
-              value={animationName ?? ""}
+              value={controlledAnimationName ?? ""}
             >
               <option value="">Bind pose · ingen animation</option>
               {!modelStats?.animations.length ? <option value="">Inga klipp hittade</option> : null}
@@ -927,8 +1164,12 @@ export function DealerLab({ assets }: { assets: readonly LabAsset[] }) {
             </select>
           </label>
           <div className={styles.transport}>
-            <button disabled={!animationName} onClick={() => setPlaying((value) => !value)} type="button">
-              {playing ? "Pausa" : "Spela"}
+            <button
+              disabled={roomMode !== "dealer" || !animationName}
+              onClick={() => setPlaying((value) => !value)}
+              type="button"
+            >
+              {controlledPlaying ? "Pausa" : "Spela"}
             </button>
             <label>
               <span>Hastighet {playbackRate.toLocaleString("sv-SE", { maximumFractionDigits: 2 })}×</span>
@@ -987,6 +1228,68 @@ export function DealerLab({ assets }: { assets: readonly LabAsset[] }) {
           ) : null}
         </section>
       </aside>
+
+      <div className={styles.eventWorkspace}>
+        <LabEventTimeline
+          activeEventId={activeInspection?.event.eventId ?? null}
+          canGoNext={Boolean(scenario && eventPlayback.cursor < scenario.events.length)}
+          canGoPrevious={Boolean(scenario && eventPlayback.cursor > 0)}
+          isPlaying={timelinePlaying}
+          onGoNext={() => {
+            if (scenario) {
+              setTimelinePlaying(false);
+              setEventPlayback((current) => stepLabEventForward(current, scenario.events));
+            }
+          }}
+          onGoPrevious={() => {
+            if (scenario) {
+              setTimelinePlaying(false);
+              setEventPlayback((current) => stepLabEventBackward(current, scenario.events));
+            }
+          }}
+          onPlaybackRateChange={setTimelineRate}
+          onReset={() => {
+            setTimelinePlaying(false);
+            setEventPlayback(resetLabEventPlayback());
+          }}
+          onScenarioChange={handleTimelineModeChange}
+          onSelectEvent={(eventId) => {
+            if (!scenario) {
+              return;
+            }
+            const index = scenario.events.findIndex((event) => event.eventId === eventId);
+            if (index >= 0) {
+              setTimelinePlaying(false);
+              setEventPlayback(replayLabEvents(scenario.events, index + 1));
+            }
+          }}
+          onTogglePlayback={() => {
+            if (!scenario) {
+              return;
+            }
+            if (eventPlayback.cursor >= scenario.events.length) {
+              setEventPlayback(resetLabEventPlayback());
+              setTimelinePlaying(true);
+              return;
+            }
+            setTimelinePlaying((value) => !value);
+          }}
+          playbackRate={timelineRate}
+          rows={timelineRows}
+          scenario={timelineMode}
+          scenarioStepCounts={scenarioStepCounts}
+        />
+        <div className={styles.inspectorStack}>
+          {eventPlayback.error ? (
+            <p className={styles.playbackError} role="alert">{eventPlayback.error}</p>
+          ) : null}
+          <LabEventInspector inspection={activeInspection} />
+          <p className={styles.authorityNote} role="note">
+            Inspelningen är Zod-validerad presentationsdata. Den väljer aldrig kort,
+            roulettepocket, payout eller PLAY-saldo och skickar inga commands.
+          </p>
+        </div>
+      </div>
     </section>
   );
 }

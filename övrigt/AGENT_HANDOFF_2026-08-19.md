@@ -1,6 +1,8 @@
 # Agent-handoff 2026-08-19
 
-Det här dokumentet är startpunkten för nästa agent efter konto-/OAuth-integrationen och
+> Historisk överlämning vid commit `dc9d70b`. Därefter har `/3d-lab` och test-login mergats i `9a376bc`. Använd [System canvas](../docs/SYSTEM_CANVAS.md) för nuläge och [MVP-planen](../docs/MVP_PLAN.md) för aktiv leveransordning; behåll detta dokument som bakgrund för assetkrav.
+
+Det här dokumentet var startpunkten för nästa agent efter konto-/OAuth-integrationen och
 innan externa 3D-tillgångar importeras. Kontrollera alltid aktuell `main`, CI och
 [`docs/SYSTEM_CANVAS.md`](../docs/SYSTEM_CANVAS.md) innan statusen nedan återanvänds.
 
@@ -23,10 +25,12 @@ innan externa 3D-tillgångar importeras. Kontrollera alltid aktuell `main`, CI o
   events. Frontend får aldrig räkna fram ett konkurrerande utfall.
 - `apps/web` presenterar liveevents på `/blackjack` och `/roulette` och har textfallback,
   reduced-motion och en eventstyrd 3D-scen.
-- `/konto` i spelappen samt `apps/player-account` använder Supabase Auth. Den fristående
-  appen har `/login`, Google OAuth-kod, anonym gäst, route gate, logout och profilredigering.
-- Dashboardens saldo, statistik och historik är uttryckligen exempeldata. Ett autentiserat
-  account-summary-read-model från servern saknas fortfarande.
+- `/konto` i spelappen är den enda publika kontoytan och använder Supabase Auth för anonym
+  gäst, Google-länkning, logout och ägarisolerad profil. `apps/player-account` är numera en
+  pensionerad designprototyp och ska inte deployas separat.
+- Spelservern har ett autentiserat `AccountSummaryV2`-read-model för faktiskt PLAY-saldo,
+  aggregerad statistik och senaste committade rundor; `/konto` konsumerar detta utan att
+  räkna fram saldo i frontend.
 
 ## Vad 3D-scenen redan har
 
@@ -129,9 +133,9 @@ Kortets identitet, synlighet och målposition ska fortsatt komma från
 8. Gör kortens visuella art-pass sist och behåll en gemensam mesh/texture-strategi.
 9. Kör `pnpm check`, browserkontroll och relevant visuell regression före PR.
 
-Separat kontospår som fortfarande återstår: aktivera Supabase Anonymous Sign-Ins, Google
-provider, Manual Identity Linking och callback-allowlist; hosta `apps/player-account` som
-eget projekt; verifiera OAuth end-to-end; bygg därefter ett säkert account-summary-read-model.
+Kontospår som fortfarande återstår: aktivera Supabase Anonymous Sign-Ins, Google provider,
+Manual Identity Linking och callback-allowlist för `/konto`; verifiera OAuth och det
+autentiserade account-summary-flödet end-to-end i samma publika webbapp.
 
 ## Icke förhandlingsbara gränser
 

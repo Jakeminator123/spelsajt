@@ -4,7 +4,7 @@ Det här dokumentet beskriver hur Jakob och Emil kopplar ihop de auktoritativa b
 
 Det implementerbara asset-, animations-, personlighets- och AI-kontraktet finns i [Dealeravatar-specifikationen](../övrigt/DEALER_AVATAR_SPEC.md).
 
-Den aktiva profilen är `mvp-v2`. Båda spelen har rena, direkt testade TypeScript-state-machines i `packages/game-core`. V2 commands, events, snapshots, acknowledgements och table-subscription är Zod-kontrakterade; serveradapter, Supabase Auth, atomisk Postgres-persistens och Socket.IO-leverans är implementerade. Spelar-UI:t återstår att koppla till livekanalen, och fixtures ligger kvar som deterministiskt presentationsunderlag.
+Den aktiva profilen är `mvp-v2`. Båda spelen har rena, direkt testade TypeScript-state-machines i `packages/game-core`. V2 commands, events, snapshots, acknowledgements och table-subscription är Zod-kontrakterade; serveradapter, Supabase Auth, atomisk Postgres-persistens och Socket.IO-leverans är implementerade. Spelar-UI:t på `/blackjack` och `/roulette` konsumerar livekanalen, medan fixtures ligger kvar som deterministiskt presentations- och regressionunderlag.
 
 ## Beslut om externa spelprojekt
 
@@ -145,8 +145,8 @@ Presentationstester ska återspela v2-fixtures och låsa att:
 
 ## Nästa vertikala slice
 
-1. Koppla den planerade `/v2`-serveradaptern, atomiska persistensen och realtime-strömmen till den befintliga projektorn och samma schema-validerade presentationsflöde.
-2. Utöka den nuvarande text-/3D-renderingen så varje cue har en tydlig reduced-motion-fallback och en godkänd visuell presentation eller explicit no-op.
-3. Ersätt placeholder-dealern med en riggad avatar med `idle`, `deal`, `reveal`, `collect`, `celebrate` och `sympathize` utan att ändra eventkontraktet.
-4. Lägg till en deterministisk frasbank.
-5. Koppla in OpenAI server-side först när hela flödet fungerar korrekt utan AI.
+1. Godkänn en optimerad, versionslåst dealer-GLB i `/3d-lab` med stabil humanoid rigg, fingerben, neutral pose och dokumenterad licens/källa.
+2. Leverera riktiga in-place-klipp för `idle`, `deal_left`, `deal_right`, `reveal`, insamling/utbetalning och diskreta reaktioner. Kort, marker, bord, kortlek, hjul och boll förblir separata objekt.
+3. Lägg en Avatar Director mellan befintliga presentations-cues och GLB-klippen. Okänt eller saknat klipp faller tillbaka till neutral idle eller den procedurgenererade croupiern; eventkontraktet ändras inte för att passa en asset.
+4. Verifiera deal, reveal, split, settlement, roulette spin/result, avbrott och reduced motion mot inspelade fixtures och liveevents.
+5. Lägg därefter till en deterministisk frasbank. Koppla in OpenAI server-side först när hela dealerflödet fungerar korrekt utan AI.

@@ -1,14 +1,21 @@
 "use client";
 
+import type { AccountSummaryV2 } from "@spelsajt/contracts";
 import type { Session, SupabaseClient, User } from "@supabase/supabase-js";
 import Link from "next/link";
 import { type FormEvent, useEffect, useState } from "react";
 
 import {
   browserSupabaseClient,
+  publicGameConfiguration,
   publicSupabaseConfiguration,
 } from "../_components/live-game/game-session";
 import { displayNameError, initialDisplayName } from "./account-profile";
+import {
+  accountOutcomeLabel,
+  fetchAccountSummary,
+  formatPlayAmount,
+} from "./account-summary";
 import styles from "./account.module.css";
 
 interface ProfileRow {
@@ -16,6 +23,13 @@ interface ProfileRow {
 }
 
 type PagePhase = "loading" | "ready" | "unconfigured";
+type SummaryPhase = "idle" | "loading" | "ready" | "error" | "unconfigured";
+
+interface SummaryRequestState {
+  readonly error: string | null;
+  readonly key: string;
+  readonly summary: AccountSummaryV2 | null;
+}
 
 function providerLabel(user: User): string {
   const providers = user.app_metadata.providers;
@@ -67,11 +81,119 @@ function GoogleMark() {
   );
 }
 
+function gameLabel(game: "blackjack" | "roulette"): string {
+  return game === "blackjack" ? "Blackjack" : "Roulette";
+}
+
+function roundDate(value: string): string {
+  return new Intl.DateTimeFormat("sv-SE", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function AccountSummary({
+  onReload,
+  phase,
+  summary,
+  summaryError,
+}: {
+  readonly onReload: () => void;
+  readonly phase: SummaryPhase;
+  readonly summary: AccountSummaryV2 | null;
+  readonly summaryError: string | null;
+}) {
+  return (
+    <section className={styles.summaryCard} aria-busy={phase === "loading"}>
+      <div className={styles.summaryHeading}>
+        <div>
+          <p className={styles.eyebrow}>AUKTORITATIV SPELÖVERSIKT</p>
+          <h3>Saldo och resultat</h3>
+        </div>
+        <button disabled={phase === "loading"} onClick={onReload} type="button">
+          Uppdatera
+        </button>
+      </div>
+
+      {phase === "loading" || phase === "idle" ? (
+        <p className={styles.summaryMessage}>Hämtar saldo och spelhistorik…</p>
+      ) : null}
+      {phase === "unconfigured" ? (
+        <p className={styles.summaryMessage}>
+          Spelserverns publika URL saknas i den här miljön. Profilen fungerar, men saldo kan inte visas säkert.
+        </p>
+      ) : null}
+      {phase === "error" ? (
+        <p className={styles.summaryError} role="alert">{summaryError}</p>
+      ) : null}
+
+      {phase === "ready" && summary ? (
+        <>
+          <div className={styles.balanceOverview}>
+            <span>Tillgängligt saldo</span>
+            <strong>{formatPlayAmount(summary.balance)}</strong>
+            <small>{summary.currency}</small>
+          </div>
+
+          <div className={styles.summaryStats}>
+            <div><span>Rundor</span><strong>{summary.totals.rounds}</strong></div>
+            <div><span>Vunna</span><strong>{summary.totals.wonRounds}</strong></div>
+            <div><span>Förlorade</span><strong>{summary.totals.lostRounds}</strong></div>
+            <div>
+              <span>Netto</span>
+              <strong data-value={BigInt(summary.totals.net) < 0n ? "negative" : "positive"}>
+                {formatPlayAmount(summary.totals.net, true)}
+              </strong>
+            </div>
+          </div>
+
+          <div className={styles.gameSummaries}>
+            {summary.games.map((game) => (
+              <article key={game.game}>
+                <div><strong>{gameLabel(game.game)}</strong><span>{game.rounds} rundor</span></div>
+                <p>
+                  <span>Insatt {formatPlayAmount(game.wagered)}</span>
+                  <b data-value={BigInt(game.net) < 0n ? "negative" : "positive"}>
+                    {formatPlayAmount(game.net, true)} PLAY
+                  </b>
+                </p>
+              </article>
+            ))}
+          </div>
+
+          <div className={styles.recentRounds}>
+            <h4>Senaste rundorna</h4>
+            {summary.recentRounds.length === 0 ? (
+              <p className={styles.emptyRounds}>Inga avgjorda rundor ännu.</p>
+            ) : (
+              <ol>
+                {summary.recentRounds.slice(0, 5).map((round) => (
+                  <li key={round.roundId}>
+                    <div>
+                      <strong>{gameLabel(round.game)}</strong>
+                      <span>{roundDate(round.settledAt)}</span>
+                    </div>
+                    <div>
+                      <span data-outcome={round.outcome}>{accountOutcomeLabel(round.outcome)}</span>
+                      <small>{formatPlayAmount(round.wager)} → {formatPlayAmount(round.payout)} PLAY</small>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        </>
+      ) : null}
+    </section>
+  );
+}
+
 export function AccountPanel() {
   const [configuration] = useState(publicSupabaseConfiguration);
   const [client] = useState<SupabaseClient | null>(() => (
     configuration ? browserSupabaseClient(configuration) : null
   ));
+  const [gameServerUrl] = useState(() => publicGameConfiguration()?.gameServerUrl ?? null);
   const [session, setSession] = useState<Session | null>(null);
   const [phase, setPhase] = useState<PagePhase>(configuration ? "loading" : "unconfigured");
   const [displayName, setDisplayName] = useState("");
@@ -79,8 +201,29 @@ export function AccountPanel() {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [summaryRequest, setSummaryRequest] = useState<SummaryRequestState>({
+    error: null,
+    key: "",
+    summary: null,
+  });
+  const [summaryReload, setSummaryReload] = useState(0);
   const sessionUserId = session?.user.id ?? null;
   const profileSeedName = session ? initialDisplayName(session.user) : "";
+  const accessToken = session?.access_token ?? null;
+  const summaryRequestKey = accessToken && gameServerUrl
+    ? `${accessToken}:${summaryReload}`
+    : null;
+  const summaryPhase: SummaryPhase = !accessToken
+    ? "idle"
+    : !gameServerUrl
+      ? "unconfigured"
+      : summaryRequest.key !== summaryRequestKey
+        ? "loading"
+        : summaryRequest.error
+          ? "error"
+          : "ready";
+  const summary = summaryRequest.key === summaryRequestKey ? summaryRequest.summary : null;
+  const summaryError = summaryRequest.key === summaryRequestKey ? summaryRequest.error : null;
 
   useEffect(() => {
     if (!client) return;
@@ -126,6 +269,30 @@ export function AccountPanel() {
       alive = false;
     };
   }, [client, profileSeedName, sessionUserId]);
+
+  useEffect(() => {
+    if (!accessToken || !gameServerUrl || !summaryRequestKey) return;
+
+    const controller = new AbortController();
+    void fetchAccountSummary(gameServerUrl, accessToken, controller.signal)
+      .then((nextSummary) => {
+        if (!controller.signal.aborted) {
+          setSummaryRequest({ error: null, key: summaryRequestKey, summary: nextSummary });
+        }
+      })
+      .catch((summaryRequestError: unknown) => {
+        if (!controller.signal.aborted) {
+          setSummaryRequest({
+            error: summaryRequestError instanceof Error
+              ? summaryRequestError.message
+              : "Spelöversikten kunde inte hämtas.",
+            key: summaryRequestKey,
+            summary: null,
+          });
+        }
+      });
+    return () => controller.abort();
+  }, [accessToken, gameServerUrl, summaryRequestKey]);
 
   const profileLoading = Boolean(sessionUserId && profileUserId !== sessionUserId);
 
@@ -296,6 +463,13 @@ export function AccountPanel() {
           </button>
         </div>
       </form>
+
+      <AccountSummary
+        onReload={() => setSummaryReload((current) => current + 1)}
+        phase={summaryPhase}
+        summary={summary}
+        summaryError={summaryError}
+      />
 
       {isGuest ? (
         <div className={styles.upgradeCard}>

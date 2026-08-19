@@ -374,6 +374,23 @@ export function projectGameEvent(current: PresentationState, event: GameEventV2)
       tableId: event.tableId,
     };
   }
+  if (
+    event.type === "blackjack.turn.changed"
+    && event.payload.phase === "settled"
+    && state.stage === "settled"
+  ) {
+    return {
+      ...state,
+      activeHandId: event.payload.activeHandId,
+      allowedActions: event.payload.allowedActions,
+      game: "blackjack",
+      lastPlan: plan,
+      lastSequence: event.sequence,
+      revision: event.revision,
+      roundId: event.roundId,
+      tableId: event.tableId,
+    };
+  }
   let next: PresentationState = {
     ...state,
     activeCue: plan,

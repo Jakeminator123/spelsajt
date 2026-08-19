@@ -10,7 +10,7 @@ Publika routes: [blackjack](https://spelsajt.vercel.app/blackjack), [roulette](h
 
 ```text
 apps/web                 Next.js 16, React 19 och React Three Fiber
-apps/player-account      Fristående Next.js 16-dashboard och Supabase Auth
+apps/player-account      Pensionerad designprototyp, inte publik runtime
 apps/game-server         Fastify och Socket.IO
 packages/contracts       Versionslåsta commands och events
 packages/system-model    Validerad integrationskarta och textscenarier
@@ -26,7 +26,7 @@ output/pdf               Delbar projektplan
 
 - Node 24.19.0 och pnpm 11.22.0, automatiskt pinnade via `mise.toml`.
 - Ett Supabase-projekt när auth och databas ska kopplas in.
-- Vercel används för `apps/web`. `apps/player-account` är förberedd som ett separat webbprojekt men är ännu inte hostad. Spelservern har en verifierad, host-neutral container och en Render Blueprint för en separat långlivad process.
+- Ett enda Vercel-projekt används för `apps/web`, inklusive `/konto`. Spelservern har en verifierad, host-neutral container och en Render Blueprint för en separat långlivad process.
 
 ## Kom igång
 
@@ -37,21 +37,17 @@ Copy-Item apps/game-server/.env.example apps/game-server/.env.local
 pnpm dev
 ```
 
-Webbappen startar normalt på `http://localhost:3000` och spelservern på `http://localhost:4000`.
-
-Den fristående kontodashboarden startas separat på nästa lediga port:
-
-```powershell
-pnpm --filter @spelsajt/player-account dev
-```
+Webbappen startar normalt på `http://localhost:3000` och spelservern på `http://localhost:4000`. Den pensionerade kontoprototypen startas inte av `pnpm dev`.
 
 De spelbara borden finns på [http://localhost:3000/blackjack](http://localhost:3000/blackjack) och [http://localhost:3000/roulette](http://localhost:3000/roulette). De återanvänder en persisterad anonym Supabase-session, skickar kontraktsvaliderade v2-commands till spelservern och återankrar från snapshots över Socket.IO. Om publik Supabase-konfiguration eller spelserver-URL saknas visas ett uttryckligt konfigurationsfel; webben faller aldrig tillbaka till lokalt beräknade utfall.
+
+Spelarkontot finns på [http://localhost:3000/konto](http://localhost:3000/konto) i samma webbapp. Supabase äger session och profil, medan saldo, statistik och senaste rundor hämtas från spelserverns bearer-skyddade `GET /v2/account/summary`. Frontend validerar svaret men räknar aldrig fram ett eget saldo eller spelutfall.
 
 Den levande systemkartan finns på [http://localhost:3000/system](http://localhost:3000/system). Den visar blackjack- och rouletteflöden från command till presentation och markerar separat vad som är implementerat, kontrakterat och planerat. Samma modell finns maskinläsbart i [`packages/system-model/models/play-money-mvp.json`](packages/system-model/models/play-money-mvp.json).
 
 ### Lokalt 3D-labb
 
-[http://localhost:3000/3d-lab](http://localhost:3000/3d-lab) är ett isolerat inspektionsrum för riggade GLB-modeller, animationer, höjdskalning, skelett och referensbord. Händelseknapparna förhandsvisar endast presentationer och ansluter aldrig till game-servern eller påverkar kort, rouletteutfall och saldo.
+[http://localhost:3000/3d-lab](http://localhost:3000/3d-lab) är ett isolerat inspektionsrum för riggade GLB-modeller, animationer, höjdskalning, skelett och referensbord. En tidslinje spelar sammanhängande, Zod-validerade blackjack- och rouletteinspelningar genom samma event → cue → visual-intent-kedja som produktscenen; inspektören visar valt GLB-klipp eller tydlig fallback. Labbet ansluter aldrig till game-servern och påverkar inte kort, rouletteutfall eller saldo.
 
 En valfri GLB kan öppnas direkt från datorn och stannar då i webbläsaren. Utvecklingspresets kan tillfälligt läggas under `apps/web/public/models/lab-imports/`; hela den katalogen är Git-ignorerad och Meshy-råfiler, ZIP, FBX och Blender-filer ska inte checkas in därifrån. Endast granskade, versionslåsta runtime-assets ska senare publiceras under den rollspecifika `apps/web/public/models/`-katalogen. Byt versionsnamn i stället för att skriva över en redan publicerad GLB.
 
@@ -83,7 +79,7 @@ pnpm db:verify
 
 ## Deploy
 
-Webbappen länkas som ett Vercel-projekt med root directory `apps/web`. Koppla därefter GitHub-repot för automatiska previewdeployments på varje pull request. Kontodashboarden kan senare länkas som ett separat Vercel-projekt med root directory `apps/player-account`; Supabase-provider, callback-allowlist och miljövariabler ska då konfigureras innan den betraktas som driftklar. `.vercel/` och alla hemligheter är ignorerade av Git.
+Webben och kontot är ett enda Vercel-projekt från samma monorepo, med root directory `apps/web`. Låt framework preset, install command och build command vara automatiska. Projektet behöver `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` och `NEXT_PUBLIC_GAME_SERVER_URL` i avsedda miljöer. Någon `NEXT_PUBLIC_PLAYER_ACCOUNT_URL` eller separat Vercel-deployment för `apps/player-account` ska inte finnas. Koppla GitHub-repot för automatiska previewdeployments på pull requests. `.vercel/` och alla hemligheter är ignorerade av Git.
 
 Spelserverns produktionsimage byggs från reporoten och kan köras på en valfri långlivad containerhost:
 

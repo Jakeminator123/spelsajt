@@ -167,6 +167,59 @@ describe("game server", () => {
     });
   });
 
+  it("returns an authenticated, empty account summary before the first round", async () => {
+    const app = buildApp({ authVerifier: authenticatedAs(userOne) });
+    openApps.push(app);
+
+    const response = await app.inject({
+      headers: authHeaders,
+      method: "GET",
+      url: "/v2/account/summary",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      balance: "10000",
+      currency: "PLAY",
+      games: [
+        {
+          game: "blackjack",
+          lostRounds: 0,
+          mixedRounds: 0,
+          net: "0",
+          pushedRounds: 0,
+          returned: "0",
+          rounds: 0,
+          wagered: "0",
+          wonRounds: 0,
+        },
+        {
+          game: "roulette",
+          lostRounds: 0,
+          mixedRounds: 0,
+          net: "0",
+          pushedRounds: 0,
+          returned: "0",
+          rounds: 0,
+          wagered: "0",
+          wonRounds: 0,
+        },
+      ],
+      recentRounds: [],
+      schemaVersion: 2,
+      totals: {
+        lostRounds: 0,
+        mixedRounds: 0,
+        net: "0",
+        pushedRounds: 0,
+        returned: "0",
+        rounds: 0,
+        wagered: "0",
+        wonRounds: 0,
+      },
+    });
+  });
+
   it("publishes committed command events through bounded sequence pages", async () => {
     const repository = new TinyEventPageRepository();
     const eventBus = new RecordingEventBus();
@@ -505,6 +558,29 @@ describe("game server", () => {
     expect(replayResponse.statusCode).toBe(200);
     expect(replayResponse.json()).toMatchObject({ revision: 3, status: "replayed" });
     expect((await repository.read(userOne, tableId))?.events).toEqual(stored?.events);
+
+    const account = await app.inject({
+      headers: authHeaders,
+      method: "GET",
+      url: "/v2/account/summary",
+    });
+    expect(account.statusCode).toBe(200);
+    expect(account.json()).toMatchObject({
+      balance: "10330",
+      games: [
+        { game: "blackjack", net: "0", rounds: 0 },
+        { game: "roulette", mixedRounds: 1, net: "330", rounds: 1 },
+      ],
+      recentRounds: [
+        {
+          game: "roulette",
+          outcome: "mixed",
+          payout: "360",
+          wager: "30",
+        },
+      ],
+      totals: { mixedRounds: 1, net: "330", rounds: 1 },
+    });
   });
 
   it("rejects a command whose body targets another table", async () => {
@@ -543,8 +619,14 @@ describe("game server", () => {
       url: "/v2/tables/private-table/snapshot",
     });
 
+    const account = await app.inject({
+      method: "GET",
+      url: "/v2/account/summary",
+    });
+
     expect(missing.statusCode).toBe(401);
     expect(invalid.statusCode).toBe(401);
+    expect(account.statusCode).toBe(401);
   });
 
   it("does not reveal a table owned by another authenticated user", async () => {

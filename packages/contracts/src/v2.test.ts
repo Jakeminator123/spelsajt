@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
+  accountSummaryV2Schema,
   commandAckV2Schema,
   gameCommandTypesV2,
   gameCommandV2Schema,
@@ -87,6 +88,13 @@ describe("v2 network contracts", () => {
     expect(tableSubscriptionAckV2Schema.safeParse(
       readJson("../fixtures/v2/table-subscription-ack.json"),
     ).success).toBe(true);
+  });
+
+  it("accepts the account summary fixture and rejects unknown fields", () => {
+    const summary = readJson("../fixtures/v2/account-summary.json") as Record<string, unknown>;
+    expect(accountSummaryV2Schema.safeParse(summary).success).toBe(true);
+    expect(accountSummaryV2Schema.safeParse({ ...summary, internalUserId: "secret" }).success)
+      .toBe(false);
   });
 
   it("rejects unknown table subscription fields", () => {

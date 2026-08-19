@@ -1,0 +1,23 @@
+---
+description: Spelsajts mål, läsordning, ansvar och auktoritativa källor
+alwaysApply: true
+---
+
+# Spelsajt – börja här
+
+- Läs `AGENTS.md` i reporoten och därefter närmaste `AGENTS.md` för katalogen som ändras.
+- Läs `docs/MVP_PLAN.md` för mål, leveransordning och Jakob/Emil-ansvar.
+- Läs `docs/SYSTEM_CANVAS.md` och `packages/system-model/models/play-money-mvp.json` för faktisk integrationsstatus.
+- Följ `docs/ENGINEERING.md` när en ändring berör kontrakt, regler, databas eller mognadsstatus.
+
+Backend är ensam auktoritet för spelregler, fairness/RNG, utfall, ledger och PLAY-saldo. Frontend skickar spelaravsikt och presenterar sekvensnumrerade `GameEventV2`. Avatarer och AI får endast välja godkända presentationer.
+
+## Källor som gäller
+
+- Spelregler: `packages/config/rulesets/*.json`.
+- Commands, events och snapshots: Zod i `packages/contracts/src/`.
+- Integrationsmodell: Zod i `packages/system-model/src/schema.ts` plus den granskade JSON-modellen.
+- Databasschema och policies: `supabase/migrations/`.
+- Observerbart beteende: fixtures, golden vectors, motor-/presentationstester och pgTAP.
+
+Genererade JSON Schema-filer handredigeras aldrig. Kör `pnpm check` före merge och även `pnpm db:verify` efter databasändringar.

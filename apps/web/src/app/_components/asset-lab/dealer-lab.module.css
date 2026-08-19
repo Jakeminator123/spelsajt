@@ -167,6 +167,57 @@
   grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
 }
 
+.eventSummaryGrid {
+  display: grid;
+  gap: 7px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.eventSummaryGrid article {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 9px 10px;
+}
+
+.eventSummaryGrid article[data-status="ready"] {
+  border-color: rgba(198, 242, 78, 0.36);
+}
+
+.eventSummaryGrid article[data-status="temporary"],
+.eventSummaryGrid article[data-status="missing"] {
+  border-color: rgba(255, 183, 77, 0.36);
+}
+
+.eventSummaryGrid small {
+  color: var(--muted);
+  font-size: 7px;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+}
+
+.eventSummaryGrid strong,
+.eventSummaryGrid span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eventSummaryGrid strong {
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 9px;
+}
+
+.eventSummaryGrid span {
+  color: var(--muted);
+  font-size: 8px;
+}
+
 .eventButton {
   background: rgba(255, 255, 255, 0.035);
   border: 1px solid var(--line-strong);
@@ -691,6 +742,42 @@
   padding: 8px 9px;
 }
 
+.eventWorkspace {
+  display: grid;
+  gap: 18px;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.75fr);
+  min-width: 0;
+}
+
+.inspectorStack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.playbackError,
+.authorityNote {
+  border-radius: 12px;
+  font-size: 10px;
+  line-height: 1.55;
+  margin: 0;
+  padding: 11px 13px;
+}
+
+.playbackError {
+  background: rgba(239, 97, 114, 0.08);
+  border: 1px solid rgba(239, 97, 114, 0.3);
+  color: #ff93a0;
+}
+
+.authorityNote {
+  background: rgba(198, 242, 78, 0.055);
+  border: 1px solid rgba(198, 242, 78, 0.18);
+  color: var(--muted);
+}
+
 @keyframes pulse {
   from { opacity: 0.38; transform: scale(0.8); }
   to { opacity: 1; transform: scale(1); }
@@ -698,6 +785,10 @@
 
 @media (max-width: 1060px) {
   .lab {
+    grid-template-columns: 1fr;
+  }
+
+  .eventWorkspace {
     grid-template-columns: 1fr;
   }
 
@@ -733,6 +824,10 @@
 
   .eventDockGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .eventSummaryGrid {
+    grid-template-columns: 1fr;
   }
 }
 

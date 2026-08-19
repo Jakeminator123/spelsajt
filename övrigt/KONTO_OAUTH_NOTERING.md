@@ -1,8 +1,8 @@
 # Konto- och OAuth-notering
 
-Status 2026-08-19: `/konto` finns lokalt i spelappen. Den fristående appen `apps/player-account` kompletterar med `/login`, skyddad dashboard, logout och profilinställningar. Båda använder samma Supabase-identitetsmodell, skapar spelarens egen `profiles`-rad och kan länka en gästidentitet till Google.
+Status 2026-08-19: `/konto` i `apps/web` är den enda publika kontoytan. Den använder Supabase-identitet, skapar spelarens egen `profiles`-rad och kan länka en gästidentitet till Google. Den tidigare `apps/player-account` är en pensionerad designprototyp och ska inte hostas separat.
 
-Dashboardens saldo, statistik och historik är avsiktligt märkta som exempeldata. Faktisk PLAY-data får inte läsas eller räknas fram i frontend utan ska komma från ett autentiserat, serverauktoritativt account-summary-read-model.
+Faktiskt PLAY-saldo, statistik och historik kommer från game-serverns bearer-skyddade `GET /v2/account/summary` och valideras som `AccountSummaryV2`. Frontend får inte läsa privata tabeller eller räkna fram ett eget saldo.
 
 ## Valt flöde
 
@@ -27,7 +27,7 @@ I Supabase-projektet måste följande aktiveras innan Google-knappen fungerar he
 - Anonymous Sign-Ins.
 - Google provider med client id och client secret.
 - Manual identity linking.
-- redirect-allowlist för `https://spelsajt.vercel.app/konto`, dashboardens framtida callback och relevanta preview-URL:er.
+- redirect-allowlist för `https://spelsajt.vercel.app/konto` och relevanta preview-URL:er.
 - Googles auktoriserade callback till Supabase-projektets `/auth/v1/callback`.
 
 Inga providerhemligheter ska ligga i Git eller i `NEXT_PUBLIC_*`. Webben behöver bara befintlig Supabase URL och publishable key.
@@ -37,7 +37,6 @@ Aktuella Supabase-referenser: [Anonymous Sign-Ins](https://supabase.com/docs/gui
 ## Medvetet kvar
 
 - Automatisk sammanslagning av en aktiv gästs data med ett redan existerande permanent konto. UI:t varnar därför innan vanlig Google-inloggning från en gästsession.
-- Ett säkert account-summary-endpoint om kontosidan ska visa faktiskt PLAY-saldo och historik från `game_private`.
 - Turnstile/CAPTCHA och städning av gamla anonyma användare innan större publik trafik.
 - E2E-verifiering av Google-redirect i preview och produktion efter provideraktivering.
-- Separat hosting av `apps/player-account` med `NEXT_PUBLIC_SUPABASE_URL`, publishable key och `NEXT_PUBLIC_GAME_APP_URL`.
+- E2E-verifiering av account-summary från en hostad, verifierad session mot den auktoritativa game-servern.

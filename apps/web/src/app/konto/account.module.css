@@ -191,6 +191,226 @@
   transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
 }
 
+.summaryCard {
+  background: rgba(4, 5, 8, 0.34);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  margin-top: 22px;
+  padding: 18px;
+}
+
+.summaryHeading {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.summaryHeading h3 {
+  font-family: var(--font-display), sans-serif;
+  font-size: 21px;
+  letter-spacing: -0.035em;
+  margin: 0;
+}
+
+.summaryHeading button {
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--ink-dim);
+  cursor: pointer;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 8px 11px;
+  text-transform: uppercase;
+}
+
+.summaryHeading button:disabled {
+  cursor: wait;
+  opacity: 0.5;
+}
+
+.summaryMessage,
+.summaryError,
+.emptyRounds {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+  margin: 18px 0 0;
+}
+
+.summaryError {
+  color: #ff9ca6;
+}
+
+.balanceOverview {
+  align-items: baseline;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 7px;
+  margin-top: 18px;
+  padding-bottom: 15px;
+}
+
+.balanceOverview span {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  margin-right: auto;
+  text-transform: uppercase;
+}
+
+.balanceOverview strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: 30px;
+  letter-spacing: -0.04em;
+}
+
+.balanceOverview small {
+  color: var(--lime);
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.summaryStats {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 14px;
+}
+
+.summaryStats div {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: grid;
+  gap: 4px;
+  padding: 9px;
+}
+
+.summaryStats span {
+  color: var(--muted);
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
+.summaryStats strong {
+  font-size: 13px;
+}
+
+.summaryCard [data-value="positive"] {
+  color: var(--lime);
+}
+
+.summaryCard [data-value="negative"] {
+  color: #ff9ca6;
+}
+
+.gameSummaries {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, 1fr);
+  margin-top: 12px;
+}
+
+.gameSummaries article {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 11px;
+}
+
+.gameSummaries article > div,
+.gameSummaries article > p {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.gameSummaries article > div span,
+.gameSummaries article > p span {
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.gameSummaries article > div strong {
+  font-size: 11px;
+}
+
+.gameSummaries article > p {
+  margin: 9px 0 0;
+}
+
+.gameSummaries article > p b {
+  font-size: 9px;
+}
+
+.recentRounds {
+  border-top: 1px solid var(--line);
+  margin-top: 15px;
+  padding-top: 14px;
+}
+
+.recentRounds h4 {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.recentRounds ol {
+  display: grid;
+  gap: 0;
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.recentRounds li {
+  align-items: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.045);
+  display: flex;
+  justify-content: space-between;
+  padding: 9px 0;
+}
+
+.recentRounds li:first-child {
+  border-top: 0;
+}
+
+.recentRounds li > div {
+  display: grid;
+  gap: 2px;
+}
+
+.recentRounds li > div:last-child {
+  justify-items: end;
+}
+
+.recentRounds li strong {
+  font-size: 10px;
+}
+
+.recentRounds li span,
+.recentRounds li small {
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.recentRounds [data-outcome="win"] {
+  color: var(--lime);
+}
+
+.recentRounds [data-outcome="loss"] {
+  color: #ff9ca6;
+}
+
+.recentRounds [data-outcome="mixed"] {
+  color: var(--violet-soft);
+}
+
 .googleButton {
   background: #f5f6f8;
   border: 1px solid #f5f6f8;
@@ -542,6 +762,14 @@
   .accountActions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .summaryStats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .gameSummaries {
+    grid-template-columns: 1fr;
   }
 }
 

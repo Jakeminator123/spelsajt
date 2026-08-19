@@ -2,6 +2,7 @@ import { z, type ZodType } from "zod";
 
 import { gameCommandSchema, gameEventSchema, snapshotSchema } from "./index";
 import {
+  accountSummaryV2Schema,
   commandAckV2Schema,
   gameCommandV2Schema,
   gameEventV2Schema,
@@ -31,6 +32,12 @@ const definitions = [
     id: "https://schemas.spelsajt.local/v1/game-snapshot.schema.json",
     schema: snapshotSchema,
     title: "Spelsajt game snapshot v1",
+  },
+  {
+    fileName: "v2/account-summary.schema.json",
+    id: "https://schemas.spelsajt.local/v2/account-summary.schema.json",
+    schema: accountSummaryV2Schema,
+    title: "Spelsajt account summary v2",
   },
   {
     fileName: "v2/game-command.schema.json",

@@ -105,6 +105,15 @@ export function buildApp(options: BuildAppOptions = {}) {
     version: "0.1.0",
   }));
 
+  app.get("/v2/account/summary", async (request, reply) => {
+    const token = bearerToken(request.headers.authorization);
+    const userId = token ? await authVerifier.verify(token) : null;
+    if (!userId) {
+      return reply.code(401).send({ error: "UNAUTHENTICATED" });
+    }
+    return reply.code(200).send(await repository.readAccountSummary(userId));
+  });
+
   app.post<{ Params: { tableId: string } }>(
     "/v2/tables/:tableId/commands",
     async (request, reply) => {

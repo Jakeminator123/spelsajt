@@ -179,6 +179,63 @@ describe("GameEventV2 presentation projector", () => {
     expect(projectGameEvent({ ...prepared, revision: 3 }, started)).toEqual({ ...prepared, revision: 3 });
   });
 
+  it("consumes the terminal blackjack turn without replacing an existing settlement transition", () => {
+    const prepared = parseEvent(roundPreparedRaw);
+    const started = parseEvent(roundStartedRaw);
+    const settlement = parseEvent({
+      ...roundSettledRaw,
+      payload: {
+        ...roundSettledRaw.payload,
+        game: "blackjack",
+        outcome: "mixed",
+      },
+      revision: 3,
+      roundId: prepared.roundId,
+      sequence: 3,
+      tableId: prepared.tableId,
+    });
+    const terminalTurn = parseEvent({
+      ...turnChangedRaw,
+      payload: {
+        activeHandId: null,
+        allowedActions: [],
+        phase: "settled",
+      },
+      revision: 3,
+      roundId: prepared.roundId,
+      sequence: 4,
+      tableId: prepared.tableId,
+    });
+    const settled = [prepared, started, settlement]
+      .reduce(projectGameEvent, createInitialPresentationState());
+    const afterTerminalTurn = projectGameEvent(settled, terminalTurn);
+
+    expect(settled).toMatchObject({
+      stage: "settled",
+      activeCue: { cueId: "blackjack.settled-mixed" },
+    });
+    expect(afterTerminalTurn).toMatchObject({
+      activeHandId: null,
+      allowedActions: [],
+      lastPlan: { cueId: "blackjack.turn-change", kind: "cue" },
+      lastSequence: 4,
+      revision: 3,
+      stage: "settled",
+    });
+    expect(afterTerminalTurn.activeCue).toBe(settled.activeCue);
+    expect(afterTerminalTurn.transitionId).toBe(settled.transitionId);
+
+    const beforeSettlement = [prepared, started]
+      .reduce(projectGameEvent, createInitialPresentationState());
+    const failSafeTurn = parseEvent({ ...terminalTurn, sequence: 3 });
+    const failSafe = projectGameEvent(beforeSettlement, failSafeTurn);
+    expect(failSafe).toMatchObject({
+      activeCue: { cueId: "blackjack.turn-change" },
+      stage: "settling",
+    });
+    expect(failSafe.transitionId).toBe(beforeSettlement.transitionId + 1);
+  });
+
   it("anchors live presentation from authoritative blackjack and roulette snapshots", () => {
     const blackjack = projectGameSnapshot(
       createInitialPresentationState(),
