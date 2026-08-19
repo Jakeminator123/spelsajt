@@ -9,7 +9,7 @@ import { LAB_ASSETS, type LabAsset } from "../_components/asset-lab/lab-assets";
 import styles from "./three-d-lab.module.css";
 
 export const metadata: Metadata = {
-  description: "Lokalt inspektionsrum för riggade avatarer, bord och animationer.",
+  description: "Lokalt inspektionsrum för riggade avatarer och eventstyrda spelpresentationer.",
   title: "3D-labb – Spelsajt",
 };
 
@@ -47,7 +47,7 @@ export default function ThreeDLabPage() {
 
       <div className={styles.notice} role="note">
         <span>LABB</span>
-        <p>Den här sidan granskar endast visuella tillgångar. Den ansluter inte till game-servern och kan aldrig välja kort, utfall eller saldo.</p>
+        <p>Den här sidan granskar visuella tillgångar och spelar lokala, Zod-validerade eventinspelningar. Den ansluter inte till game-servern och kan aldrig välja kort, utfall eller saldo.</p>
       </div>
 
       <DealerLabLoader assets={localLabAssets()} />

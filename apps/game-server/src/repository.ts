@@ -1,4 +1,4 @@
-import type { CommandAckV2, GameEventV2 } from "@spelsajt/contracts";
+import type { AccountSummaryV2, CommandAckV2, GameEventV2 } from "@spelsajt/contracts";
 import type {
   BlackjackCard,
   BlackjackState,
@@ -83,6 +83,8 @@ export class CommandIdConflictError extends Error {
 export interface GameRepository {
   close?(): Promise<void>;
   ping?(): Promise<void>;
+  /** Authenticated account read model; never exposed directly through browser grants. */
+  readAccountSummary(userId: string): Promise<AccountSummaryV2>;
   /** Full aggregate including event and command history, for inspection and tests. */
   read(userId: string, tableId: string): Promise<StoredTable | null>;
   /** Current aggregate state without requiring historical events or receipts. */

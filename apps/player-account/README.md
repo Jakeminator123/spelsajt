@@ -1,4 +1,8 @@
-# @spelsajt/player-account
+# @spelsajt/player-account (pensionerad prototyp)
+
+Den publika kontoupplevelsen finns nu på `/konto` i `apps/web`. Den här appen
+bevaras tillfälligt som designreferens men startas inte av rotens `pnpm dev`,
+deployas inte och får inte länkas från produkten.
 
 Fristående spelar-dashboard för Spelsajts play-money-konton. Appen härstammar från
 `player-ac-site`, men bank-, betalnings- och adminmallar har tagits bort.
@@ -14,9 +18,10 @@ Fristående spelar-dashboard för Spelsajts play-money-konton. Appen härstammar
 - länkning av gästidentitet till Google
 - sajtens Inter Tight/Bricolage Grotesque och lime/violetta designsystem
 
-Dashboardens saldo, statistik och historik är ännu **tydligt märkt exempeldata**. Den får
-inte betraktas som auktoritativ förrän spelservern exponerar ett autentiserat,
-kontrakterat account-summary-read-model. Frontend får aldrig räkna fram eller ändra saldo.
+Prototypens saldo, statistik och historik är fortfarande **tydligt märkt exempeldata** och
+ska inte kopplas till produktion. Det autentiserade account-summary-read-modelet konsumeras
+i stället av den publika `/konto`-sidan i `apps/web`. Frontend får aldrig räkna fram eller
+ändra saldo.
 
 ## Miljö
 
@@ -25,5 +30,5 @@ kontrakterat account-summary-read-model. Frontend får aldrig räkna fram eller 
 - valfri `NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL` för en fast preview-callback
 - valfri `NEXT_PUBLIC_GAME_APP_URL` för länkar tillbaka till spelappen
 
-Kopiera `.env.example` till `.env.local` och kör lokalt med
-`pnpm --filter @spelsajt/player-account dev`.
+Om prototypen behöver jämföras visuellt kan den startas uttryckligen med
+`pnpm --filter @spelsajt/player-account dev:prototype`.

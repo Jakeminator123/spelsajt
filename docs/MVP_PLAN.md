@@ -1,12 +1,36 @@
-# Spelsajt - MVP-plan
+# Spelsajt – MVP-plan
 
-Version 1.0 - 17 augusti 2026
+Version 1.1 – 19 augusti 2026
 
 ## Målbild
 
 Bygg en smal men tekniskt högklassig play-money-MVP för enspelare. Användaren ska kunna logga in eller prova direkt, få testkrediter, spela blackjack och europeisk roulette samt verifiera varje resultat. Frontend ska kännas modern, responsiv och levande genom 3D, ljud och händelsestyrda avatarreaktioner.
 
 MVP:n innehåller inga riktiga pengar, insättningar, uttag, köpbara marker, externa wallets eller överföringar.
+
+## Så används planen
+
+Det här dokumentet låser produktomfattning, ansvar och ordningen mot privat alpha. Det är inte en checklista över aktuell runtime. Faktisk implementations- och verifieringsstatus finns i [System canvas](SYSTEM_CANVAS.md) och den validerade modellen i `packages/system-model/models/play-money-mvp.json`. Auktoritativa källor per område finns i [Engineeringavtalet](ENGINEERING.md).
+
+Procentestimat är kommunikation och kan ändras. En funktion räknas som implementerad först när systemkartan kan peka på runtimekod och relevant verifiering.
+
+## Nuläge
+
+- Den auktoritativa spelkedjan är implementerad för blackjack och europeisk roulette: autentiserade v2-commands, deterministiska motorer, fairness, atomisk Postgres-ledger, idempotens, snapshots och sekvensnumrerade realtime-events.
+- `/blackjack` och `/roulette` konsumerar liveevents. Presentationen har textfallback, reduced motion och uttömmande event-till-cue-mappning. `/3d-lab` finns för isolerad granskning av dealer-GLB och klipp.
+- `/konto` är den enda kontoappen och deployas tillsammans med `apps/web`. Den tidigare `apps/player-account` är en pensionerad designprototyp och ska inte hostas separat. Google OAuth och callback-/identity-linking-konfiguration behöver fortfarande verifieras end-to-end.
+- Kontoöversikten hämtar verkligt PLAY-saldo, aggregerad statistik och senaste rundor från ett bearer-skyddat, Zod-validerat account-summary-read-model i game-servern. Den parallella frontendens exempeldata används inte i den publika appen.
+- Nuvarande 3D-dealers är testmaterial eller procedurfallback. En produktionsgodkänd dealer med fingerben och riktiga dealerklipp återstår; kort, marker, bord och roulettehjul ska fortsätta vara separata scenobjekt.
+
+## Aktiv leveransordning mot privat alpha
+
+1. **Stäng kontospåret.** Behåll `/konto` i den enda Vercel-appen, konfigurera OAuth och redirects i avsedda driftmiljöer och kör login/logout/linking samt det hostade account-summary-flödet end-to-end.
+2. **Leverera dealer-slicen.** Godkänn en versionslåst och optimerad GLB i `/3d-lab`; kräv stabil rigg, fingerben och klippen `idle`, `deal_left`, `deal_right`, `reveal` samt diskreta vinst-/förlustreaktioner. Koppla klippen via frontendens befintliga cues och behåll procedurfallback.
+3. **Kör sammanhållen alpha-polish.** Verifiera hela resan konto → spel → reconnect → settlement → fairness på desktop och mobil. Stäng kända gap i tillgänglighet, laddning, felstatus, assetprestanda och visuell konsekvens innan feature freeze.
+
+Jakob leder normalt backend, fairness, databas och säkra API:er. Emil leder normalt webb, 3D, ljud och Animation Director. Båda granskar kontrakt och end-to-end-flöden; ingen frontendleverans får skapa en parallell spelmotor.
+
+Milstolparna nedan bevarar de funktionella målgrindarna. Läs inte deras punktlistor som nulägesstatus; använd systemkartan för det.
 
 ## Produktomfattning
 

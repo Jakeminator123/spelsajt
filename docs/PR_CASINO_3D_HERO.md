@@ -1,5 +1,7 @@
 # Frontend: modern MVP-lobby och eventdriven 3D-demo
 
+> Historisk PR-specifikation. Den beskriver läget när den första 3D-demon byggdes och ska inte användas som aktuell implementationsstatus. Se [System canvas](SYSTEM_CANVAS.md) för nuläge och [MVP-planen](MVP_PLAN.md) för nästa leveransordning.
+
 Den här frontendändringen ger Spelsajt en tydlig visuell identitet och en
 3D-presentation för europeisk roulette. Startsidan är avgränsad till produktens
 två MVP-spel: blackjack och europeisk roulette.

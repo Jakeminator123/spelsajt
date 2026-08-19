@@ -503,6 +503,30 @@ databaseDescribe("Postgres game repository", () => {
       [tableId],
     );
     expect(result.rows[0]?.payload).toEqual({ colour: "black", pocket: 17 });
+
+    const account = await reconnectedApp.inject({
+      headers: authHeaders,
+      method: "GET",
+      url: "/v2/account/summary",
+    });
+    expect(account.statusCode).toBe(200);
+    expect(account.json()).toMatchObject({
+      balance: "10330",
+      games: [
+        { game: "blackjack", rounds: 0 },
+        { game: "roulette", mixedRounds: 1, net: "330", rounds: 1 },
+      ],
+      recentRounds: [
+        {
+          game: "roulette",
+          outcome: "mixed",
+          payout: "360",
+          roundId,
+          wager: "30",
+        },
+      ],
+      totals: { mixedRounds: 1, net: "330", rounds: 1 },
+    });
   });
 
   it("serializes duplicate command retries and competing revisions across repository instances", async () => {

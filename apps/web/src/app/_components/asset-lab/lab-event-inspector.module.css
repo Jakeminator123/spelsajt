@@ -1,0 +1,238 @@
+.inspector {
+  background: rgba(13, 15, 21, 0.94);
+  border: 1px solid var(--line-strong);
+  border-radius: 18px;
+  color: var(--ink);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.header {
+  border-bottom: 1px solid var(--line);
+  padding: 17px 18px;
+}
+
+.eyebrow {
+  color: var(--lime);
+  display: block;
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.17em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.header h2 {
+  font-family: var(--font-display), sans-serif;
+  font-size: 16px;
+  line-height: 1.25;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.header > p {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+  margin: 7px 0 0;
+}
+
+.eventTitle {
+  align-items: baseline;
+  display: flex;
+  gap: 9px;
+  justify-content: space-between;
+}
+
+.eventTitle span {
+  color: var(--muted);
+  flex: 0 0 auto;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 8px;
+}
+
+.eventId {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chain {
+  padding: 15px;
+}
+
+.mappingStage,
+.eventStage {
+  --stage-color: #858a9b;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid color-mix(in srgb, var(--stage-color) 30%, var(--line));
+  border-radius: 12px;
+  padding: 11px;
+}
+
+.eventStage { --stage-color: #9b82ff; }
+.mappingStage[data-state="resolved"] { --stage-color: #78d9a3; }
+.mappingStage[data-state="ignored"] { --stage-color: #9398a6; }
+.mappingStage[data-state="fallback"] { --stage-color: #ffbf69; }
+.mappingStage[data-state="error"] { --stage-color: #ff7683; }
+
+.stageHeading {
+  align-items: center;
+  display: grid;
+  gap: 9px;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+}
+
+.stageHeading > span:nth-child(2) {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.stageHeading small {
+  color: var(--muted);
+  font-size: 7px;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.stageHeading strong {
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stageHeading > i {
+  color: var(--stage-color);
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.stageIcon,
+.eventIcon {
+  align-items: center;
+  background: color-mix(in srgb, var(--stage-color) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--stage-color) 36%, transparent);
+  border-radius: 50%;
+  color: var(--stage-color);
+  display: inline-flex;
+  font-size: 9px;
+  font-weight: 900;
+  height: 27px;
+  justify-content: center;
+  width: 27px;
+}
+
+.mappingStage > code,
+.eventStage > code {
+  color: var(--ink-dim);
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 8px;
+  margin-top: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mappingStage > p {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.45;
+  margin: 7px 0 0;
+}
+
+.connector {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  height: 24px;
+  justify-content: center;
+}
+
+.connector span {
+  background: var(--line-strong);
+  height: 8px;
+  width: 1px;
+}
+
+.connector i {
+  font-size: 10px;
+  font-style: normal;
+  line-height: 0.8;
+}
+
+.payload {
+  border-top: 1px solid var(--line);
+}
+
+.payload summary {
+  align-items: center;
+  color: var(--ink-dim);
+  cursor: pointer;
+  display: flex;
+  font-size: 10px;
+  font-weight: 750;
+  justify-content: space-between;
+  list-style: none;
+  min-height: 46px;
+  padding: 0 17px;
+}
+
+.payload summary::-webkit-details-marker {
+  display: none;
+}
+
+.payload summary::before {
+  color: var(--lime);
+  content: "+";
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  margin-right: 8px;
+}
+
+.payload[open] summary::before {
+  content: "−";
+}
+
+.payload summary span {
+  margin-right: auto;
+}
+
+.payload summary small {
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 650;
+}
+
+.payload pre {
+  background: #090b10;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: #b8c1d3;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 9px;
+  line-height: 1.55;
+  margin: 0 12px 12px;
+  max-height: 300px;
+  overflow: auto;
+  padding: 12px;
+  tab-size: 2;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 520px) {
+  .eventTitle {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+}

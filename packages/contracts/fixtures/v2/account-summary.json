@@ -1,0 +1,57 @@
+{
+  "balance": "10330",
+  "currency": "PLAY",
+  "games": [
+    {
+      "game": "blackjack",
+      "lostRounds": 0,
+      "mixedRounds": 0,
+      "net": "100",
+      "pushedRounds": 0,
+      "returned": "200",
+      "rounds": 1,
+      "wagered": "100",
+      "wonRounds": 1
+    },
+    {
+      "game": "roulette",
+      "lostRounds": 0,
+      "mixedRounds": 1,
+      "net": "330",
+      "pushedRounds": 0,
+      "returned": "360",
+      "rounds": 1,
+      "wagered": "30",
+      "wonRounds": 0
+    }
+  ],
+  "recentRounds": [
+    {
+      "game": "roulette",
+      "outcome": "mixed",
+      "payout": "360",
+      "roundId": "00000000-0000-4000-8000-000000000002",
+      "settledAt": "2026-08-19T12:05:00.000Z",
+      "wager": "30"
+    },
+    {
+      "game": "blackjack",
+      "outcome": "win",
+      "payout": "200",
+      "roundId": "00000000-0000-4000-8000-000000000001",
+      "settledAt": "2026-08-19T12:00:00.000Z",
+      "wager": "100"
+    }
+  ],
+  "schemaVersion": 2,
+  "totals": {
+    "lostRounds": 0,
+    "mixedRounds": 1,
+    "net": "430",
+    "pushedRounds": 0,
+    "returned": "560",
+    "rounds": 2,
+    "wagered": "130",
+    "wonRounds": 1
+  }
+}

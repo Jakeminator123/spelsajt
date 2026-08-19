@@ -129,6 +129,34 @@
         "lifecycle": "active"
       },
       "summary": "Web Crypto-verifieraren i spelvyn kontrollerar commitment efter settlement och återskapar roulettepocket och faktiskt utdelad blackjackkortordning utan att påverka serverstate eller saldo; det Zod-validerade rundtranskriptet bevaras lokalt per bord för verifiering efter sidrefresh."
+    },
+    {
+      "id": "node.account-api",
+      "label": "Kontoöversikts-API",
+      "lane": "server",
+      "owner": "backend",
+      "source": "apps/game-server/src/account-summary.ts",
+      "maturity": {
+        "runtime": "implemented",
+        "contract": "zod-v2",
+        "verification": "direct",
+        "lifecycle": "active"
+      },
+      "summary": "Ett bearer-autentiserat read-model aggregerar spelarens privata PLAY-wallet och avgjorda rundor till ett strikt AccountSummaryV2 utan browsergrants till game_private."
+    },
+    {
+      "id": "node.account-view",
+      "label": "Spelarkonto",
+      "lane": "web",
+      "owner": "frontend",
+      "source": "apps/web/src/app/konto/account-panel.tsx",
+      "maturity": {
+        "runtime": "implemented",
+        "contract": "zod-v2",
+        "verification": "direct",
+        "lifecycle": "active"
+      },
+      "summary": "Den samlade /konto-ytan hanterar gäst- och Google-identitet, ägarisolerad profil samt validerad saldo-, resultat- och historikvisning från spelservern."
     }
   ],
   "connections": [
@@ -140,7 +168,9 @@
     { "from": "node.ledger", "to": "node.event-stream", "label": "committat resultat" },
     { "from": "node.event-stream", "to": "node.presentation", "label": "GameEvent v2" },
     { "from": "node.presentation", "to": "node.scene", "label": "presentation intent" },
-    { "from": "node.event-stream", "to": "node.verifier", "label": "fairness och runddata" }
+    { "from": "node.event-stream", "to": "node.verifier", "label": "fairness och runddata" },
+    { "from": "node.ledger", "to": "node.account-api", "label": "privat wallet och settlement" },
+    { "from": "node.account-api", "to": "node.account-view", "label": "AccountSummaryV2" }
   ],
   "interfaces": [
     {
@@ -228,6 +258,22 @@
       "summary": "Autentiserad reconnect-yta för ett validerat auktoritativt v2-bordssnapshot från hållbar Postgres-state.",
       "accepts": [],
       "returns": "GameSnapshotV2"
+    },
+    {
+      "id": "http.account-summary",
+      "kind": "http",
+      "method": "GET",
+      "path": "/v2/account/summary",
+      "source": "apps/game-server/src/app.ts",
+      "maturity": {
+        "runtime": "implemented",
+        "contract": "zod-v2",
+        "verification": "direct",
+        "lifecycle": "active"
+      },
+      "summary": "Bearer-autentiserad kontoöversikt med ägarisolerat PLAY-saldo, serveraggregerad spelstatistik och de senaste avgjorda rundorna.",
+      "accepts": [],
+      "returns": "AccountSummaryV2"
     },
     {
       "id": "realtime.server-ready",

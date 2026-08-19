@@ -14,6 +14,13 @@
 3. Läs den maskinläsbara modellen i `packages/system-model/models/play-money-mvp.json` när arbetet berör en nod, transport, cue eller ett scenario. Samma modell visas på `/system` i webbappen.
 4. Följ sedan den auktoritativa källan nedan; anta aldrig att en planerad rad i dokumentationen redan finns i runtime.
 
+## Plan och samarbete
+
+- `docs/MVP_PLAN.md` beskriver produktmål, leveransordning och ansvar. Den är roadmap, inte bevis för vad som redan finns; faktisk status kommer från systemkartan och runtime/tester.
+- Jakob äger normalt backendspåret: game-server, spelmotorer, fairness/RNG, ledger, Supabase och säkra read models.
+- Emil äger normalt frontendspåret: webbflöden, 3D-assets, ljud, animationer och tillgänglig presentation. Jakob kan arbeta även där när det behövs.
+- Delade kontrakt, end-to-end-flöden och gränsen mellan event och presentation granskas gemensamt. Ägarskap får aldrig lösas genom att duplicera domänlogik i frontend.
+
 ## Källor som gäller
 
 1. `packages/config/rulesets/*.json` är maskinläsbar sanning för frysta spelregler.

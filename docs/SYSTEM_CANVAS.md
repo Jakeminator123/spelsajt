@@ -24,6 +24,8 @@ flowchart LR
     FAIR["Fairness-kärna"]
     TX["Serveradapter + atomisk Postgres-ledger (implementerade)"]
     EVENTS["Persistenta sekvensnumrerade v2-events + Socket.IO"]
+    ACCOUNT_API["Account summary API /v2 (implementerat, auth + Postgres)"]
+    ACCOUNT_UI["Spelarkonto /konto"]
     PLAN["Reaction Planner (implementerad frontend)"]
     SCENE["Eventstyrd text/3D-scen (implementerad)"]
     VERIFY["Fairness-verifierare"]
@@ -32,6 +34,8 @@ flowchart LR
     API -->|"validerad avsikt"| CORE
     FAIR -->|"injicerad sko eller pocket"| CORE
     CORE -->|"ny state + domänevents + ledger intent"| TX
+    TX -->|"saldo + committade settlements"| ACCOUNT_API
+    ACCOUNT_API -->|"AccountSummaryV2"| ACCOUNT_UI
     TX -->|"committat resultat"| EVENTS
     EVENTS -->|"GameEventV2"| PLAN
     PLAN -->|"lokalt presentation intent"| SCENE
@@ -57,17 +61,18 @@ Backend avgör alltid state, utfall, payout och saldo. Frontend skickar endast s
 | Atomisk command- och settlementtjänst | Implementerad och direkt integrationstestad | Supabase Auth verifierar bearer-token; användare isoleras per bord och Postgres-adaptern committar wallet, state, fairness, ledger intents, events och command receipt i en låst transaktion. Command- och snapshotvägar hydraterar endast aktuell state, och idempotens laddar bara receipten för aktuellt command-id. Produktionsruntime har validerade tak för anslutning och statement/query; CI låser en riktig command-transaktion, verifierar timeout och återanvänder repositoryt. In-memory-adaptern finns kvar för test/utveckling. |
 | `game.event` och snapshots över realtime | Implementerade och direkt testade | En verifierad socket prenumererar med `table.subscribe`, får ett validerat snapshot som sekvensankare och därefter endast events som publicerats efter repository-commit. Eventintervall återläses med `(table_id, sequence)` som cursor i sidor om högst 128 rader; HTTP-publicering och gap-reparation fortsätter tills hela målsekvensen levererats. Transaktionell Postgres `NOTIFY` med återläsning levererar över serverinstanser. Om relän faller blir instansen oreado, befintliga sockets kopplas ned och nya nekas; servern skapar en ny begränsad LISTEN-anslutning, och reconnect återankrar från hållbar Postgres-state innan nya cross-instance-events levereras. |
 | Webbpresentation | Livekopplad och direkt testad | `/blackjack` och `/roulette` skapar eller återställer en anonym Supabase-session, skickar validerade v2-commands, återankrar från snapshots och projicerar Socket.IO-events i samma responsiva 3D-/textscen. Samtliga 24 deklarerade cues har explicita visuella intents för croupier, bord, fokus och marker, med textfallback och reduced-motion-läge. Presentationen återger endast backendens semantiska utfall. |
-| Spelarkonto | Två lokala ytor implementerade, extern OAuth ej driftverifierad | `/konto` i spelappen och den fristående `apps/player-account` använder samma Supabase-identitetsmodell. Dashboarden har `/login`, Google- och gästflöde, skyddade routes, fungerande logout samt ägarisolerad profilredigering. Saldo, statistik och historik där är uttryckligen exempeldata tills ett autentiserat account-summary-read-model finns. Lint, typkontroll, komponenttester, produktionsbygge och desktop-rendering är verifierade. Google provider, manual identity linking, redirect-allowlist, hosted migration och separat dashboarddeployment återstår innan OAuth kan verifieras i preview/produktion. |
+| Spelarkonto | Implementerad i en webbyta, extern OAuth ej driftverifierad | `/konto` i `apps/web` använder Supabase för gäst-/Google-identitet och ägarisolerad profil. Saldo, statistik och senaste rundor kommer från game-serverns bearer-skyddade `GET /v2/account/summary`, som läser auktoritativ wallet och committade settlements i `game_private` och returnerar `AccountSummaryV2`. `apps/player-account` är en pensionerad designprototyp och ska inte deployas. Google provider, manual identity linking, redirect-allowlist och hosted E2E återstår innan OAuth-flödet är driftbevisat. |
 | `/system` | Dokumentationsyta | Visar den validerade systemmodellen; den är inte ett spel eller driftbevis. |
 
 ## V2-transporten
 
-De två HTTP-routes som bär speltrafik ligger under `/v2`. I konfigurerad runtime verifierar de Supabase-token och använder repository-portens direkta Postgres-adapter; in-memory-adaptern används i isolerade tester:
+HTTP-routes för speltrafik och kontoöversikt ligger under `/v2`. I konfigurerad runtime verifierar de Supabase-token och använder repository-portens direkta Postgres-adapter; in-memory-adaptern används i isolerade tester:
 
 | Gränssnitt | Syfte | Status |
 | --- | --- | --- |
 | `POST /v2/tables/{tableId}/commands` | Gemensam, idempotent ingress för `GameCommandV2`. | Implementerad med bearer-auth, ägarisolering, atomisk Postgres-persistens och restart/replay-test. |
 | `GET /v2/tables/{tableId}/snapshot` | Auktoritativ återställning vid anslutning eller sekvensgap. | Implementerad med bearer-auth och hållbar Postgres-state. |
+| `GET /v2/account/summary` | Ägarisolerat PLAY-saldo, aggregerad spelstatistik och de 20 senaste avslutade rundorna. | Implementerad med bearer-auth, Zod-validerat `AccountSummaryV2` och server-side Postgresaggregering från wallet och committade `round.settled`-events. |
 | Socket.IO `table.subscribe` | Prenumerera på ett ägarisolerat bord med klientens senaste sekvens. | Implementerad med Supabase-token i socket-handshake, fortlöpande server-side sessionkontroll och Zod-validerat subscription/ack. |
 | Socket.IO `game.event` | En kanal för sekvensnumrerade `GameEventV2`. | Implementerad över flera serverinstanser; nya accepterade commands publiceras först efter commit, replay återutsänder inget och en tappad LISTEN-session återetableras fail-closed i samma process. |
 | Socket.IO `table.snapshot` | V2-snapshot vid reconnect eller saknade events. | Implementerad som första sekvensankare vid varje godkänd subscription. |

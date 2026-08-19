@@ -1,5 +1,6 @@
 import { mvpRuleset } from "@spelsajt/config";
 import {
+  accountRoundOutcomeV2Schema,
   commandAckV2Schema,
   gameEventV2Schema,
   type CommandAckV2,
@@ -7,6 +8,10 @@ import {
 } from "@spelsajt/contracts";
 import { Pool, type PoolClient, type PoolConfig } from "pg";
 
+import {
+  assembleAccountSummary,
+  type AccountGameAggregate,
+} from "./account-summary";
 import {
   CommandIdConflictError,
   TableOwnershipError,
@@ -39,6 +44,26 @@ interface TableRow {
 interface WalletRow {
   readonly balance: string;
   readonly id: string;
+}
+
+interface AccountAggregateRow {
+  readonly game: "blackjack" | "roulette";
+  readonly lost_rounds: string;
+  readonly mixed_rounds: string;
+  readonly pushed_rounds: string;
+  readonly returned: string;
+  readonly rounds: string;
+  readonly wagered: string;
+  readonly won_rounds: string;
+}
+
+interface AccountRecentRoundRow {
+  readonly game: "blackjack" | "roulette";
+  readonly outcome: string;
+  readonly payout: string;
+  readonly round_id: string;
+  readonly settled_at: string | Date;
+  readonly wager: string;
 }
 
 interface CommandReceiptRow {
@@ -142,6 +167,102 @@ export class PostgresGameRepository implements GameRepository {
     );
     if (result.rows[0]?.ready !== true) {
       throw new Error("The Postgres game schema is not fully migrated.");
+    }
+  }
+
+  async readAccountSummary(userId: string) {
+    const client = await this.#pool.connect();
+    try {
+      await client.query("begin isolation level repeatable read read only");
+      const wallet = await client.query<WalletRow>(
+        `select id, balance
+           from game_private.wallet_accounts
+          where user_id = $1 and currency = 'PLAY'`,
+        [userId],
+      );
+      const aggregates = await client.query<AccountAggregateRow>(
+        `with settled as (
+           select rounds.game,
+                  rounds.wager,
+                  rounds.payout,
+                  event.payload->>'outcome' outcome
+             from game_private.game_rounds rounds
+             join lateral (
+               select payload
+                 from game_private.game_events
+                where round_id = rounds.id
+                  and event_type = 'round.settled'
+                order by sequence desc
+                limit 1
+             ) event on true
+            where rounds.user_id = $1
+              and rounds.status = 'settled'
+         )
+         select game,
+                count(*)::text rounds,
+                coalesce(sum(wager), 0)::text wagered,
+                coalesce(sum(payout), 0)::text returned,
+                count(*) filter (where outcome = 'win')::text won_rounds,
+                count(*) filter (where outcome = 'loss')::text lost_rounds,
+                count(*) filter (where outcome = 'push')::text pushed_rounds,
+                count(*) filter (where outcome = 'mixed')::text mixed_rounds
+           from settled
+          group by game`,
+        [userId],
+      );
+      const recent = await client.query<AccountRecentRoundRow>(
+        `select rounds.id round_id,
+                rounds.game,
+                rounds.wager,
+                rounds.payout,
+                rounds.settled_at,
+                event.payload->>'outcome' outcome
+           from game_private.game_rounds rounds
+           join lateral (
+             select payload
+               from game_private.game_events
+              where round_id = rounds.id
+                and event_type = 'round.settled'
+              order by sequence desc
+              limit 1
+           ) event on true
+          where rounds.user_id = $1
+            and rounds.status = 'settled'
+          order by rounds.settled_at desc, rounds.id
+          limit 20`,
+        [userId],
+      );
+      await client.query("commit");
+
+      const gameAggregates: AccountGameAggregate[] = aggregates.rows.map((row) => ({
+        game: row.game,
+        lostRounds: safeCount(row.lost_rounds, "lost round count"),
+        mixedRounds: safeCount(row.mixed_rounds, "mixed round count"),
+        pushedRounds: safeCount(row.pushed_rounds, "pushed round count"),
+        returned: row.returned,
+        rounds: safeCount(row.rounds, "round count"),
+        wagered: row.wagered,
+        wonRounds: safeCount(row.won_rounds, "won round count"),
+      }));
+      return assembleAccountSummary(
+        safeInteger(wallet.rows[0]?.balance ?? startingBalance, "wallet balance"),
+        gameAggregates,
+        recent.rows.map((row) => ({
+          game: row.game,
+          outcome: accountRoundOutcomeV2Schema.parse(row.outcome),
+          payout: row.payout,
+          roundId: row.round_id,
+          settledAt: row.settled_at instanceof Date
+            ? row.settled_at.toISOString()
+            : new Date(row.settled_at).toISOString(),
+          wager: row.wager,
+        })),
+      );
+    } catch (error) {
+      await rollback(client);
+      throw error;
+    } finally {
+      client.release();
     }
   }
 
@@ -629,6 +750,14 @@ function stateFingerprint(table: StoredTable): string {
 
 function safeInteger(value: string | number, label: string): number {
   const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) {
+    throw new Error(`Database ${label} is outside the supported integer range.`);
+  }
+  return parsed;
+}
+
+function safeCount(value: string, label: string): number {
+  const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed < 0) {
     throw new Error(`Database ${label} is outside the supported integer range.`);
   }

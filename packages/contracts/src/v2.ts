@@ -72,6 +72,8 @@ function boundedCreditPattern(includeZero: boolean): RegExp {
 /** Every transport amount remains exactly representable by the numeric MVP core. */
 const creditAmountSchema = z.string().regex(boundedCreditPattern(true));
 const positiveCreditAmountSchema = z.string().regex(boundedCreditPattern(false));
+const aggregateCreditAmountSchema = z.string().regex(/^(?:0|[1-9]\d*)$/).max(64);
+const signedAggregateCreditAmountSchema = z.string().regex(/^(?:0|-?[1-9]\d*)$/).max(65);
 /** 100 roulette bets at this bound still settle below the 15-digit aggregate bound. */
 const wagerAmountSchema = z.string().regex(/^[1-9]\d*$/).max(11);
 const blackjackWagerAmountSchema = z.string().regex(/^(?:[2468]|[1-9]\d*[02468])$/).max(11);
@@ -563,6 +565,38 @@ export const commandAckV2Schema = z.discriminatedUnion("status", [
   }),
 ]);
 
+export const accountRoundOutcomeV2Schema = z.enum(["win", "loss", "push", "mixed"]);
+
+export const accountGameSummaryV2Schema = z.strictObject({
+  game: z.enum(gameNamesV2),
+  lostRounds: z.int().nonnegative(),
+  mixedRounds: z.int().nonnegative(),
+  net: signedAggregateCreditAmountSchema,
+  pushedRounds: z.int().nonnegative(),
+  returned: aggregateCreditAmountSchema,
+  rounds: z.int().nonnegative(),
+  wagered: aggregateCreditAmountSchema,
+  wonRounds: z.int().nonnegative(),
+});
+
+export const accountRecentRoundV2Schema = z.strictObject({
+  game: z.enum(gameNamesV2),
+  outcome: accountRoundOutcomeV2Schema,
+  payout: aggregateCreditAmountSchema,
+  roundId: uuidSchema,
+  settledAt: z.iso.datetime(),
+  wager: aggregateCreditAmountSchema,
+});
+
+export const accountSummaryV2Schema = z.strictObject({
+  balance: creditAmountSchema,
+  currency: z.literal("PLAY"),
+  games: z.array(accountGameSummaryV2Schema).length(gameNamesV2.length),
+  recentRounds: z.array(accountRecentRoundV2Schema).max(20),
+  schemaVersion: z.literal(contractV2SchemaVersion),
+  totals: accountGameSummaryV2Schema.omit({ game: true }),
+});
+
 export type CardV2 = z.infer<typeof cardV2Schema>;
 export type PublicCardV2 = z.infer<typeof publicCardV2Schema>;
 export type RouletteSelectionV2 = z.infer<typeof rouletteSelectionV2Schema>;
@@ -572,6 +606,10 @@ export type GameEventV2 = z.infer<typeof gameEventV2Schema>;
 export type RoundSnapshotV2 = z.infer<typeof roundSnapshotV2Schema>;
 export type GameSnapshotV2 = z.infer<typeof gameSnapshotV2Schema>;
 export type CommandAckV2 = z.infer<typeof commandAckV2Schema>;
+export type AccountRoundOutcomeV2 = z.infer<typeof accountRoundOutcomeV2Schema>;
+export type AccountGameSummaryV2 = z.infer<typeof accountGameSummaryV2Schema>;
+export type AccountRecentRoundV2 = z.infer<typeof accountRecentRoundV2Schema>;
+export type AccountSummaryV2 = z.infer<typeof accountSummaryV2Schema>;
 export type SocketAuthV2 = z.infer<typeof socketAuthV2Schema>;
 export type ServerReadyV2 = z.infer<typeof serverReadyV2Schema>;
 export type TableSubscriptionV2 = z.infer<typeof tableSubscriptionV2Schema>;
