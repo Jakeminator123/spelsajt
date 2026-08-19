@@ -5,6 +5,7 @@ Den här mappen är till för kom-ihåg-material, arbetsspecifikationer, researc
 ## Innehåll
 
 - [Dealeravatar med AI-personlighet](DEALER_AVATAR_SPEC.md) – asset-, rigg-, animations- och AI-specifikation för dealerlagret.
+- [Aktuell agent-handoff](AGENT_HANDOFF_2026-08-19.md) – verifierat utgångsläge, Meshy-beslut, assetprioritering och nästa arbetsordning.
 - [Plan för att förena Emils repo med Spelsajt](EMIL_REPO_SAMMANSLAGNING.md) – granskning av `EmaCodeHero/ava-live-blackjack` och rekommenderad målstruktur.
 - [Konto- och OAuth-notering](KONTO_OAUTH_NOTERING.md) – valt gäst-till-Google-flöde, driftinställningar och kvarvarande identitetsfrågor.
 
