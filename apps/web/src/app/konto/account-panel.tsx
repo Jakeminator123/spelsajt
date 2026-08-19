@@ -10,7 +10,11 @@ import {
   publicGameConfiguration,
   publicSupabaseConfiguration,
 } from "../_components/live-game/game-session";
-import { displayNameError, initialDisplayName } from "./account-profile";
+import {
+  displayNameError,
+  initialDisplayName,
+  profileLoadPhase,
+} from "./account-profile";
 import {
   accountOutcomeLabel,
   fetchAccountSummary,
@@ -198,6 +202,8 @@ export function AccountPanel() {
   const [phase, setPhase] = useState<PagePhase>(configuration ? "loading" : "unconfigured");
   const [displayName, setDisplayName] = useState("");
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
+  const [profileFailedUserId, setProfileFailedUserId] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -258,11 +264,14 @@ export function AccountPanel() {
         if (alive) {
           setDisplayName(name);
           setProfileUserId(sessionUserId);
+          setProfileFailedUserId(null);
+          setProfileError(null);
         }
       })
-      .catch((profileError: unknown) => {
+      .catch((requestError: unknown) => {
         if (alive) {
-          setError(profileError instanceof Error ? profileError.message : "Profilen kunde inte läsas.");
+          setProfileFailedUserId(sessionUserId);
+          setProfileError(requestError instanceof Error ? requestError.message : "Profilen kunde inte läsas.");
         }
       });
     return () => {
@@ -294,7 +303,13 @@ export function AccountPanel() {
     return () => controller.abort();
   }, [accessToken, gameServerUrl, summaryRequestKey]);
 
-  const profileLoading = Boolean(sessionUserId && profileUserId !== sessionUserId);
+  const currentProfilePhase = profileLoadPhase(
+    sessionUserId,
+    profileUserId,
+    profileFailedUserId,
+  );
+  const profileLoading = currentProfilePhase === "loading";
+  const profileFailed = currentProfilePhase === "error";
 
   async function runAuthAction(label: string, action: () => Promise<{ error: Error | null }>) {
     setBusyAction(label);
@@ -430,7 +445,13 @@ export function AccountPanel() {
       <div className={styles.accountHeading}>
         <div>
           <p className={styles.eyebrow}>DITT SPELARKONTO</p>
-          <h2>{profileLoading ? "Laddar profil…" : displayName || "Spelare"}</h2>
+          <h2>
+            {profileLoading
+              ? "Laddar profil…"
+              : profileFailed
+                ? "Profilen kunde inte laddas"
+                : displayName || "Spelare"}
+          </h2>
         </div>
         <span className={isGuest ? styles.guestBadge : styles.secureBadge}>
           <i /> {isGuest ? "Gäst" : "Säkrat"}
@@ -450,7 +471,7 @@ export function AccountPanel() {
         <label htmlFor="display-name">Spelarnamn vid bordet</label>
         <div className={styles.inputRow}>
           <input
-            disabled={profileLoading || busyAction === "profile"}
+            disabled={profileLoading || profileFailed || busyAction === "profile"}
             id="display-name"
             maxLength={32}
             minLength={2}
@@ -458,7 +479,7 @@ export function AccountPanel() {
             required
             value={displayName}
           />
-          <button disabled={profileLoading || busyAction !== null} type="submit">
+          <button disabled={profileLoading || profileFailed || busyAction !== null} type="submit">
             {busyAction === "profile" ? "Sparar…" : "Spara"}
           </button>
         </div>
@@ -497,6 +518,7 @@ export function AccountPanel() {
 
       <div className={styles.statusLine} aria-live="polite">
         {message ? <p className={styles.success}>{message}</p> : null}
+        {profileFailed && profileError ? <p className={styles.error} role="alert">{profileError}</p> : null}
         {error ? <p className={styles.error} role="alert">{error}</p> : null}
       </div>
     </section>

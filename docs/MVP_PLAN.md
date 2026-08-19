@@ -18,7 +18,7 @@ Procentestimat är kommunikation och kan ändras. En funktion räknas som implem
 
 - Den auktoritativa spelkedjan är implementerad för blackjack och europeisk roulette: autentiserade v2-commands, deterministiska motorer, fairness, atomisk Postgres-ledger, idempotens, snapshots och sekvensnumrerade realtime-events.
 - `/blackjack` och `/roulette` konsumerar liveevents. Presentationen har textfallback, reduced motion och uttömmande event-till-cue-mappning. `/3d-lab` finns för isolerad granskning av dealer-GLB och klipp.
-- `/konto` är den enda kontoappen och deployas tillsammans med `apps/web`. Den tidigare `apps/player-account` är en pensionerad designprototyp och ska inte hostas separat. Google OAuth och callback-/identity-linking-konfiguration behöver fortfarande verifieras end-to-end.
+- `/konto` är den enda kontoappen och deployas tillsammans med `apps/web`. Den tidigare `apps/player-account` är en pensionerad designprototyp och ska inte hostas separat. Profil-RLS, manual identity linking samt produktions-/lokala redirect-URL:er är verifierade i produktion; Google-providercredentials och OAuth-flödet behöver fortfarande verifieras end-to-end.
 - Kontoöversikten hämtar verkligt PLAY-saldo, aggregerad statistik och senaste rundor från ett bearer-skyddat, Zod-validerat account-summary-read-model i game-servern. Den parallella frontendens exempeldata används inte i den publika appen.
 - Nuvarande 3D-dealers är testmaterial eller procedurfallback. En produktionsgodkänd dealer med fingerben och riktiga dealerklipp återstår; kort, marker, bord och roulettehjul ska fortsätta vara separata scenobjekt.
 
