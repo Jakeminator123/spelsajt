@@ -14,6 +14,8 @@ coverage/
 .codex-log/
 .pnpm-store/
 tmp/
+apps/web/public/models/dealer/lab-imports/
+apps/web/public/models/lab-imports/
 
 # environment and secrets
 .env

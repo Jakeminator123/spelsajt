@@ -49,6 +49,12 @@ De spelbara borden finns på [http://localhost:3000/blackjack](http://localhost:
 
 Den levande systemkartan finns på [http://localhost:3000/system](http://localhost:3000/system). Den visar blackjack- och rouletteflöden från command till presentation och markerar separat vad som är implementerat, kontrakterat och planerat. Samma modell finns maskinläsbart i [`packages/system-model/models/play-money-mvp.json`](packages/system-model/models/play-money-mvp.json).
 
+### Lokalt 3D-labb
+
+[http://localhost:3000/3d-lab](http://localhost:3000/3d-lab) är ett isolerat inspektionsrum för riggade GLB-modeller, animationer, höjdskalning, skelett och referensbord. Händelseknapparna förhandsvisar endast presentationer och ansluter aldrig till game-servern eller påverkar kort, rouletteutfall och saldo.
+
+En valfri GLB kan öppnas direkt från datorn och stannar då i webbläsaren. Utvecklingspresets kan tillfälligt läggas under `apps/web/public/models/lab-imports/`; hela den katalogen är Git-ignorerad och Meshy-råfiler, ZIP, FBX och Blender-filer ska inte checkas in därifrån. Endast granskade, versionslåsta runtime-assets ska senare publiceras under den rollspecifika `apps/web/public/models/`-katalogen. Byt versionsnamn i stället för att skriva över en redan publicerad GLB.
+
 ## Kvalitetskontroll
 
 ```powershell
