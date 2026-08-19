@@ -10,6 +10,7 @@ Publika routes: [blackjack](https://spelsajt.vercel.app/blackjack), [roulette](h
 
 ```text
 apps/web                 Next.js 16, React 19 och React Three Fiber
+apps/player-account      Fristående Next.js 16-dashboard och Supabase Auth
 apps/game-server         Fastify och Socket.IO
 packages/contracts       Versionslåsta commands och events
 packages/system-model    Validerad integrationskarta och textscenarier
@@ -25,7 +26,7 @@ output/pdf               Delbar projektplan
 
 - Node 24.19.0 och pnpm 11.22.0, automatiskt pinnade via `mise.toml`.
 - Ett Supabase-projekt när auth och databas ska kopplas in.
-- Vercel används för `apps/web`. Spelservern har en verifierad, host-neutral container och en Render Blueprint för en separat långlivad process.
+- Vercel används för `apps/web`. `apps/player-account` är förberedd som ett separat webbprojekt men är ännu inte hostad. Spelservern har en verifierad, host-neutral container och en Render Blueprint för en separat långlivad process.
 
 ## Kom igång
 
@@ -37,6 +38,12 @@ pnpm dev
 ```
 
 Webbappen startar normalt på `http://localhost:3000` och spelservern på `http://localhost:4000`.
+
+Den fristående kontodashboarden startas separat på nästa lediga port:
+
+```powershell
+pnpm --filter @spelsajt/player-account dev
+```
 
 De spelbara borden finns på [http://localhost:3000/blackjack](http://localhost:3000/blackjack) och [http://localhost:3000/roulette](http://localhost:3000/roulette). De återanvänder en persisterad anonym Supabase-session, skickar kontraktsvaliderade v2-commands till spelservern och återankrar från snapshots över Socket.IO. Om publik Supabase-konfiguration eller spelserver-URL saknas visas ett uttryckligt konfigurationsfel; webben faller aldrig tillbaka till lokalt beräknade utfall.
 
@@ -70,7 +77,7 @@ pnpm db:verify
 
 ## Deploy
 
-Webbappen länkas som ett Vercel-projekt med root directory `apps/web`. Koppla därefter GitHub-repot för automatiska previewdeployments på varje pull request. `.vercel/` och alla hemligheter är ignorerade av Git.
+Webbappen länkas som ett Vercel-projekt med root directory `apps/web`. Koppla därefter GitHub-repot för automatiska previewdeployments på varje pull request. Kontodashboarden kan senare länkas som ett separat Vercel-projekt med root directory `apps/player-account`; Supabase-provider, callback-allowlist och miljövariabler ska då konfigureras innan den betraktas som driftklar. `.vercel/` och alla hemligheter är ignorerade av Git.
 
 Spelserverns produktionsimage byggs från reporoten och kan köras på en valfri långlivad containerhost:
 

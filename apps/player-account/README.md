@@ -1,22 +1,29 @@
 # @spelsajt/player-account
 
-Spelarens kontosida / dashboard (play-money). Genererad i v0 och tillagd som
-en egen app i monorepot för granskning och integration.
+Fristående spelar-dashboard för Spelsajts play-money-konton. Appen härstammar från
+`player-ac-site`, men bank-, betalnings- och adminmallar har tagits bort.
 
-## Innehåll
-- Profilhuvud med rank och nivå-XP
-- Nyckeltal: kreditsaldo, antal spelade rundor, vinstprocent, nettoresultat
-- Kreditsaldo-kort (play-money)
-- Veckoaktivitet (diagram)
-- Fördelning Blackjack vs europeisk Roulette
-- Tabell med senaste rundor: bord-id, sekvensnummer, utfall
-  (win/loss/push/mixed) och fairness-verifiering (commit/reveal)
+## Implementerat
 
-Datamodellen i `lib/player-data.ts` speglar systemets v2 command/event-flöde
-men innehåller för närvarande exempeldata. Nästa steg är att koppla den mot
-Supabase / event-strömmen för riktig spelardata.
+- `/login` utan dashboard-chrome
+- Google OAuth via Supabase
+- anonymt gästkonto via Supabase
+- logout tillbaka till `/login`
+- skyddad dashboardyta för aktiv session
+- profilskapning och profiluppdatering under RLS
+- länkning av gästidentitet till Google
+- sajtens Inter Tight/Bricolage Grotesque och lime/violetta designsystem
 
-## Status
-- Stack: Next.js 16.3.1, React 19, Tailwind v3, shadcn/ui
-- Fristående app; ännu ej inkopplad mot `@spelsajt/*`-paketen eller Supabase
-- Kör lokalt: `pnpm --filter @spelsajt/player-account dev`
+Dashboardens saldo, statistik och historik är ännu **tydligt märkt exempeldata**. Den får
+inte betraktas som auktoritativ förrän spelservern exponerar ett autentiserat,
+kontrakterat account-summary-read-model. Frontend får aldrig räkna fram eller ändra saldo.
+
+## Miljö
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` eller äldre `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- valfri `NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL` för en fast preview-callback
+- valfri `NEXT_PUBLIC_GAME_APP_URL` för länkar tillbaka till spelappen
+
+Kopiera `.env.example` till `.env.local` och kör lokalt med
+`pnpm --filter @spelsajt/player-account dev`.

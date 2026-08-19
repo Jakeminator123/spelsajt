@@ -1,81 +1,53 @@
-"use client"
-import { ThemeToggle } from "./theme-toggle"
-import { Notifications } from "./notifications"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { useSettings } from "@/contexts/settings-context"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-import React from "react"
+"use client";
+
+import { LogOut, Settings } from "lucide-react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
+
+import { initialDisplayName } from "@/lib/profile";
+
+import { useAuth } from "./auth/auth-provider";
 
 export function TopNav() {
-  const pathname = usePathname()
-  const pathSegments = pathname.split("/").filter(Boolean)
-  const { settings } = useSettings()
+  const { client, session } = useAuth();
+  const pathname = usePathname();
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const displayName = session ? initialDisplayName(session.user) : "Spelare";
+  const initials = displayName.split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
+
+  async function signOut() {
+    if (!client) return;
+    setBusy(true);
+    const result = await client.auth.signOut();
+    if (result.error) {
+      setBusy(false);
+      return;
+    }
+    router.replace("/login");
+    router.refresh();
+  }
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background">
-      <div className="container flex h-16 items-center justify-between px-4 md:px-6">
-        <div className="hidden md:block">
-          <nav className="flex items-center space-x-2">
-            <Link href="/" className="text-sm font-medium">
-              Mitt konto
-            </Link>
-            {pathSegments.map((segment, index) => (
-              <React.Fragment key={segment}>
-                <span className="text-muted-foreground">/</span>
-                <Link href={`/${pathSegments.slice(0, index + 1).join("/")}`} className="text-sm font-medium">
-                  {segment.charAt(0).toUpperCase() + segment.slice(1)}
-                </Link>
-              </React.Fragment>
-            ))}
-          </nav>
+    <header className="sticky top-0 z-30 border-b border-white/[0.07] bg-[#08090c]/85 backdrop-blur-xl">
+      <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Spelsajt</p>
+          <p className="font-display text-sm font-semibold">{pathname === "/settings" ? "Inställningar" : "Mitt konto"}</p>
         </div>
-        <div className="flex items-center gap-4">
-          <Notifications />
-          <ThemeToggle />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={settings.avatar} alt={settings.fullName} />
-                  <AvatarFallback>
-                    {settings.fullName
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")}
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end" forceMount>
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{settings.fullName}</p>
-                  <p className="text-xs leading-none text-muted-foreground">{settings.email}</p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/settings">Profile</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/settings">Settings</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem>Log out</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Link className="hidden rounded-full border border-white/10 px-4 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-white/[0.05] hover:text-white sm:inline-flex" href="/settings">
+            <Settings aria-hidden="true" className="mr-2 h-4 w-4" /> Profil
+          </Link>
+          <span aria-hidden="true" className="grid h-9 w-9 place-items-center rounded-full border border-primary/30 bg-primary/10 text-xs font-bold text-primary">{initials || "S"}</span>
+          <button className="inline-flex items-center rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-white/[0.05] hover:text-white disabled:opacity-50" disabled={busy} onClick={signOut} type="button">
+            <LogOut aria-hidden="true" className="mr-2 h-4 w-4" />
+            {busy ? "Loggar ut…" : "Logga ut"}
+          </button>
         </div>
       </div>
     </header>
-  )
+  );
 }
-
