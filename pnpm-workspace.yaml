@@ -3,6 +3,7 @@ packages:
   - "packages/*"
 
 allowBuilds:
+  agent-browser: true
   esbuild: true
   sharp: true
   supabase: true
