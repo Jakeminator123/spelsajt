@@ -9,6 +9,10 @@
       "dependsOn": ["^build"],
       "outputs": [".next/**", "!.next/cache/**"]
     },
+    "@spelsajt/player-account#build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**"]
+    },
     "@spelsajt/game-server#build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]

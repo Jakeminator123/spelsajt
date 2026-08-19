@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 228 20% 4%;
+    --foreground: 230 24% 96%;
+    --muted: 230 18% 11%;
+    --muted-foreground: 231 11% 57%;
+    --card: 229 22% 8%;
+    --card-foreground: 230 24% 96%;
+    --border: 230 16% 18%;
+    --input: 230 16% 18%;
+    --primary: 75 86% 63%;
+    --primary-foreground: 78 52% 6%;
+    --secondary: 231 19% 13%;
+    --secondary-foreground: 230 24% 96%;
+    --accent: 75 86% 63%;
+    --accent-foreground: 78 52% 6%;
+    --violet: 251 100% 68%;
+    --destructive: 354 100% 65%;
+    --destructive-foreground: 0 0% 98%;
+    --ring: 75 86% 63%;
+    --radius: 1rem;
+  }
+
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html {
+    background: #08090c;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    background:
+      radial-gradient(circle at 84% -6%, rgba(124, 92, 255, 0.16), transparent 42rem),
+      radial-gradient(circle at 4% 8%, rgba(198, 242, 78, 0.09), transparent 36rem),
+      linear-gradient(180deg, #08090c 0%, #0a0b10 46%, #06070a 100%);
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: "ss01", "cv01";
+    letter-spacing: -0.011em;
+    margin: 0;
+    min-height: 100vh;
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display), var(--font-sans), sans-serif;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible {
+    outline: 2px solid #c6f24e;
+    outline-offset: 3px;
+  }
+}
+
+@layer utilities {
+  .text-violet {
+    color: hsl(var(--violet));
+  }
+
+  .bg-violet-soft {
+    background: hsl(var(--violet) / 0.14);
+  }
+}
