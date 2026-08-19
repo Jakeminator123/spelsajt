@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  accountOutcomeShares,
   accountOutcomeLabel,
+  accountWinRate,
   fetchAccountSummary,
   formatPlayAmount,
 } from "./account-summary";
@@ -84,5 +86,42 @@ describe("account summary client", () => {
     expect(formatPlayAmount("330", true).startsWith("+")).toBe(true);
     expect(formatPlayAmount("-30", true)).toContain("-30");
     expect(accountOutcomeLabel("mixed")).toBe("Blandat");
+  });
+
+  it("derives presentation metrics from the authoritative round totals", () => {
+    const totals = {
+      lostRounds: 2,
+      mixedRounds: 1,
+      net: "125",
+      pushedRounds: 1,
+      returned: "925",
+      rounds: 10,
+      wagered: "800",
+      wonRounds: 6,
+    };
+
+    expect(accountWinRate(totals)).toBe(60);
+    expect(accountOutcomeShares(totals)).toEqual([
+      { label: "Vinst", outcome: "win", percentage: 60, rounds: 6 },
+      { label: "Förlust", outcome: "loss", percentage: 20, rounds: 2 },
+      { label: "Oavgjort", outcome: "push", percentage: 10, rounds: 1 },
+      { label: "Blandat", outcome: "mixed", percentage: 10, rounds: 1 },
+    ]);
+  });
+
+  it("keeps empty-account percentages finite and explicit", () => {
+    const totals = {
+      lostRounds: 0,
+      mixedRounds: 0,
+      net: "0",
+      pushedRounds: 0,
+      returned: "0",
+      rounds: 0,
+      wagered: "0",
+      wonRounds: 0,
+    };
+
+    expect(accountWinRate(totals)).toBe(0);
+    expect(accountOutcomeShares(totals).every((share) => share.percentage === 0)).toBe(true);
   });
 });

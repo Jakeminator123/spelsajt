@@ -15,11 +15,8 @@ import {
   initialDisplayName,
   profileLoadPhase,
 } from "./account-profile";
-import {
-  accountOutcomeLabel,
-  fetchAccountSummary,
-  formatPlayAmount,
-} from "./account-summary";
+import { AccountDashboard, type AccountSummaryPhase } from "./account-dashboard";
+import { fetchAccountSummary } from "./account-summary";
 import styles from "./account.module.css";
 
 interface ProfileRow {
@@ -27,7 +24,6 @@ interface ProfileRow {
 }
 
 type PagePhase = "loading" | "ready" | "unconfigured";
-type SummaryPhase = "idle" | "loading" | "ready" | "error" | "unconfigured";
 
 interface SummaryRequestState {
   readonly error: string | null;
@@ -85,113 +81,6 @@ function GoogleMark() {
   );
 }
 
-function gameLabel(game: "blackjack" | "roulette"): string {
-  return game === "blackjack" ? "Blackjack" : "Roulette";
-}
-
-function roundDate(value: string): string {
-  return new Intl.DateTimeFormat("sv-SE", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
-
-function AccountSummary({
-  onReload,
-  phase,
-  summary,
-  summaryError,
-}: {
-  readonly onReload: () => void;
-  readonly phase: SummaryPhase;
-  readonly summary: AccountSummaryV2 | null;
-  readonly summaryError: string | null;
-}) {
-  return (
-    <section className={styles.summaryCard} aria-busy={phase === "loading"}>
-      <div className={styles.summaryHeading}>
-        <div>
-          <p className={styles.eyebrow}>AUKTORITATIV SPELÖVERSIKT</p>
-          <h3>Saldo och resultat</h3>
-        </div>
-        <button disabled={phase === "loading"} onClick={onReload} type="button">
-          Uppdatera
-        </button>
-      </div>
-
-      {phase === "loading" || phase === "idle" ? (
-        <p className={styles.summaryMessage}>Hämtar saldo och spelhistorik…</p>
-      ) : null}
-      {phase === "unconfigured" ? (
-        <p className={styles.summaryMessage}>
-          Spelserverns publika URL saknas i den här miljön. Profilen fungerar, men saldo kan inte visas säkert.
-        </p>
-      ) : null}
-      {phase === "error" ? (
-        <p className={styles.summaryError} role="alert">{summaryError}</p>
-      ) : null}
-
-      {phase === "ready" && summary ? (
-        <>
-          <div className={styles.balanceOverview}>
-            <span>Tillgängligt saldo</span>
-            <strong>{formatPlayAmount(summary.balance)}</strong>
-            <small>{summary.currency}</small>
-          </div>
-
-          <div className={styles.summaryStats}>
-            <div><span>Rundor</span><strong>{summary.totals.rounds}</strong></div>
-            <div><span>Vunna</span><strong>{summary.totals.wonRounds}</strong></div>
-            <div><span>Förlorade</span><strong>{summary.totals.lostRounds}</strong></div>
-            <div>
-              <span>Netto</span>
-              <strong data-value={BigInt(summary.totals.net) < 0n ? "negative" : "positive"}>
-                {formatPlayAmount(summary.totals.net, true)}
-              </strong>
-            </div>
-          </div>
-
-          <div className={styles.gameSummaries}>
-            {summary.games.map((game) => (
-              <article key={game.game}>
-                <div><strong>{gameLabel(game.game)}</strong><span>{game.rounds} rundor</span></div>
-                <p>
-                  <span>Insatt {formatPlayAmount(game.wagered)}</span>
-                  <b data-value={BigInt(game.net) < 0n ? "negative" : "positive"}>
-                    {formatPlayAmount(game.net, true)} PLAY
-                  </b>
-                </p>
-              </article>
-            ))}
-          </div>
-
-          <div className={styles.recentRounds}>
-            <h4>Senaste rundorna</h4>
-            {summary.recentRounds.length === 0 ? (
-              <p className={styles.emptyRounds}>Inga avgjorda rundor ännu.</p>
-            ) : (
-              <ol>
-                {summary.recentRounds.slice(0, 5).map((round) => (
-                  <li key={round.roundId}>
-                    <div>
-                      <strong>{gameLabel(round.game)}</strong>
-                      <span>{roundDate(round.settledAt)}</span>
-                    </div>
-                    <div>
-                      <span data-outcome={round.outcome}>{accountOutcomeLabel(round.outcome)}</span>
-                      <small>{formatPlayAmount(round.wager)} → {formatPlayAmount(round.payout)} PLAY</small>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </div>
-        </>
-      ) : null}
-    </section>
-  );
-}
-
 export function AccountPanel() {
   const [configuration] = useState(publicSupabaseConfiguration);
   const [client] = useState<SupabaseClient | null>(() => (
@@ -219,7 +108,7 @@ export function AccountPanel() {
   const summaryRequestKey = accessToken && gameServerUrl
     ? `${accessToken}:${summaryReload}`
     : null;
-  const summaryPhase: SummaryPhase = !accessToken
+  const summaryPhase: AccountSummaryPhase = !accessToken
     ? "idle"
     : !gameServerUrl
       ? "unconfigured"
@@ -439,82 +328,106 @@ export function AccountPanel() {
   }
 
   const isGuest = session.user.is_anonymous === true;
+  const accountName = profileLoading
+    ? "Laddar profil…"
+    : profileFailed
+      ? "Profilen kunde inte laddas"
+      : displayName || "Spelare";
 
   return (
-    <section className={styles.panel}>
-      <div className={styles.accountHeading}>
-        <div>
-          <p className={styles.eyebrow}>DITT SPELARKONTO</p>
-          <h2>
-            {profileLoading
-              ? "Laddar profil…"
-              : profileFailed
-                ? "Profilen kunde inte laddas"
-                : displayName || "Spelare"}
-          </h2>
+    <section className={styles.dashboard}>
+      <header className={styles.playerHero}>
+        <div className={styles.playerIdentity}>
+          <div className={styles.heroAvatar} aria-hidden="true">
+            {(displayName || "S").slice(0, 1).toUpperCase()}
+          </div>
+          <div>
+            <p className={styles.eyebrow}>DIN PLATS VID BORDET</p>
+            <h1>{accountName}</h1>
+            <div className={styles.identityMeta}>
+              <span>{providerLabel(session.user)}</span>
+              <span>Spelar-id {session.user.id.slice(0, 8)}</span>
+            </div>
+          </div>
         </div>
-        <span className={isGuest ? styles.guestBadge : styles.secureBadge}>
-          <i /> {isGuest ? "Gäst" : "Säkrat"}
-        </span>
-      </div>
-
-      <div className={styles.identityCard}>
-        <div className={styles.avatar}>{(displayName || "S").slice(0, 1).toUpperCase()}</div>
-        <div>
-          <span>Inloggning</span>
-          <strong>{providerLabel(session.user)}</strong>
-          <small>Spelar-id · {session.user.id.slice(0, 8)}</small>
+        <div className={styles.heroActions}>
+          <span className={isGuest ? styles.guestBadge : styles.secureBadge}>
+            <i /> {isGuest ? "Gästkonto" : "Säkrat konto"}
+          </span>
+          <Link className={styles.primaryLink} href="/blackjack">Spela blackjack</Link>
         </div>
-      </div>
+      </header>
 
-      <form className={styles.profileForm} onSubmit={saveProfile}>
-        <label htmlFor="display-name">Spelarnamn vid bordet</label>
-        <div className={styles.inputRow}>
-          <input
-            disabled={profileLoading || profileFailed || busyAction === "profile"}
-            id="display-name"
-            maxLength={32}
-            minLength={2}
-            onChange={(event) => setDisplayName(event.target.value)}
-            required
-            value={displayName}
-          />
-          <button disabled={profileLoading || profileFailed || busyAction !== null} type="submit">
-            {busyAction === "profile" ? "Sparar…" : "Spara"}
-          </button>
-        </div>
-      </form>
-
-      <AccountSummary
+      <AccountDashboard
         onReload={() => setSummaryReload((current) => current + 1)}
         phase={summaryPhase}
         summary={summary}
         summaryError={summaryError}
       />
 
-      {isGuest ? (
-        <div className={styles.upgradeCard}>
-          <span className={styles.upgradeGlow} />
-          <p className={styles.eyebrow}>BEHÅLL SAMMA SPELAR-ID</p>
-          <h3>Säkra gästkontot.</h3>
-          <p>Google länkas till den här identiteten, så bord, profil och PLAY-historik fortsätter på samma konto.</p>
-          <button className={styles.googleButton} disabled={busyAction !== null} onClick={secureGuestWithGoogle} type="button">
-            <GoogleMark />
-            {busyAction === "link" ? "Öppnar Google…" : "Säkra med Google"}
-          </button>
-          <button className={styles.textButton} disabled={busyAction !== null} onClick={signInWithGoogle} type="button">
-            Jag har redan ett Google-konto
-          </button>
-          <small>Väljer du ett befintligt konto flyttas inte den här gästens saldo automatiskt ännu.</small>
-        </div>
-      ) : (
-        <div className={styles.accountActions}>
-          <Link className={styles.primaryLink} href="/blackjack">Spela blackjack</Link>
-          <button className={styles.textButton} disabled={busyAction !== null} onClick={signOut} type="button">
-            {busyAction === "signout" ? "Loggar ut…" : "Logga ut"}
-          </button>
-        </div>
-      )}
+      <div className={styles.settingsGrid}>
+        <section className={styles.settingsCard} id="profil">
+          <div className={styles.cardHeading}>
+            <div>
+              <p className={styles.eyebrow}>PROFIL</p>
+              <h3>Spelarnamn</h3>
+            </div>
+            <span>Syns vid bordet</span>
+          </div>
+          <form className={styles.profileForm} onSubmit={saveProfile}>
+            <label htmlFor="display-name">Visningsnamn</label>
+            <div className={styles.inputRow}>
+              <input
+                disabled={profileLoading || profileFailed || busyAction === "profile"}
+                id="display-name"
+                maxLength={32}
+                minLength={2}
+                onChange={(event) => setDisplayName(event.target.value)}
+                required
+                value={displayName}
+              />
+              <button disabled={profileLoading || profileFailed || busyAction !== null} type="submit">
+                {busyAction === "profile" ? "Sparar…" : "Spara"}
+              </button>
+            </div>
+          </form>
+        </section>
+
+        {isGuest ? (
+          <section className={`${styles.settingsCard} ${styles.upgradeCard}`}>
+            <span className={styles.upgradeGlow} />
+            <div className={styles.cardHeading}>
+              <div>
+                <p className={styles.eyebrow}>BEHÅLL SAMMA SPELAR-ID</p>
+                <h3>Säkra gästkontot</h3>
+              </div>
+            </div>
+            <p>Google länkas till identiteten du redan använder. Profil, PLAY-saldo och historik stannar på samma konto.</p>
+            <button className={styles.googleButton} disabled={busyAction !== null} onClick={secureGuestWithGoogle} type="button">
+              <GoogleMark />
+              {busyAction === "link" ? "Öppnar Google…" : "Säkra med Google"}
+            </button>
+            <button className={styles.textButton} disabled={busyAction !== null} onClick={signInWithGoogle} type="button">
+              Jag har redan ett annat Google-konto
+            </button>
+            <small>Ett befintligt annat konto övertar inte gästens saldo automatiskt ännu.</small>
+          </section>
+        ) : (
+          <section className={styles.settingsCard}>
+            <div className={styles.cardHeading}>
+              <div>
+                <p className={styles.eyebrow}>KONTOSÄKERHET</p>
+                <h3>Google är anslutet</h3>
+              </div>
+              <span className={styles.secureStatus}><i /> Aktiv</span>
+            </div>
+            <p className={styles.settingsCopy}>Du kan komma tillbaka till samma spelar-id, saldo och historik på fler enheter.</p>
+            <button className={styles.signOutButton} disabled={busyAction !== null} onClick={signOut} type="button">
+              {busyAction === "signout" ? "Loggar ut…" : "Logga ut"}
+            </button>
+          </section>
+        )}
+      </div>
 
       <div className={styles.statusLine} aria-live="polite">
         {message ? <p className={styles.success}>{message}</p> : null}

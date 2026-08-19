@@ -4,6 +4,13 @@ import {
   type AccountSummaryV2,
 } from "@spelsajt/contracts";
 
+export interface AccountOutcomeShare {
+  readonly label: string;
+  readonly outcome: AccountRoundOutcomeV2;
+  readonly percentage: number;
+  readonly rounds: number;
+}
+
 export async function fetchAccountSummary(
   gameServerUrl: string,
   accessToken: string,
@@ -43,4 +50,29 @@ export function accountOutcomeLabel(outcome: AccountRoundOutcomeV2): string {
     case "mixed":
       return "Blandat";
   }
+}
+
+export function accountWinRate(
+  totals: Pick<AccountSummaryV2["totals"], "rounds" | "wonRounds">,
+): number {
+  if (totals.rounds === 0) return 0;
+  return Math.round((totals.wonRounds / totals.rounds) * 100);
+}
+
+export function accountOutcomeShares(
+  totals: AccountSummaryV2["totals"],
+): readonly AccountOutcomeShare[] {
+  const outcomes = [
+    ["win", totals.wonRounds],
+    ["loss", totals.lostRounds],
+    ["push", totals.pushedRounds],
+    ["mixed", totals.mixedRounds],
+  ] as const;
+
+  return outcomes.map(([outcome, rounds]) => ({
+    label: accountOutcomeLabel(outcome),
+    outcome,
+    percentage: totals.rounds === 0 ? 0 : Math.round((rounds / totals.rounds) * 100),
+    rounds,
+  }));
 }
