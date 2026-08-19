@@ -7,11 +7,13 @@ import { bearerToken, rejectAllAuthVerifier, type AuthVerifier } from "./auth";
 import { GameEventBus, type GameEventBusPort } from "./event-bus";
 import { InMemoryGameRepository } from "./in-memory-repository";
 import { TableOwnershipError, type GameRepository } from "./repository";
+import { webOriginAllowlist } from "./runtime";
 
 export interface BuildAppOptions extends GameApplicationOptions {
   readonly authVerifier?: AuthVerifier;
   readonly eventBus?: GameEventBusPort;
   readonly repository?: GameRepository;
+  readonly webOrigins?: readonly string[];
 }
 
 export interface GameServerServices {
@@ -51,7 +53,7 @@ export function buildApp(options: BuildAppOptions = {}) {
   });
 
   void app.register(cors, {
-    origin: process.env.WEB_ORIGIN ?? "http://localhost:3000",
+    origin: [...(options.webOrigins ?? webOriginAllowlist())],
   });
 
   const repository: GameRepository = options.repository ?? new InMemoryGameRepository();

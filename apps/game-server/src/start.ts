@@ -4,6 +4,7 @@ import {
   gameServerBinding,
   runtimeDependencies,
   socketAuthRevalidationInterval,
+  webOriginAllowlist,
 } from "./runtime";
 
 try {
@@ -15,9 +16,11 @@ try {
 }
 
 const authRevalidationIntervalMs = socketAuthRevalidationInterval();
-const app = buildApp(runtimeDependencies());
+const webOrigins = webOriginAllowlist();
+const app = buildApp({ ...runtimeDependencies(), webOrigins });
 const realtime = attachRealtime(app, {
   authRevalidationIntervalMs,
+  webOrigins,
 });
 const { host, port } = gameServerBinding();
 

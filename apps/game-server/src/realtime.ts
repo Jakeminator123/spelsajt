@@ -14,6 +14,7 @@ import type { FastifyInstance } from "fastify";
 import { Server } from "socket.io";
 
 import { TableOwnershipError } from "./repository";
+import { webOriginAllowlist } from "./runtime";
 
 interface ClientToServerEvents {
   "table.subscribe": (
@@ -35,6 +36,7 @@ interface SocketData {
 
 export interface RealtimeOptions {
   readonly authRevalidationIntervalMs?: number;
+  readonly webOrigins?: readonly string[];
 }
 
 export type GameRealtimeServer = Server<
@@ -48,14 +50,19 @@ export function attachRealtime(
   app: FastifyInstance,
   options: RealtimeOptions = {},
 ): GameRealtimeServer {
-  const allowedOrigin = process.env.WEB_ORIGIN ?? "http://localhost:3000";
+  const allowedOrigins = [...(options.webOrigins ?? webOriginAllowlist())];
+  const allowedOriginSet = new Set(allowedOrigins);
   const { application, authVerifier, eventBus } = app.gameServices;
   const authRevalidationIntervalMs = options.authRevalidationIntervalMs ?? 60_000;
   if (!Number.isSafeInteger(authRevalidationIntervalMs) || authRevalidationIntervalMs <= 0) {
     throw new Error("authRevalidationIntervalMs must be a positive safe integer.");
   }
   const io: GameRealtimeServer = new Server(app.server, {
-    cors: { origin: allowedOrigin },
+    allowRequest: (request, callback) => {
+      const origin = request.headers.origin;
+      callback(null, origin === undefined || allowedOriginSet.has(origin));
+    },
+    cors: { origin: allowedOrigins },
     transports: ["websocket"],
   });
 

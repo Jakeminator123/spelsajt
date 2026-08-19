@@ -84,6 +84,33 @@ afterEach(async () => {
 });
 
 describe("game server", () => {
+  it("allows only configured browser origins over HTTP", async () => {
+    const productionOrigin = "https://spelsajt.example";
+    const previewOrigin = "https://preview.spelsajt.example";
+    const app = buildApp({ webOrigins: [productionOrigin, previewOrigin] });
+    openApps.push(app);
+
+    const preview = await app.inject({
+      headers: {
+        "access-control-request-method": "GET",
+        origin: previewOrigin,
+      },
+      method: "OPTIONS",
+      url: "/health",
+    });
+    const unknown = await app.inject({
+      headers: {
+        "access-control-request-method": "GET",
+        origin: "https://unknown.example",
+      },
+      method: "OPTIONS",
+      url: "/health",
+    });
+
+    expect(preview.headers["access-control-allow-origin"]).toBe(previewOrigin);
+    expect(unknown.headers["access-control-allow-origin"]).toBeUndefined();
+  });
+
   it("reports a healthy play-money service", async () => {
     const app = buildApp();
     openApps.push(app);

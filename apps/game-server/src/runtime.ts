@@ -7,7 +7,40 @@ import type { GameRepository } from "./repository";
 export const defaultSocketAuthRevalidationIntervalMs = 60_000;
 export const defaultPostgresConnectionTimeoutMs = 5_000;
 export const defaultPostgresStatementTimeoutMs = 10_000;
+export const defaultWebOrigin = "http://localhost:3000";
 export const supabaseDatabaseRootCertificatePath = "certs/supabase-root-2021-ca.crt";
+
+export function webOriginAllowlist(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): string[] {
+  const configured = env.WEB_ORIGIN ?? defaultWebOrigin;
+  const origins = configured
+    .split(",")
+    .map((candidate) => candidate.trim())
+    .filter(Boolean);
+  if (origins.length === 0) {
+    throw new Error("WEB_ORIGIN must contain at least one HTTP or HTTPS origin.");
+  }
+
+  return [...new Set(origins.map((candidate) => {
+    let parsed: URL;
+    try {
+      parsed = new URL(candidate);
+    } catch {
+      throw new Error("WEB_ORIGIN must contain only valid HTTP or HTTPS origins.");
+    }
+    const isBareOrigin = candidate === parsed.origin || candidate === `${parsed.origin}/`;
+    if (
+      (parsed.protocol !== "http:" && parsed.protocol !== "https:")
+      || parsed.username !== ""
+      || parsed.password !== ""
+      || !isBareOrigin
+    ) {
+      throw new Error("WEB_ORIGIN must contain only bare HTTP or HTTPS origins.");
+    }
+    return parsed.origin;
+  }))];
+}
 
 export interface GameServerBinding {
   readonly host: string;

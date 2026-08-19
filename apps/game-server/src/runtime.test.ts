@@ -10,9 +10,31 @@ import {
   secureSupabaseDatabaseUrl,
   socketAuthRevalidationInterval,
   supabaseDatabaseRootCertificatePath,
+  webOriginAllowlist,
 } from "./runtime";
 
 describe("runtime dependencies", () => {
+  it("parses an exact, normalized web-origin allowlist", () => {
+    expect(webOriginAllowlist({})).toEqual(["http://localhost:3000"]);
+    expect(webOriginAllowlist({
+      WEB_ORIGIN: "https://spelsajt.vercel.app, https://preview.example/ ,https://spelsajt.vercel.app",
+    })).toEqual([
+      "https://spelsajt.vercel.app",
+      "https://preview.example",
+    ]);
+  });
+
+  it.each([
+    "",
+    "*",
+    "ftp://spelsajt.example",
+    "https://user:secret@spelsajt.example",
+    "https://spelsajt.example/path",
+    "https://spelsajt.example?preview=true",
+  ])("rejects unsafe WEB_ORIGIN value %s", (configured) => {
+    expect(() => webOriginAllowlist({ WEB_ORIGIN: configured })).toThrow("WEB_ORIGIN");
+  });
+
   it("uses Render's standard PORT while preserving local and explicit overrides", () => {
     expect(gameServerBinding({})).toEqual({ host: "127.0.0.1", port: 4_000 });
     expect(gameServerBinding({ PORT: "10000" })).toEqual({

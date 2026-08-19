@@ -23,7 +23,7 @@ services:
       - key: GAME_SERVER_HOST
         value: "0.0.0.0"
       - key: WEB_ORIGIN
-        value: "https://spelsajt.vercel.app"
+        value: "https://spelsajt.vercel.app,https://spelsajt-git-troubleshooting-support-jakeminator123s-projects.vercel.app"
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_PUBLISHABLE_KEY

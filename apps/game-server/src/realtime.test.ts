@@ -197,6 +197,37 @@ afterEach(async () => {
 });
 
 describe("game realtime", () => {
+  it("allows configured browser origins and rejects other WebSocket origins", async () => {
+    const previewOrigin = "https://preview.spelsajt.example";
+    const app = buildApp({ authVerifier, webOrigins: [previewOrigin] });
+    openApps.add(app);
+    const io = attachRealtime(app, { webOrigins: [previewOrigin] });
+    openRealtime.add(io);
+    const address = await app.listen({ host: "127.0.0.1", port: 0 });
+
+    const allowed = createSocket(address, {
+      auth: { accessToken: "owner-token", schemaVersion: 2 },
+      extraHeaders: { Origin: previewOrigin },
+      forceNew: true,
+      reconnection: false,
+      transports: ["websocket"],
+    });
+    openSockets.add(allowed);
+    await eventOnce(allowed, "connect");
+    expect(allowed.connected).toBe(true);
+
+    const denied = createSocket(address, {
+      auth: { accessToken: "owner-token", schemaVersion: 2 },
+      extraHeaders: { Origin: "https://unknown.example" },
+      forceNew: true,
+      reconnection: false,
+      transports: ["websocket"],
+    });
+    openSockets.add(denied);
+    await eventOnce(denied, "connect_error");
+    expect(denied.connected).toBe(false);
+  });
+
   it("repairs a sequence gap when committed publish batches arrive out of order", async () => {
     const eventBus = new ReorderingEventBus();
     const repository = new TinyEventPageRepository();
