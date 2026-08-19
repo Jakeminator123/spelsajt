@@ -11,6 +11,9 @@ importers:
       '@types/node':
         specifier: 24.13.3
         version: 24.13.3
+      agent-browser:
+        specifier: 0.27.0
+        version: 0.27.0
       supabase:
         specifier: 2.114.0
         version: 2.114.0
@@ -1744,6 +1747,10 @@ packages:
   acorn@8.18.0:
     resolution: {integrity: sha512-lGq+9yr1/GuAWaVYIHRjvvySG5/4VfKIvC8EWxStPdcDh/Ka7FG3twP6v4d5BkravUilhIAsG4Qj83t02LWUPQ==}
     engines: {node: '>=0.4.0'}
+    hasBin: true
+
+  agent-browser@0.27.0:
+    resolution: {integrity: sha512-mmHzVsYFVA6nshNNGJzg83aVMgKpf4h98ytY3pvtJB1Cot0ZyA2bfnkbSngGD56Azkj+GlhVH6qx9DfKOVE0yg==}
     hasBin: true
 
   ajv-formats@3.0.1:
@@ -5000,6 +5007,8 @@ snapshots:
       acorn: 8.18.0
 
   acorn@8.18.0: {}
+
+  agent-browser@0.27.0: {}
 
   ajv-formats@3.0.1(ajv@8.20.0):
     optionalDependencies:
