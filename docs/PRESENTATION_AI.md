@@ -2,6 +2,8 @@
 
 Det här dokumentet beskriver hur Jakob och Emil kopplar ihop de auktoritativa blackjack- och roulettemotorerna med en responsiv casinopresentation. Målet är att scenen ska kännas levande utan att animation, tema eller AI någonsin kan ändra spelutfall, regler eller PLAY-saldo.
 
+Det implementerbara asset-, animations-, personlighets- och AI-kontraktet finns i [Dealeravatar-specifikationen](../övrigt/DEALER_AVATAR_SPEC.md).
+
 Den aktiva profilen är `mvp-v2`. Båda spelen har rena, direkt testade TypeScript-state-machines i `packages/game-core`. V2 commands, events, snapshots, acknowledgements och table-subscription är Zod-kontrakterade; serveradapter, Supabase Auth, atomisk Postgres-persistens och Socket.IO-leverans är implementerade. Spelar-UI:t återstår att koppla till livekanalen, och fixtures ligger kvar som deterministiskt presentationsunderlag.
 
 ## Beslut om externa spelprojekt
