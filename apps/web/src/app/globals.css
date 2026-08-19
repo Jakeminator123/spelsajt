@@ -246,6 +246,11 @@ p {
   font-size: 12px;
 }
 
+.ghost-button.compact {
+  padding: 9px 18px;
+  font-size: 12px;
+}
+
 .ghost-button {
   background: transparent;
   border: 1px solid var(--line-strong);

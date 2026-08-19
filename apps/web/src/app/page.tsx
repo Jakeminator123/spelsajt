@@ -98,6 +98,7 @@ export default function HomePage() {
           <span className="balance-chip" aria-label="Presentationsdemo med play money">
             <i /> DEMO <small>PLAY ONLY</small>
           </span>
+          <Link className="ghost-button compact" href="/konto">Konto</Link>
           <a className="primary-button compact" href="#games">Se spelen</a>
         </div>
       </header>

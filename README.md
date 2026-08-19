@@ -64,6 +64,8 @@ pnpm db:verify
 - [Historiska MVP-regler v1](docs/rulesets/mvp-v1.md)
 - [Engineeringavtal och source of truth](docs/ENGINEERING.md)
 - [Spelmotor, 3D-avatarer och AI](docs/PRESENTATION_AI.md)
+- [Kom-ihåg-material och arbetsspecifikationer](övrigt/README.md)
+- [Specifikation för eventstyrd dealeravatar med OpenAI-personlighet](övrigt/DEALER_AVATAR_SPEC.md)
 - Den delbara PDF-versionen genereras i `output/pdf/`.
 
 ## Deploy

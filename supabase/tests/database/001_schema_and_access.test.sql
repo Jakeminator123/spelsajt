@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, public;
 
-select plan(35);
+select plan(37);
 
 select has_schema('game_private', 'server-only schema exists');
 select has_table('public', 'profiles', 'public profile table exists');
@@ -51,8 +51,8 @@ select results_eq(
 select policies_are(
   'public',
   'profiles',
-  array['profiles_select_own', 'profiles_update_own'],
-  'profiles exposes only the two owner policies'
+  array['profiles_insert_own', 'profiles_select_own', 'profiles_update_own'],
+  'profiles exposes only the three owner policies'
 );
 
 select ok(
@@ -76,8 +76,8 @@ select ok(
   'authenticated can update profiles subject to RLS'
 );
 select ok(
-  not has_table_privilege('authenticated', 'public.profiles', 'insert'),
-  'authenticated cannot insert profiles directly'
+  has_table_privilege('authenticated', 'public.profiles', 'insert'),
+  'authenticated can insert a profile subject to RLS'
 );
 select ok(
   not has_table_privilege('authenticated', 'public.profiles', 'delete'),
@@ -132,7 +132,9 @@ select ok(
 insert into auth.users (id, email)
 values
   ('10000000-0000-4000-8000-000000000001', 'owner-one@example.test'),
-  ('10000000-0000-4000-8000-000000000002', 'owner-two@example.test');
+  ('10000000-0000-4000-8000-000000000002', 'owner-two@example.test'),
+  ('10000000-0000-4000-8000-000000000003', 'owner-three@example.test'),
+  ('10000000-0000-4000-8000-000000000004', 'owner-four@example.test');
 
 insert into public.profiles (user_id, display_name)
 values
@@ -157,6 +159,28 @@ select results_eq(
   $$,
   $$select null::uuid where false$$,
   'an authenticated user cannot update another profile'
+);
+
+select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000003', true);
+
+select results_eq(
+  $$
+    insert into public.profiles (user_id, display_name)
+    values ('10000000-0000-4000-8000-000000000003', 'Spelare tre')
+    returning user_id
+  $$,
+  $$values ('10000000-0000-4000-8000-000000000003'::uuid)$$,
+  'an authenticated user can create their own profile'
+);
+
+select throws_ok(
+  $$
+    insert into public.profiles (user_id, display_name)
+    values ('10000000-0000-4000-8000-000000000004', 'Fel ägare')
+  $$,
+  '42501',
+  'new row violates row-level security policy for table "profiles"',
+  'an authenticated user cannot create another user profile'
 );
 
 reset role;
