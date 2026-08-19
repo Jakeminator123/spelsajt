@@ -4,6 +4,7 @@ import {
   chooseInitialAnimation,
   formatBytes,
   friendlyAnimationName,
+  isTransientModelUrl,
   resolveDealerLabPoseMappings,
   runtimeAnimationName,
 } from "./dealer-lab-utils";
@@ -30,6 +31,12 @@ describe("dealer lab utilities", () => {
       .toBe("Armature · clip0 · baselayer");
     expect(runtimeAnimationName("Armature|Idle_11|baselayer")).toBe("Idle_11");
     expect(runtimeAnimationName("Walking")).toBe("Walking");
+  });
+
+  it("only treats browser object URLs as transient model assets", () => {
+    expect(isTransientModelUrl("blob:https://example.test/dealer-v1")).toBe(true);
+    expect(isTransientModelUrl("/models/dealer/dealer-v001.glb")).toBe(false);
+    expect(isTransientModelUrl("https://cdn.example.test/dealer.glb")).toBe(false);
   });
 
   it("resolves the runtime poses without pretending missing clips exist", () => {

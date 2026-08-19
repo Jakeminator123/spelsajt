@@ -22,6 +22,7 @@ import {
   Object3D,
   SkeletonHelper,
   SkinnedMesh,
+  Texture,
   Vector3,
 } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -32,6 +33,7 @@ import { sceneVisualIntents } from "../scene/visual-intents";
 import {
   formatBytes,
   friendlyAnimationName,
+  isTransientModelUrl,
   resolveDealerLabPoseMappings,
   runtimeAnimationName,
 } from "./dealer-lab-utils";
@@ -263,6 +265,41 @@ function inspectModel(scene: Object3D, animations: readonly AnimationClip[]): Mo
   };
 }
 
+function disposeTransientModelResources(scene: Object3D): void {
+  const materials = new Set<Material>();
+  const skeletons = new Set<SkinnedMesh["skeleton"]>();
+  const textures = new Set<Texture>();
+
+  scene.traverse((object) => {
+    if (!(object instanceof Mesh)) {
+      return;
+    }
+    object.geometry.dispose();
+    const meshMaterials = Array.isArray(object.material) ? object.material : [object.material];
+    for (const material of meshMaterials) {
+      materials.add(material);
+    }
+    if (object instanceof SkinnedMesh) {
+      skeletons.add(object.skeleton);
+    }
+  });
+
+  for (const material of materials) {
+    for (const value of Object.values(material)) {
+      if (value instanceof Texture) {
+        textures.add(value);
+      }
+    }
+    material.dispose();
+  }
+  for (const texture of textures) {
+    texture.dispose();
+  }
+  for (const skeleton of skeletons) {
+    skeleton.dispose();
+  }
+}
+
 function CameraRig({ preset }: { preset: CameraPreset }) {
   const camera = useThree((state) => state.camera);
   const definition = CAMERA_PRESETS[preset];
@@ -376,6 +413,27 @@ function DealerModel({
     : 1;
   const skeleton = useMemo(() => new SkeletonHelper(scene), [scene]);
   const { actions } = useAnimations(animations, scene);
+  const transientCleanupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (transientCleanupTimer.current !== null) {
+      clearTimeout(transientCleanupTimer.current);
+      transientCleanupTimer.current = null;
+    }
+    if (!isTransientModelUrl(url)) {
+      return;
+    }
+
+    return () => {
+      // Delay disposal by one task so React Strict Mode can remount and cancel
+      // its development-only effect cleanup without invalidating the live scene.
+      transientCleanupTimer.current = setTimeout(() => {
+        useLoader.clear(GLTFLoader, modelUrls);
+        disposeTransientModelResources(scene);
+        transientCleanupTimer.current = null;
+      }, 0);
+    };
+  }, [modelUrls, scene, url]);
 
   useEffect(() => {
     onReady(stats);

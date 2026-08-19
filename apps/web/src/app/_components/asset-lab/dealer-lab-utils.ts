@@ -132,6 +132,10 @@ export function formatBytes(bytes: number): string {
   })} ${units[unitIndex]}`;
 }
 
+export function isTransientModelUrl(url: string): boolean {
+  return url.startsWith("blob:");
+}
+
 export function friendlyAnimationName(name: string): string {
   return name.replaceAll("_", " ").replaceAll("|", " · ");
 }
