@@ -11,6 +11,11 @@ const navLinks = [
   { label: "Under huven", href: "#architecture" },
 ];
 
+const playerAccountUrl = (
+  process.env.NEXT_PUBLIC_PLAYER_ACCOUNT_URL
+  ?? (process.env.NODE_ENV === "development" ? "http://localhost:3001" : "/konto")
+).replace(/\/$/, "") || "/konto";
+
 const games = [
   {
     title: "Blackjack",
@@ -99,6 +104,13 @@ export default function HomePage() {
             <i /> DEMO <small>PLAY ONLY</small>
           </span>
           <Link className="ghost-button compact" href="/konto">Konto</Link>
+          <a
+            aria-label="Öppna den fristående kontoappen för MVP-test"
+            className="ghost-button compact"
+            href={playerAccountUrl}
+          >
+            Test-login
+          </a>
           <a className="primary-button compact" href="#games">Se spelen</a>
         </div>
       </header>
