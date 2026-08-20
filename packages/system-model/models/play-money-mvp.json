@@ -19,6 +19,20 @@
       "summary": "Spelbara /blackjack- och /roulette-ytor återanvänder anonym Supabase-session, skickar validerade revisionslåsta v2-commands och återankrar från auktoritativa snapshots utan att beräkna utfall lokalt."
     },
     {
+      "id": "node.player-avatar",
+      "label": "Privat Meshy-spelaravatar",
+      "lane": "presentation",
+      "owner": "shared",
+      "source": "apps/web/src/app/api/player-avatar/route.ts",
+      "maturity": {
+        "runtime": "implemented",
+        "contract": "ad-hoc",
+        "verification": "partial",
+        "lifecycle": "active"
+      },
+      "summary": "En feature-gated serverpipeline sanerar utan att spara originalselfien, driver Meshy Image-to-3D, riggning och fem fasta animationer, validerar självförsörjande GLB och kopierar resultatet till privat Vercel Blob. Supabase RLS, HMAC-bundna jobb och en atomisk kostnadsspärr isolerar ägare; livebord och 3D-labb har procedur- och textfallback. Standardflaggan är av tills ett Meshy-avtal uttryckligen tillåter personidentifierande input."
+    },
+    {
       "id": "node.command-api",
       "label": "Command API",
       "lane": "server",
@@ -161,6 +175,8 @@
   ],
   "connections": [
     { "from": "node.web-controls", "to": "node.command-api", "label": "GameCommand v2" },
+    { "from": "node.account-view", "to": "node.player-avatar", "label": "sanerad selfie och samtycke" },
+    { "from": "node.player-avatar", "to": "node.scene", "label": "privat riggad spelar-GLB" },
     { "from": "node.command-api", "to": "node.game-core", "label": "validerad avsikt" },
     { "from": "node.fairness", "to": "node.game-core", "label": "deterministiska bytes" },
     { "from": "node.game-core", "to": "node.ledger", "label": "ledger intent" },

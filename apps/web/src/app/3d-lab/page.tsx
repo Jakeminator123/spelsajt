@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import { DealerLabLoader } from "../_components/asset-lab/dealer-lab-loader";
 import { LAB_ASSETS, type LabAsset } from "../_components/asset-lab/lab-assets";
+import { PlayerAvatarLab } from "../_components/player-avatar/player-avatar-lab";
 import styles from "./three-d-lab.module.css";
 
 export const metadata: Metadata = {
@@ -49,6 +50,8 @@ export default function ThreeDLabPage() {
         <span>LABB</span>
         <p>Den här sidan granskar visuella tillgångar och spelar lokala, Zod-validerade eventinspelningar. Den ansluter inte till game-servern och kan aldrig välja kort, utfall eller saldo.</p>
       </div>
+
+      <PlayerAvatarLab />
 
       <DealerLabLoader assets={localLabAssets()} />
     </main>

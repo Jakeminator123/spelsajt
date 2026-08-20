@@ -28,6 +28,7 @@ flowchart LR
     ACCOUNT_UI["Spelarkonto /konto"]
     PLAN["Reaction Planner (implementerad frontend)"]
     SCENE["Eventstyrd text/3D-scen (implementerad)"]
+    AVATAR["Privat Meshy-spelaravatar (feature-gated)"]
     VERIFY["Fairness-verifierare"]
 
     UI -->|"GameCommandV2"| API
@@ -39,6 +40,8 @@ flowchart LR
     TX -->|"committat resultat"| EVENTS
     EVENTS -->|"GameEventV2"| PLAN
     PLAN -->|"lokalt presentation intent"| SCENE
+    UI -->|"sanerad selfie + samtycke"| AVATAR
+    AVATAR -->|"privat riggad GLB"| SCENE
     EVENTS -->|"seed och runddata"| VERIFY
 ```
 
@@ -61,6 +64,7 @@ Backend avgör alltid state, utfall, payout och saldo. Frontend skickar endast s
 | Atomisk command- och settlementtjänst | Implementerad och direkt integrationstestad | Supabase Auth verifierar bearer-token; användare isoleras per bord och Postgres-adaptern committar wallet, state, fairness, ledger intents, events och command receipt i en låst transaktion. Command- och snapshotvägar hydraterar endast aktuell state, och idempotens laddar bara receipten för aktuellt command-id. Produktionsruntime har validerade tak för anslutning och statement/query; CI låser en riktig command-transaktion, verifierar timeout och återanvänder repositoryt. In-memory-adaptern finns kvar för test/utveckling. |
 | `game.event` och snapshots över realtime | Implementerade och direkt testade | En verifierad socket prenumererar med `table.subscribe`, får ett validerat snapshot som sekvensankare och därefter endast events som publicerats efter repository-commit. Eventintervall återläses med `(table_id, sequence)` som cursor i sidor om högst 128 rader; HTTP-publicering och gap-reparation fortsätter tills hela målsekvensen levererats. Transaktionell Postgres `NOTIFY` med återläsning levererar över serverinstanser. Om relän faller blir instansen oreado, befintliga sockets kopplas ned och nya nekas; servern skapar en ny begränsad LISTEN-anslutning, och reconnect återankrar från hållbar Postgres-state innan nya cross-instance-events levereras. |
 | Webbpresentation | Livekopplad och direkt testad | `/blackjack` och `/roulette` skapar eller återställer en anonym Supabase-session, skickar validerade v2-commands, återankrar från snapshots och projicerar Socket.IO-events i samma responsiva 3D-/textscen. Samtliga 24 deklarerade cues har explicita visuella intents för croupier, bord, fokus och marker, med textfallback och reduced-motion-läge. Presentationen återger endast backendens semantiska utfall. |
+| Personlig spelaravatar | Implementerad bakom avtalsspärr, delvis verifierad | `/konto` sanerar en helkroppsbild utan att lagra originalet och driver en återupptagbar serverpipeline genom Meshy Image-to-3D, riggning och fem fasta animationer. Självförsörjande GLB-filer valideras och kopieras till privat Vercel Blob; Supabase RLS isolerar metadata och en atomisk kostnadsspärr begränsar starter. Livebord och `/3d-lab` läser ägarens privata idle-GLB med procedurfallback. `MESHY_SELFIE_ENABLED` är av som standard eftersom Meshys standardvillkor förbjuder personidentifierande Customer Input; aktivering kräver ett uttryckligt avtalstillägg. Se [personliga spelaravatarer](PLAYER_AVATARS.md). |
 | Spelarkonto | Implementerad i en webbyta, extern OAuth ej driftverifierad | `/konto` i `apps/web` använder Supabase för gäst-/Google-identitet och ägarisolerad profil. Saldo, statistik och senaste rundor kommer från game-serverns bearer-skyddade `GET /v2/account/summary`, som läser auktoritativ wallet och committade settlements i `game_private` och returnerar `AccountSummaryV2`. `apps/player-account` är en pensionerad designprototyp och ska inte deployas. Produktionens profil-RLS, manual identity linking samt produktions-/lokala redirect-URL:er är verifierade; Google-providercredentials och hosted OAuth E2E återstår. |
 | `/system` | Dokumentationsyta | Visar den validerade systemmodellen; den är inte ett spel eller driftbevis. |
 
@@ -174,6 +178,10 @@ Animationer reagerar på `GameEventV2`, inte på en endpoint per animation. Fron
 | `round.settled` | Visa slutresultat, nytt saldo och verifieringsmöjlighet. | Settle:a eller ändra saldo i frontend. |
 
 AI ligger efter Reaction Planner och är valfri. Den får förfina en godkänd ton eller replik, men spelögonblicket får inte vänta på modellen och AI får aldrig välja command, RNG, regler, payout, saldo, kort, pocket eller godtycklig animation. Den tekniska riktningen finns i [Spelmotor, 3D-avatarer och AI](PRESENTATION_AI.md).
+
+Spelaravataren är en separat kosmetisk input. Den deltar inte i Reaction Planner,
+game events eller snapshots och kan alltid ersättas av en initialfigur eller textfallback.
+Integritets-, provider- och lagringsavtalet finns i [Personliga spelaravatarer](PLAYER_AVATARS.md).
 
 ## Visuell baseline och branchgräns
 
