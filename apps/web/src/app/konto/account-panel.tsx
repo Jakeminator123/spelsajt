@@ -17,6 +17,7 @@ import {
 } from "./account-profile";
 import { AccountDashboard, type AccountSummaryPhase } from "./account-dashboard";
 import { fetchAccountSummary } from "./account-summary";
+import { PlayerAvatarSetup } from "./player-avatar-setup";
 import styles from "./account.module.css";
 
 interface ProfileRow {
@@ -366,6 +367,8 @@ export function AccountPanel() {
       />
 
       <div className={styles.settingsGrid}>
+        <PlayerAvatarSetup accessToken={session.access_token} isGuest={isGuest} />
+
         <section className={styles.settingsCard} id="profil">
           <div className={styles.cardHeading}>
             <div>

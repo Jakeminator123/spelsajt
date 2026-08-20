@@ -9,6 +9,7 @@ import { clamp01, easeOutCubic, lerp } from "./scene/animation";
 import { Croupier } from "./scene/croupier";
 import { DummyHeroCards } from "./scene/dummy-card-decoration";
 import { PlayingCard } from "./scene/playing-card";
+import { GeneratedPlayerAvatar } from "./scene/generated-player-avatar";
 import {
   type PresentationCard,
   type PresentationStage,
@@ -48,6 +49,11 @@ const ROULETTE_COLOUR_LABELS = {
   green: "grön",
   red: "röd",
 } as const;
+
+export interface PlayerAvatarPresentation {
+  readonly displayName: string;
+  readonly modelUrl: string | null;
+}
 
 function DealtCard({
   card,
@@ -191,6 +197,7 @@ function CameraRig() {
 function Scene({
   cards,
   chipPosition,
+  playerAvatar,
   resultPocket,
   roulettePhase,
   rouletteTransitionKey,
@@ -202,6 +209,7 @@ function Scene({
 }: {
   cards: readonly PresentationCard[];
   chipPosition: [number, number, number];
+  playerAvatar: PlayerAvatarPresentation | null;
   resultPocket: number | null;
   roulettePhase: RouletteVisualPhase;
   rouletteTransitionKey: string;
@@ -241,6 +249,17 @@ function Scene({
           position={chipPosition}
         />
       ) : null}
+      {playerAvatar ? (
+        <GeneratedPlayerAvatar
+          active={visualIntent.focus === "player"}
+          identity={{ displayName: playerAvatar.displayName }}
+          modelUrl={playerAvatar.modelUrl}
+          position={showRouletteWheel
+            ? [3.05, FELT_TOP - 0.01, 1.25]
+            : [-2.95, FELT_TOP - 0.01, 1.2]}
+          reduceMotion={false}
+        />
+      ) : null}
       <Croupier pose={visualIntent.pose} position={[1.8, FELT_TOP, -1.15]} reduceMotion={false} />
       <ContactShadows blur={2.8} color="#04060a" far={2.2} opacity={0.5} position={[0, FELT_TOP + 0.001, 0]} resolution={512} scale={12} />
       <Environment resolution={256}>
@@ -265,8 +284,9 @@ function stageDataPhase(stage: PresentationStage): string {
   return stage;
 }
 
-export function CasinoScene({ game, source = "recorded-demo" }: {
+export function CasinoScene({ game, playerAvatar = null, source = "recorded-demo" }: {
   game?: "blackjack" | "roulette";
+  playerAvatar?: PlayerAvatarPresentation | null;
   source?: "live" | "recorded-demo";
 }) {
   const [reduceMotion, setReduceMotion] = useState<boolean | null>(null);
@@ -355,6 +375,9 @@ export function CasinoScene({ game, source = "recorded-demo" }: {
           <span>{source === "live" ? "LIVEBORD · REDUCERAD RÖRELSE" : "INSPELAD DEMO · REDUCERAD RÖRELSE"}</span>
           <strong>{fallback}</strong>
           {result ? <small>Vinnande nummer: {result.pocket} {ROULETTE_COLOUR_LABELS[result.colour]}.</small> : null}
+          {playerAvatar ? (
+            <small>Spelaravatar: {playerAvatar.displayName} · {playerAvatar.modelUrl ? "privat riggad GLB" : "initialfallback"}.</small>
+          ) : null}
         </div>
       </div>
     );
@@ -373,6 +396,7 @@ export function CasinoScene({ game, source = "recorded-demo" }: {
         <Scene
           cards={presentation.cards}
           chipPosition={chipPosition}
+          playerAvatar={playerAvatar}
           resultPocket={result?.pocket ?? null}
           roulettePhase={roulettePhase}
           rouletteTransitionKey={rouletteTransitionKey}

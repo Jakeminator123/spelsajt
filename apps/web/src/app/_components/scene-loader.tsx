@@ -3,6 +3,8 @@
 import dynamic from "next/dynamic";
 import { useEffect, useRef } from "react";
 
+import type { PlayerAvatarPresentation } from "./casino-scene";
+
 const CasinoScene = dynamic(
   () => import("./casino-scene").then((module) => module.CasinoScene),
   {
@@ -11,8 +13,9 @@ const CasinoScene = dynamic(
   },
 );
 
-export function SceneLoader({ game, source = "recorded-demo" }: {
+export function SceneLoader({ game, playerAvatar = null, source = "recorded-demo" }: {
   game?: "blackjack" | "roulette";
+  playerAvatar?: PlayerAvatarPresentation | null;
   source?: "live" | "recorded-demo";
 }) {
   const shellRef = useRef<HTMLDivElement | null>(null);
@@ -56,7 +59,7 @@ export function SceneLoader({ game, source = "recorded-demo" }: {
     >
       <span aria-hidden="true" className="scene-glow scene-glow-a" />
       <span aria-hidden="true" className="scene-glow scene-glow-b" />
-      <CasinoScene game={game} source={source} />
+      <CasinoScene game={game} playerAvatar={playerAvatar} source={source} />
       <div className="scene-caption">
         <span><i /> {source === "live" ? "LIVEBORD" : "INSPELAD DEMO"}</span>
         <strong>{source === "live" ? "Auktoritativa v2-events" : "V2-events · inspelat resultat"}</strong>

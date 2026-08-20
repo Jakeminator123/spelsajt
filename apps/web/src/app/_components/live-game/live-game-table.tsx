@@ -12,6 +12,11 @@ import Link from "next/link";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 
 import { SceneLoader } from "../scene-loader";
+import type { PlayerAvatarPresentation } from "../casino-scene";
+import {
+  downloadPlayerAvatarAssetUrl,
+  getPlayerAvatarStatus,
+} from "../player-avatar/avatar-client";
 import { presentationStore } from "../scene/presentation";
 import {
   connectGameRealtime,
@@ -63,6 +68,10 @@ const gameCopy = {
 
 export function LiveGameTable({ game }: { game: GameName }) {
   const [state, dispatch] = useReducer(reduceLiveGameState, initialLiveGameState);
+  const [playerAvatar, setPlayerAvatar] = useState<PlayerAvatarPresentation>({
+    displayName: "Spelare",
+    modelUrl: null,
+  });
   const configurationRef = useRef<PublicGameConfiguration | null>(null);
   const accessTokenRef = useRef<string | null>(null);
   const tableIdRef = useRef<string | null>(null);
@@ -73,6 +82,7 @@ export function LiveGameTable({ game }: { game: GameName }) {
   useEffect(() => {
     let active = true;
     let stopAuthListener: (() => void) | null = null;
+    let avatarObjectUrl: string | null = null;
     presentationStore.reset();
     const configuration = publicGameConfiguration();
     configurationRef.current = configuration;
@@ -90,6 +100,30 @@ export function LiveGameTable({ game }: { game: GameName }) {
         const session = await ensurePlaySession(client);
         if (!active) return;
         accessTokenRef.current = session.access_token;
+        void (async () => {
+          try {
+            const profile = await client
+              .from("profiles")
+              .select("display_name")
+              .eq("user_id", session.user.id)
+              .maybeSingle<{ display_name: string }>();
+            if (profile.error) throw profile.error;
+            const displayName = profile.data?.display_name ?? "Spelare";
+            if (active) setPlayerAvatar({ displayName, modelUrl: null });
+            if (session.user.is_anonymous) return;
+            const avatarStatus = await getPlayerAvatarStatus(session.access_token);
+            if (!avatarStatus.modelAvailable) return;
+            const modelUrl = await downloadPlayerAvatarAssetUrl(session.access_token, "idle");
+            if (!active) {
+              URL.revokeObjectURL(modelUrl);
+              return;
+            }
+            avatarObjectUrl = modelUrl;
+            setPlayerAvatar({ displayName, modelUrl });
+          } catch {
+            // Cosmetic avatar presentation must never block the authoritative game flow.
+          }
+        })();
         const tableId = tableIdForUser(game, session.user.id);
         tableIdRef.current = tableId;
         const snapshot = await getGameSnapshot({
@@ -187,6 +221,8 @@ export function LiveGameTable({ game }: { game: GameName }) {
       accessTokenRef.current = null;
       tableIdRef.current = null;
       roundEventsRef.current = [];
+      if (avatarObjectUrl) URL.revokeObjectURL(avatarObjectUrl);
+      setPlayerAvatar({ displayName: "Spelare", modelUrl: null });
       presentationStore.reset();
     };
   }, [game]);
@@ -353,6 +389,7 @@ export function LiveGameTable({ game }: { game: GameName }) {
           <Link aria-current={game === "roulette" ? "page" : undefined} href="/roulette">
             Roulette
           </Link>
+          <Link href="/konto">Avatar</Link>
           <Link href="/system">System</Link>
         </nav>
         <span className={styles.connection} data-status={state.connection}>
@@ -375,7 +412,7 @@ export function LiveGameTable({ game }: { game: GameName }) {
 
       <div className={styles.tableGrid}>
         <section className={styles.scenePanel} aria-label="Livepresentation från serverevents">
-          <SceneLoader game={game} source="live" />
+          <SceneLoader game={game} playerAvatar={playerAvatar} source="live" />
         </section>
 
         <section className={styles.controls} aria-busy={state.pendingCommand}>
